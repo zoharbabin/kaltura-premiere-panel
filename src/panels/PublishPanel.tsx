@@ -9,11 +9,22 @@ import { createLogger } from "../utils/logger";
 
 const log = createLogger("PublishPanel");
 
+/** Duck-typed PublishWorkflowService for multi-destination, approval, and scheduling */
+interface PublishWorkflowServiceLike {
+  publishToCategories(
+    entryId: string,
+    categoryIds: number[],
+  ): Promise<{ successful: number[]; failed: { categoryId: number; error: string }[] }>;
+  schedulePublish(entryId: string, startDate: number, endDate?: number): Promise<unknown>;
+  submitForApproval(entryId: string): Promise<unknown>;
+}
+
 interface PublishPanelProps {
   mediaService: MediaService;
   uploadService: UploadService;
   metadataService: MetadataService;
   premiereService: PremiereService;
+  publishWorkflowService?: PublishWorkflowServiceLike;
   onPublished: (entry: KalturaMediaEntry) => void;
 }
 
@@ -25,13 +36,15 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   uploadService,
   metadataService,
   premiereService,
+  publishWorkflowService,
   onPublished,
 }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [categories, setCategories] = useState<KalturaCategory[]>([]);
+  const [scheduledDate, setScheduledDate] = useState("");
   const [publishMode, setPublishMode] = useState<PublishMode>("new");
   const [existingEntryId, setExistingEntryId] = useState("");
   const [phase, setPhase] = useState<PublishPhase>("form");
@@ -77,8 +90,8 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           tags: tags.trim(),
           mediaType: KalturaMediaType.VIDEO,
         };
-        if (selectedCategoryId) {
-          entryData.categoriesIds = String(selectedCategoryId);
+        if (selectedCategoryIds.length === 1) {
+          entryData.categoriesIds = String(selectedCategoryIds[0]);
         }
 
         const entry = await mediaService.add(entryData);
@@ -87,14 +100,25 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         // Step 2: Create upload token
         setProgress({ progress: 10, phase: "uploading", message: "Preparing upload..." });
         const token = await uploadService.createToken();
+        log.info("Upload token created", { tokenId: token.id });
 
-        // Step 3: In real UXP, export sequence then upload.
-        // For now, the publish flow creates entry + token.
+        // Step 3: Multi-category assignment via workflow service
+        if (publishWorkflowService && selectedCategoryIds.length > 1) {
+          setProgress({ progress: 60, phase: "processing", message: "Assigning categories..." });
+          await publishWorkflowService.publishToCategories(entry.id, selectedCategoryIds);
+        }
+
+        // Step 4: Schedule if a date is set
+        if (publishWorkflowService && scheduledDate) {
+          setProgress({ progress: 80, phase: "processing", message: "Scheduling publish..." });
+          const startDate = Math.floor(new Date(scheduledDate).getTime() / 1000);
+          await publishWorkflowService.schedulePublish(entry.id, startDate);
+        }
+
         setPhase("complete");
         setProgress({ progress: 100, phase: "complete", message: "Entry created!" });
         setPublishedEntry(entry);
         onPublished(entry);
-        log.info("Publish complete", { entryId: entry.id, tokenId: token.id });
       } else {
         // Update existing entry
         setPhase("processing");
@@ -121,11 +145,13 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     title,
     description,
     tags,
-    selectedCategoryId,
+    selectedCategoryIds,
+    scheduledDate,
     publishMode,
     existingEntryId,
     mediaService,
     uploadService,
+    publishWorkflowService,
     onPublished,
   ]);
 
@@ -137,7 +163,8 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     setTitle("");
     setDescription("");
     setTags("");
-    setSelectedCategoryId(null);
+    setSelectedCategoryIds([]);
+    setScheduledDate("");
     setExistingEntryId("");
   }, []);
 
@@ -294,26 +321,62 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           />
         </div>
 
-        {/* Category picker */}
+        {/* Multi-category selector */}
         {categories.length > 0 && (
           <div>
-            <sp-detail size="S">Category</sp-detail>
-            <sp-picker
-              size="s"
-              value={selectedCategoryId?.toString() ?? ""}
-              onChange={(e: Event) => {
-                const val = (e.target as HTMLSelectElement).value;
-                setSelectedCategoryId(val ? parseInt(val) : null);
+            <sp-detail size="S">
+              Categories{selectedCategoryIds.length > 0 ? ` (${selectedCategoryIds.length})` : ""}
+            </sp-detail>
+            <div
+              style={{
+                maxHeight: "120px",
+                overflowY: "auto",
+                border: "1px solid var(--spectrum-global-color-gray-300)",
+                borderRadius: "4px",
+                padding: "4px",
               }}
-              style={{ width: "100%" }}
             >
-              <sp-menu-item value="">None</sp-menu-item>
               {categories.map((cat) => (
-                <sp-menu-item key={cat.id} value={String(cat.id)}>
+                <label
+                  key={cat.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "2px 4px",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCategoryIds.includes(cat.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedCategoryIds((prev) => [...prev, cat.id]);
+                      } else {
+                        setSelectedCategoryIds((prev) => prev.filter((id) => id !== cat.id));
+                      }
+                    }}
+                  />
                   {cat.fullName || cat.name}
-                </sp-menu-item>
+                </label>
               ))}
-            </sp-picker>
+            </div>
+          </div>
+        )}
+
+        {/* Scheduled publish */}
+        {publishWorkflowService && (
+          <div>
+            <sp-detail size="S">Schedule (optional)</sp-detail>
+            <sp-textfield
+              type="datetime-local"
+              value={scheduledDate}
+              onInput={(e: Event) => setScheduledDate((e.target as HTMLInputElement).value)}
+              style={{ width: "100%" }}
+              placeholder="Leave empty to publish immediately"
+            />
           </div>
         )}
       </div>
