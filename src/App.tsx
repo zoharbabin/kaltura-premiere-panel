@@ -17,6 +17,7 @@ import {
   PublishWorkflowService,
   SearchService,
   AuditService,
+  OfflineService,
 } from "./services";
 import { useAuth } from "./hooks";
 import {
@@ -73,6 +74,7 @@ export const App: React.FC = () => {
   );
   const searchService = useMemo(() => new SearchService(client), [client]);
   const auditService = useMemo(() => new AuditService(client), [client]);
+  const offlineService = useMemo(() => new OfflineService(), []);
 
   const { authState, login, loginWithSso, cancelSso, logout, isLoading, error, clearError } =
     useAuth(client, authService);
@@ -192,6 +194,7 @@ export const App: React.FC = () => {
             searchService={searchService}
             batchService={batchService}
             auditService={auditService}
+            offlineService={offlineService}
             partnerId={authState.partnerId}
             userId={authState.user?.id}
             isImported={(id) => premiereService.isImported(id)}
