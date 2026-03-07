@@ -59,7 +59,10 @@ function verifyBuild() {
   console.log(`  Plugin: ${manifest.name}`);
   console.log(`  Version: ${manifest.version}`);
   console.log(`  ID: ${manifest.id}`);
-  console.log(`  Host: ${manifest.host.app} >= ${manifest.host.minVersion}`);
+  const hosts = Array.isArray(manifest.host) ? manifest.host : [manifest.host];
+  for (const h of hosts) {
+    console.log(`  Host: ${h.app} >= ${h.minVersion}`);
+  }
 
   // Validate manifest schema
   const errors = validateManifest(manifest);
@@ -79,8 +82,12 @@ function validateManifest(manifest) {
   if (!manifest.name) errors.push("Missing plugin name");
   if (!manifest.version) errors.push("Missing version");
   if (!manifest.main) errors.push("Missing main entry point");
-  if (!manifest.host || !manifest.host.app) errors.push("Missing host.app");
-  if (!manifest.host || !manifest.host.minVersion) errors.push("Missing host.minVersion");
+  const hostArr = Array.isArray(manifest.host) ? manifest.host : manifest.host ? [manifest.host] : [];
+  if (hostArr.length === 0) errors.push("Missing host configuration");
+  for (const h of hostArr) {
+    if (!h.app) errors.push("Missing host.app");
+    if (!h.minVersion) errors.push("Missing host.minVersion");
+  }
   if (!manifest.entrypoints || manifest.entrypoints.length === 0) errors.push("No entrypoints defined");
   if (!manifest.requiredPermissions) errors.push("Missing requiredPermissions");
   if (!manifest.icons || manifest.icons.length === 0) errors.push("No icons defined");
@@ -164,6 +171,7 @@ function reportBundleSize() {
 function generateExchangeMetadata(manifest) {
   console.log("\nGenerating Exchange listing metadata...");
 
+  const hosts = Array.isArray(manifest.host) ? manifest.host : [manifest.host];
   const metadata = {
     name: manifest.name,
     version: manifest.version,
@@ -183,15 +191,15 @@ function generateExchangeMetadata(manifest) {
       "- Enterprise governance: content holds, audit trail, DRM",
       "- Proxy workflow for large files",
       "",
-      `Requires Premiere Pro ${manifest.host.minVersion} or later.`,
+      `Requires Premiere Pro, After Effects, or Audition ${hosts[0].minVersion} or later.`,
       "Requires an active Kaltura account.",
     ].join("\n"),
     supportUrl: `https://github.com/${packageJson.repository || "zoharbabin/kaltura-premiere-panel"}/issues`,
     privacyPolicyUrl: "https://corp.kaltura.com/privacy-policy/",
-    compatibility: {
-      host: manifest.host.app,
-      minVersion: manifest.host.minVersion,
-    },
+    compatibility: hosts.map((h) => ({
+      host: h.app,
+      minVersion: h.minVersion,
+    })),
     categories: ["Video", "Collaboration", "Media Management"],
     keywords: ["kaltura", "video", "media", "publishing", "captioning", "analytics"],
   };
@@ -225,7 +233,52 @@ function printInstructions(manifest) {
   console.log("  [ ] exchange-metadata.json reviewed and customized");
   console.log("  [ ] Support URL verified");
   console.log("  [ ] Privacy policy URL verified");
-  console.log(`  [ ] Compatible: Premiere Pro >= ${manifest.host.minVersion}`);
+  const hostsInfo = Array.isArray(manifest.host) ? manifest.host : [manifest.host];
+  for (const h of hostsInfo) {
+    console.log(`  [ ] Compatible: ${h.app} >= ${h.minVersion}`);
+  }
+}
+
+function createCcxPackage(manifest) {
+  if (validateOnly) {
+    console.log("\nSkipping .ccx creation (validate-only mode)");
+    return;
+  }
+
+  console.log("\nCreating .ccx package...");
+
+  // .ccx is a ZIP file with .ccx extension
+  const archiver = (() => {
+    try {
+      return require("archiver");
+    } catch {
+      console.warn("  'archiver' package not installed. Install with: npm install --save-dev archiver");
+      console.warn("  Falling back to manual zip instructions.\n");
+      return null;
+    }
+  })();
+
+  if (!archiver) {
+    console.log("  Manual .ccx creation:");
+    console.log(`  cd dist && zip -r ../kaltura-panel-${manifest.version}.ccx . && cd ..`);
+    return;
+  }
+
+  const outputPath = path.resolve(__dirname, `../kaltura-panel-${manifest.version}.ccx`);
+  const output = fs.createWriteStream(outputPath);
+  const archive = archiver("zip", { zlib: { level: 9 } });
+
+  archive.pipe(output);
+  archive.directory(distDir, false);
+
+  archive.finalize().then(() => {
+    const size = fs.statSync(outputPath).size;
+    const sizeStr =
+      size > 1024 * 1024
+        ? `${(size / 1024 / 1024).toFixed(1)} MB`
+        : `${(size / 1024).toFixed(1)} KB`;
+    console.log(`  Created: ${path.basename(outputPath)} (${sizeStr})`);
+  });
 }
 
 // Main
@@ -233,6 +286,7 @@ const manifest = verifyBuild();
 const hasIcons = verifyIcons();
 reportBundleSize();
 generateExchangeMetadata(manifest);
+createCcxPackage(manifest);
 printInstructions(manifest);
 
 if (!hasIcons) {
