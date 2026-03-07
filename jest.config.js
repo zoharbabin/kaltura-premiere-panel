@@ -1,0 +1,34 @@
+/** @type {import('jest').Config} */
+module.exports = {
+  testEnvironment: "jsdom",
+  transform: {
+    "^.+\\.tsx?$": "ts-jest",
+  },
+  moduleNameMapper: {
+    "^@services/(.*)$": "<rootDir>/src/services/$1",
+    "^@components/(.*)$": "<rootDir>/src/components/$1",
+    "^@panels/(.*)$": "<rootDir>/src/panels/$1",
+    "^@hooks/(.*)$": "<rootDir>/src/hooks/$1",
+    "^@types/(.*)$": "<rootDir>/src/types/$1",
+    "^@utils/(.*)$": "<rootDir>/src/utils/$1",
+    "\\.css$": "<rootDir>/tests/__mocks__/styleMock.js",
+  },
+  setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
+  testPathIgnorePatterns: ["/node_modules/", "/dist/"],
+  coverageDirectory: "coverage",
+  coverageReporters: ["text", "lcov"],
+  coverageThreshold: {
+    global: {
+      statements: 80,
+      branches: 70,
+      functions: 75,
+      lines: 80,
+    },
+  },
+  collectCoverageFrom: [
+    "src/**/*.{ts,tsx}",
+    "!src/index.tsx",
+    "!src/types/**",
+    "!src/**/index.ts",
+  ],
+};
