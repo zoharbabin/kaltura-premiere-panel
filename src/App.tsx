@@ -11,6 +11,7 @@ import {
   CaptionService,
   NotificationService,
   ReviewService,
+  AnalyticsService,
 } from "./services";
 import { useAuth } from "./hooks";
 import {
@@ -19,6 +20,7 @@ import {
   PublishPanel,
   CaptionsPanel,
   ReviewPanel,
+  AnalyticsPanel,
   SettingsPanel,
 } from "./panels";
 import { StatusBar, LoadingSpinner } from "./components";
@@ -53,6 +55,8 @@ export const App: React.FC = () => {
     () => new ReviewService(client, premiereService),
     [client, premiereService],
   );
+  const analyticsService = useMemo(() => new AnalyticsService(client), [client]);
+
   const { authState, login, logout, isLoading, error, clearError } = useAuth(client, authService);
 
   // Update client when auth changes
@@ -147,6 +151,7 @@ export const App: React.FC = () => {
         <TabButton id="publish" label="Publish" active={activeTab} onClick={setActiveTab} />
         <TabButton id="captions" label="Captions" active={activeTab} onClick={setActiveTab} />
         <TabButton id="review" label="Review" active={activeTab} onClick={setActiveTab} />
+        <TabButton id="analytics" label="Analytics" active={activeTab} onClick={setActiveTab} />
         <TabButton id="settings" label="Settings" active={activeTab} onClick={setActiveTab} />
       </div>
 
@@ -182,6 +187,13 @@ export const App: React.FC = () => {
         {activeTab === "review" && (
           <ReviewPanel
             reviewService={reviewService}
+            entryId={selectedEntryId}
+            entryName={selectedEntryName}
+          />
+        )}
+        {activeTab === "analytics" && (
+          <AnalyticsPanel
+            analyticsService={analyticsService}
             entryId={selectedEntryId}
             entryName={selectedEntryName}
           />

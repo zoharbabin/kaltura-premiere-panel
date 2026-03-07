@@ -20,3 +20,23 @@ export { ReviewService } from "./ReviewService";
 export type { SyncResult, AnnotationThread } from "./ReviewService";
 export { PublishWorkflowService } from "./PublishWorkflowService";
 export type { PublishResult, EntryVersion, PublishPreset } from "./PublishWorkflowService";
+export { AnalyticsService } from "./AnalyticsService";
+export type {
+  EngagementData,
+  EngagementDataPoint,
+  ViewerStats,
+  TopMoment,
+  DropOffPoint,
+} from "./AnalyticsService";
+export { InteractiveService } from "./InteractiveService";
+export type {
+  CuePointType,
+  CuePoint,
+  ChapterData,
+  QuizData,
+  HotspotData,
+  CTAData,
+  LiveRecording,
+} from "./InteractiveService";
+export { BatchService } from "./BatchService";
+export type { MetadataUpdate, BatchResult, CachedEntry, AuditEntry } from "./BatchService";
