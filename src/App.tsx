@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { Suspense, useMemo, useState, useCallback } from "react";
 import { TabId, KalturaMediaEntry, KalturaFlavorAsset } from "./types";
 import {
   KalturaClient,
@@ -17,20 +17,29 @@ import {
   SearchService,
   AuditService,
   OfflineService,
+  ProxyService,
   createHostService,
 } from "./services";
 import { useAuth } from "./hooks";
-import {
-  LoginPanel,
-  BrowsePanel,
-  PublishPanel,
-  CaptionsPanel,
-  ReviewPanel,
-  AnalyticsPanel,
-  InteractivePanel,
-  SettingsPanel,
-} from "./panels";
+import { LoginPanel, BrowsePanel, PublishPanel } from "./panels";
 import { StatusBar, LoadingSpinner } from "./components";
+
+// Lazy-load panels that are not immediately visible on startup
+const CaptionsPanel = React.lazy(() =>
+  import("./panels/CaptionsPanel").then((m) => ({ default: m.CaptionsPanel })),
+);
+const ReviewPanel = React.lazy(() =>
+  import("./panels/ReviewPanel").then((m) => ({ default: m.ReviewPanel })),
+);
+const AnalyticsPanel = React.lazy(() =>
+  import("./panels/AnalyticsPanel").then((m) => ({ default: m.AnalyticsPanel })),
+);
+const InteractivePanel = React.lazy(() =>
+  import("./panels/InteractivePanel").then((m) => ({ default: m.InteractivePanel })),
+);
+const SettingsPanel = React.lazy(() =>
+  import("./panels/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
+);
 import { DEFAULT_SERVICE_URL } from "./utils/constants";
 import { createLogger } from "./utils/logger";
 
@@ -75,6 +84,10 @@ export const App: React.FC = () => {
   );
   const searchService = useMemo(() => new SearchService(client), [client]);
   const auditService = useMemo(() => new AuditService(client), [client]);
+  const proxyService = useMemo(
+    () => new ProxyService(client, mediaService, hostService),
+    [client, mediaService, hostService],
+  );
   const offlineService = useMemo(() => new OfflineService(), []);
 
   const { authState, login, loginWithSso, cancelSso, logout, isLoading, error, clearError } =
@@ -207,6 +220,7 @@ export const App: React.FC = () => {
             batchService={batchService}
             auditService={auditService}
             offlineService={offlineService}
+            proxyService={proxyService}
             partnerId={authState.partnerId}
             userId={authState.user?.id}
             isImported={(id) => hostService.isImported(id)}
@@ -225,48 +239,50 @@ export const App: React.FC = () => {
             onPublished={handlePublished}
           />
         )}
-        {activeTab === "captions" && (
-          <CaptionsPanel
-            captionService={captionService}
-            entryId={selectedEntryId}
-            entryName={selectedEntryName}
-          />
-        )}
-        {activeTab === "review" && (
-          <ReviewPanel
-            reviewService={reviewService}
-            entryId={selectedEntryId}
-            entryName={selectedEntryName}
-          />
-        )}
-        {activeTab === "analytics" && (
-          <AnalyticsPanel
-            analyticsService={analyticsService}
-            entryId={selectedEntryId}
-            entryName={selectedEntryName}
-          />
-        )}
-        {activeTab === "interactive" && (
-          <InteractivePanel
-            interactiveService={interactiveService}
-            premiereService={hostService}
-            entryId={selectedEntryId}
-            entryName={selectedEntryName}
-          />
-        )}
-        {activeTab === "settings" && (
-          <SettingsPanel
-            currentServerUrl={authState.serverUrl}
-            currentPartnerId={authState.partnerId}
-            userName={authState.user?.fullName ?? null}
-            userEmail={authState.user?.email ?? null}
-            hostService={hostService}
-            offlineService={offlineService}
-            auditService={auditService}
-            onLogout={logout}
-            onServerUrlChange={handleServerUrlChange}
-          />
-        )}
+        <Suspense fallback={<LoadingSpinner label="Loading..." />}>
+          {activeTab === "captions" && (
+            <CaptionsPanel
+              captionService={captionService}
+              entryId={selectedEntryId}
+              entryName={selectedEntryName}
+            />
+          )}
+          {activeTab === "review" && (
+            <ReviewPanel
+              reviewService={reviewService}
+              entryId={selectedEntryId}
+              entryName={selectedEntryName}
+            />
+          )}
+          {activeTab === "analytics" && (
+            <AnalyticsPanel
+              analyticsService={analyticsService}
+              entryId={selectedEntryId}
+              entryName={selectedEntryName}
+            />
+          )}
+          {activeTab === "interactive" && (
+            <InteractivePanel
+              interactiveService={interactiveService}
+              premiereService={hostService}
+              entryId={selectedEntryId}
+              entryName={selectedEntryName}
+            />
+          )}
+          {activeTab === "settings" && (
+            <SettingsPanel
+              currentServerUrl={authState.serverUrl}
+              currentPartnerId={authState.partnerId}
+              userName={authState.user?.fullName ?? null}
+              userEmail={authState.user?.email ?? null}
+              hostService={hostService}
+              offlineService={offlineService}
+              auditService={auditService}
+              onLogout={logout}
+              onServerUrlChange={handleServerUrlChange}
+            />
+          )}
+        </Suspense>
       </div>
 
       {/* Status bar */}

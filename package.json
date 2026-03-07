@@ -1,7 +1,7 @@
 {
   "name": "kaltura-premiere-panel",
-  "version": "0.1.0",
-  "description": "Kaltura for Adobe Premiere Pro — Native UXP panel for enterprise video workflow",
+  "version": "1.0.0",
+  "description": "Kaltura for Adobe Creative Cloud — Native UXP panel for enterprise video workflow",
   "private": true,
   "scripts": {
     "dev": "webpack --mode development --watch",
