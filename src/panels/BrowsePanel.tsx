@@ -57,11 +57,24 @@ interface BatchServiceLike {
   ): Promise<{ total: number; successful: number }>;
 }
 
+/** Duck-typed AuditService for access control and DRM info */
+interface AuditServiceLike {
+  getAccessControlProfile(
+    profileId: number,
+  ): Promise<{
+    id: number;
+    name: string;
+    restrictions: { type: string; description: string }[];
+  } | null>;
+  getEntryDrmPolicy(entryId: string): Promise<{ provider: string; licenseUrl?: string }[]>;
+}
+
 interface BrowsePanelProps {
   mediaService: MediaService;
   metadataService: MetadataService;
   searchService?: SearchServiceLike;
   batchService?: BatchServiceLike;
+  auditService?: AuditServiceLike;
   partnerId: number;
   userId?: string;
   isImported: (entryId: string) => boolean;
@@ -80,6 +93,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   metadataService,
   searchService,
   batchService,
+  auditService,
   partnerId,
   userId,
   isImported,
@@ -270,6 +284,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         onFlavorSelect={setSelectedFlavor}
         onQualityCancel={() => setShowQualityPicker(false)}
         onQualityConfirm={handleQualityConfirm}
+        auditService={auditService}
       />
     );
   }
@@ -601,6 +616,7 @@ interface AssetDetailProps {
   onFlavorSelect: (flavor: KalturaFlavorAsset) => void;
   onQualityCancel: () => void;
   onQualityConfirm: () => void;
+  auditService?: AuditServiceLike;
 }
 
 const AssetDetail: React.FC<AssetDetailProps> = ({
@@ -616,8 +632,25 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
   onFlavorSelect,
   onQualityCancel,
   onQualityConfirm,
+  auditService,
 }) => {
   const { entry, flavors, captions } = details;
+
+  const [accessControl, setAccessControl] = useState<{
+    name: string;
+    restrictions: { type: string; description: string }[];
+  } | null>(null);
+  const [drmPolicies, setDrmPolicies] = useState<{ provider: string }[]>([]);
+
+  useEffect(() => {
+    if (!auditService) return;
+    if (entry.accessControlId) {
+      auditService.getAccessControlProfile(entry.accessControlId).then((profile) => {
+        if (profile) setAccessControl({ name: profile.name, restrictions: profile.restrictions });
+      });
+    }
+    auditService.getEntryDrmPolicy(entry.id).then(setDrmPolicies);
+  }, [auditService, entry.accessControlId, entry.id]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "8px" }}>
@@ -713,6 +746,65 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
             </div>
           )}
         </div>
+
+        {/* Access control preview */}
+        {accessControl && (
+          <>
+            <sp-detail size="M">Access Control</sp-detail>
+            <div
+              style={{
+                padding: "8px 0",
+                fontSize: "12px",
+              }}
+            >
+              <div>
+                <strong>Profile:</strong> {accessControl.name}
+              </div>
+              {accessControl.restrictions.length > 0 && (
+                <div style={{ marginTop: "4px" }}>
+                  <strong>Restrictions:</strong>
+                  <ul style={{ margin: "4px 0 0 16px", padding: 0, fontSize: "11px" }}>
+                    {accessControl.restrictions.map((r, i) => (
+                      <li key={i}>{r.description}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* DRM policy indicators */}
+        {drmPolicies.length > 0 && drmPolicies[0].provider !== "none" && (
+          <>
+            <sp-detail size="M">DRM Protection</sp-detail>
+            <div
+              style={{
+                padding: "8px 0",
+                fontSize: "12px",
+                display: "flex",
+                gap: "6px",
+                flexWrap: "wrap",
+              }}
+            >
+              {drmPolicies.map((drm, i) => (
+                <span
+                  key={i}
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: "3px",
+                    backgroundColor: "var(--spectrum-global-color-blue-100)",
+                    color: "var(--spectrum-global-color-blue-700)",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                  }}
+                >
+                  {drm.provider.toUpperCase()}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
 
         {flavors.length > 0 && (
           <>
