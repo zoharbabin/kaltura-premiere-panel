@@ -28,6 +28,7 @@ src/
     CaptionsPanel.tsx         # REACH AI captions: order, translate, track management
     ReviewPanel.tsx           # Annotation review: comments, replies, marker sync
     AnalyticsPanel.tsx        # Viewer stats, top moments, drop-off analysis
+    InteractivePanel.tsx      # Chapters, cue points, marker-to-chapter sync
     SettingsPanel.tsx          # Preferences, cache, about
   components/                 # Shared UI components
     FilterBar.tsx             # Media type, date, owner filters
@@ -142,7 +143,10 @@ docs/                         # Documentation
 - Mock `premierepro` and `uxp` modules globally in `tests/setup.ts`
 - Mock `fetch` globally — never hit live API in CI
 - Test files: `*.test.ts` / `*.test.tsx`
-- Coverage thresholds will increase as more component tests are added
+- 303 tests across 28 suites: 15 service tests, 4 panel tests, 2 component tests, 2 hook tests, 4 utility tests, 1 PremiereService test
+- Panel tests use duck-typed service mocks and React Testing Library
+- Use `renderHook` + `act` for hook tests; `jest.useFakeTimers()` for debounce tests
+- Mock private `sleep` method on AuthService for SSO polling tests (avoids real timeouts)
 
 ### Quality
 
@@ -177,3 +181,34 @@ docs/                         # Documentation
 - Documentation updated
 - No `any` types without justification
 - No `console.log` statements
+
+## Panel Architecture
+
+Panels use duck-typed service interfaces (not concrete service imports) for loose coupling:
+
+```typescript
+interface AnalyticsServiceLike {
+  getViewerStats(entryId: string): Promise<ViewerStats>;
+  // ...
+}
+```
+
+This allows panels to be tested with simple mock objects and prevents circular dependencies.
+
+All panels follow the same pattern:
+
+1. No `entryId` → `<EmptyState>` with guidance
+2. Loading → `<LoadingSpinner>` with descriptive label
+3. Error → `<ErrorBanner>` with dismiss/retry
+4. Loaded → tabbed sub-views with data display and action forms
+
+## Service Wiring (App.tsx)
+
+All 15 services are instantiated in `App.tsx` via `useMemo`:
+
+- `KalturaClient` → base HTTP client
+- `AuthService`, `MediaService`, `UploadService`, `MetadataService` → core CRUD
+- `DownloadService`, `CaptionService`, `NotificationService` → Phase 2
+- `ReviewService`, `PublishWorkflowService` → Phase 3
+- `AnalyticsService`, `InteractiveService`, `BatchService`, `SearchService` → Phase 4
+- `PremiereService` → host API (no Kaltura client dependency)
