@@ -8,9 +8,11 @@ import {
   PremiereService,
   DownloadService,
   MetadataService,
+  CaptionService,
+  NotificationService,
 } from "./services";
 import { useAuth } from "./hooks";
-import { LoginPanel, BrowsePanel, PublishPanel, SettingsPanel } from "./panels";
+import { LoginPanel, BrowsePanel, PublishPanel, CaptionsPanel, SettingsPanel } from "./panels";
 import { StatusBar, LoadingSpinner } from "./components";
 import { DEFAULT_SERVICE_URL } from "./utils/constants";
 import { createLogger } from "./utils/logger";
@@ -20,6 +22,8 @@ const PARTNER_ID = 0; // Set by login
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>("browse");
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [selectedEntryName, setSelectedEntryName] = useState<string | null>(null);
 
   // Initialize services (memoized)
   const client = useMemo(
@@ -35,6 +39,8 @@ export const App: React.FC = () => {
     () => new DownloadService(client, mediaService, premiereService),
     [client, mediaService, premiereService],
   );
+  const captionService = useMemo(() => new CaptionService(client), [client]);
+  const notificationService = useMemo(() => new NotificationService(client), [client]);
 
   const { authState, login, logout, isLoading, error, clearError } = useAuth(client, authService);
 
@@ -45,6 +51,16 @@ export const App: React.FC = () => {
     }
   }, [authState.partnerId, client]);
 
+  // Connect/disconnect notification service with auth state
+  React.useEffect(() => {
+    if (authState.isAuthenticated) {
+      notificationService.connect();
+    } else {
+      notificationService.disconnect();
+    }
+    return () => notificationService.disconnect();
+  }, [authState.isAuthenticated, notificationService]);
+
   const handleServerUrlChange = useCallback(
     (url: string) => {
       client.configure({ serviceUrl: url });
@@ -52,8 +68,9 @@ export const App: React.FC = () => {
     [client],
   );
 
-  const handleSelectEntry = useCallback((_entry: KalturaMediaEntry) => {
-    // Track selected entry for context
+  const handleSelectEntry = useCallback((entry: KalturaMediaEntry) => {
+    setSelectedEntryId(entry.id);
+    setSelectedEntryName(entry.name);
   }, []);
 
   const handleImportEntry = useCallback(
@@ -107,6 +124,7 @@ export const App: React.FC = () => {
       >
         <TabButton id="browse" label="Browse" active={activeTab} onClick={setActiveTab} />
         <TabButton id="publish" label="Publish" active={activeTab} onClick={setActiveTab} />
+        <TabButton id="captions" label="Captions" active={activeTab} onClick={setActiveTab} />
         <TabButton id="settings" label="Settings" active={activeTab} onClick={setActiveTab} />
       </div>
 
@@ -130,6 +148,13 @@ export const App: React.FC = () => {
             metadataService={metadataService}
             premiereService={premiereService}
             onPublished={handlePublished}
+          />
+        )}
+        {activeTab === "captions" && (
+          <CaptionsPanel
+            captionService={captionService}
+            entryId={selectedEntryId}
+            entryName={selectedEntryName}
           />
         )}
         {activeTab === "settings" && (

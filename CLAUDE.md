@@ -21,10 +21,11 @@ plugin/manifest.json          # UXP manifest v5
 src/
   index.tsx                   # UXP entrypoints.setup() + React render
   App.tsx                     # Root: auth gate, tab router, service initialization
-  panels/                     # Tab panels (Browse, Publish, Settings)
+  panels/                     # Tab panels (Browse, Publish, Captions, Settings)
     LoginPanel.tsx            # Email/password + SSO login
     BrowsePanel.tsx           # Asset browser with search, filters, grid/list, detail flyout
     PublishPanel.tsx           # Export + upload workflow
+    CaptionsPanel.tsx         # REACH AI captions: order, translate, track management
     SettingsPanel.tsx          # Preferences, cache, about
   components/                 # Shared UI components
     FilterBar.tsx             # Media type, date, owner filters
@@ -43,6 +44,10 @@ src/
     UploadService.ts          # Chunked resumable uploads
     DownloadService.ts        # Download + import with progress tracking
     MetadataService.ts        # Metadata, tags, categories, custom schemas
+    CaptionService.ts         # REACH captioning/translation, SRT/VTT parsing
+    NotificationService.ts    # WebSocket push notifications with polling fallback
+    SearchService.ts          # eSearch-powered transcript/visual/in-video search
+    ProxyService.ts           # Proxy download for editing, reconnect to original
     PremiereService.ts        # UXP API: sequence, import, markers, mappings
   hooks/                      # React custom hooks
     useAuth.ts                # Auth state management + session restore
@@ -100,6 +105,11 @@ docs/                         # Documentation
 - Client tag: `kaltura-premiere-panel:v{version}`
 - Tag search via `tag.search` for autocomplete
 - Category management via `categoryEntry.add/delete`
+- REACH captioning: `reach_entryVendorTask.add` with `serviceFeature=1` (captions) or `2` (translation)
+- REACH catalog: `reach_vendorCatalogItem.list` to discover available captioning/translation services
+- Caption assets: `caption_captionAsset.list/add/setContent/getUrl` for SRT/VTT/DFXP
+- eSearch: `eSearch.searchEntry` with `KalturaESearchCaptionItem` for transcript search
+- WebSocket notifications via `push.getUrl` with HTTP polling fallback
 
 ### Premiere UXP API
 
