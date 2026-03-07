@@ -41,6 +41,16 @@ function getHoldReason(entry: KalturaMediaEntry): string | null {
   return match ? match[1] : null;
 }
 
+/** Check if entry has an end date that is expiring soon (within 7 days) or expired */
+function getLicenseStatus(entry: KalturaMediaEntry): "expired" | "expiring" | "active" | null {
+  if (!entry.endDate || entry.endDate === 0) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (entry.endDate < now) return "expired";
+  const sevenDays = 7 * 24 * 60 * 60;
+  if (entry.endDate - now < sevenDays) return "expiring";
+  return "active";
+}
+
 /** Duck-typed SearchService for enhanced transcript/in-video search */
 interface SearchServiceLike {
   searchTranscripts(
@@ -59,9 +69,7 @@ interface BatchServiceLike {
 
 /** Duck-typed AuditService for access control and DRM info */
 interface AuditServiceLike {
-  getAccessControlProfile(
-    profileId: number,
-  ): Promise<{
+  getAccessControlProfile(profileId: number): Promise<{
     id: number;
     name: string;
     restrictions: { type: string; description: string }[];
@@ -490,6 +498,42 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
           HOLD
         </div>
       )}
+      {/* License expiry badge */}
+      {getLicenseStatus(entry) === "expired" && (
+        <div
+          style={{
+            position: "absolute",
+            top: isContentHeld(entry) ? 20 : 4,
+            left: 4,
+            backgroundColor: "var(--spectrum-global-color-orange-500)",
+            color: "white",
+            padding: "1px 5px",
+            borderRadius: "2px",
+            fontSize: "9px",
+            fontWeight: "bold",
+          }}
+        >
+          EXPIRED
+        </div>
+      )}
+      {getLicenseStatus(entry) === "expiring" && (
+        <div
+          style={{
+            position: "absolute",
+            top: isContentHeld(entry) ? 20 : 4,
+            left: 4,
+            backgroundColor: "var(--spectrum-global-color-yellow-600)",
+            color: "white",
+            padding: "1px 5px",
+            borderRadius: "2px",
+            fontSize: "9px",
+            fontWeight: "bold",
+          }}
+          title={`Expires: ${formatDate(entry.endDate!)}`}
+        >
+          EXPIRING
+        </div>
+      )}
       {/* Imported indicator */}
       {imported && (
         <div
@@ -596,6 +640,16 @@ const ListRow: React.FC<ListRowProps> = ({
         {isContentHeld(entry) && (
           <span style={{ color: "var(--spectrum-global-color-red-500)", marginLeft: "4px" }}>
             {getHoldReason(entry) ? `Hold: ${getHoldReason(entry)}` : "Content held"}
+          </span>
+        )}
+        {getLicenseStatus(entry) === "expired" && (
+          <span style={{ color: "var(--spectrum-global-color-orange-600)", marginLeft: "4px" }}>
+            License expired
+          </span>
+        )}
+        {getLicenseStatus(entry) === "expiring" && (
+          <span style={{ color: "var(--spectrum-global-color-yellow-700)", marginLeft: "4px" }}>
+            Expiring: {formatDate(entry.endDate!)}
           </span>
         )}
       </div>
@@ -742,6 +796,43 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
                 {getHoldReason(entry)
                   ? `Reason: ${getHoldReason(entry)}`
                   : "This entry is under content hold and cannot be imported."}
+              </div>
+            </div>
+          )}
+          {(getLicenseStatus(entry) === "expired" || getLicenseStatus(entry) === "expiring") && (
+            <div
+              style={{
+                marginTop: "8px",
+                padding: "8px",
+                backgroundColor:
+                  getLicenseStatus(entry) === "expired"
+                    ? "var(--spectrum-global-color-orange-100)"
+                    : "var(--spectrum-global-color-yellow-100)",
+                border: `1px solid ${
+                  getLicenseStatus(entry) === "expired"
+                    ? "var(--spectrum-global-color-orange-400)"
+                    : "var(--spectrum-global-color-yellow-400)"
+                }`,
+                borderRadius: "4px",
+                fontSize: "12px",
+              }}
+            >
+              <strong
+                style={{
+                  color:
+                    getLicenseStatus(entry) === "expired"
+                      ? "var(--spectrum-global-color-orange-700)"
+                      : "var(--spectrum-global-color-yellow-700)",
+                }}
+              >
+                {getLicenseStatus(entry) === "expired"
+                  ? "License Expired"
+                  : "License Expiring Soon"}
+              </strong>
+              <div style={{ marginTop: "4px" }}>
+                {getLicenseStatus(entry) === "expired"
+                  ? `This content's license expired on ${formatDate(entry.endDate!)}.`
+                  : `This content's license expires on ${formatDate(entry.endDate!)}. Review usage rights before importing.`}
               </div>
             </div>
           )}

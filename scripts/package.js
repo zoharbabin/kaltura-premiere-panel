@@ -1,13 +1,17 @@
 /**
- * Package the UXP plugin into a .ccx distribution file.
- * Usage: node scripts/package.js
+ * Package the UXP plugin for distribution.
+ * Usage: node scripts/package.js [--validate-only]
  *
- * This script verifies the build, generates icon placeholders if missing,
- * and prepares the dist/ directory for .ccx packaging.
+ * This script:
+ *   1. Verifies the build output in dist/
+ *   2. Syncs manifest version from package.json
+ *   3. Copies icons from plugin/icons/ to dist/icons/
+ *   4. Reports bundle size
+ *   5. Generates Exchange listing metadata
+ *   6. Prints packaging instructions
  *
- * Packaging options:
- *   - ucf pack dist/ -o kaltura-premiere-panel.ccx (Adobe UXP CLI)
- *   - Or load dist/manifest.json directly in UXP Developer Tool
+ * The .ccx file is created via UXP Developer Tool (GUI) or
+ * `npx @anthropic/uxp-cli package dist/` (when available).
  */
 
 const fs = require("fs");
@@ -18,6 +22,8 @@ const pluginDir = path.resolve(__dirname, "../plugin");
 const packageJson = require("../package.json");
 
 const REQUIRED_ICON_SIZES = [24, 48, 96, 192];
+const BUNDLE_SIZE_WARN_MB = 5;
+const validateOnly = process.argv.includes("--validate-only");
 
 function verifyBuild() {
   console.log("Verifying build...\n");
@@ -45,7 +51,9 @@ function verifyBuild() {
   if (manifest.version !== packageJson.version) {
     console.log(`Updating manifest version: ${manifest.version} -> ${packageJson.version}`);
     manifest.version = packageJson.version;
-    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+    if (!validateOnly) {
+      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+    }
   }
 
   console.log(`  Plugin: ${manifest.name}`);
@@ -53,7 +61,30 @@ function verifyBuild() {
   console.log(`  ID: ${manifest.id}`);
   console.log(`  Host: ${manifest.host.app} >= ${manifest.host.minVersion}`);
 
+  // Validate manifest schema
+  const errors = validateManifest(manifest);
+  if (errors.length > 0) {
+    console.error("\nManifest validation errors:");
+    errors.forEach((e) => console.error(`  - ${e}`));
+    process.exit(1);
+  }
+
   return manifest;
+}
+
+function validateManifest(manifest) {
+  const errors = [];
+  if (manifest.manifestVersion < 5) errors.push("manifestVersion must be >= 5");
+  if (!manifest.id) errors.push("Missing plugin id");
+  if (!manifest.name) errors.push("Missing plugin name");
+  if (!manifest.version) errors.push("Missing version");
+  if (!manifest.main) errors.push("Missing main entry point");
+  if (!manifest.host || !manifest.host.app) errors.push("Missing host.app");
+  if (!manifest.host || !manifest.host.minVersion) errors.push("Missing host.minVersion");
+  if (!manifest.entrypoints || manifest.entrypoints.length === 0) errors.push("No entrypoints defined");
+  if (!manifest.requiredPermissions) errors.push("Missing requiredPermissions");
+  if (!manifest.icons || manifest.icons.length === 0) errors.push("No icons defined");
+  return errors;
 }
 
 function verifyIcons() {
@@ -73,8 +104,12 @@ function verifyIcons() {
     const sourceIcon = path.join(sourceIconsDir, iconName);
 
     if (fs.existsSync(sourceIcon)) {
-      fs.copyFileSync(sourceIcon, distIcon);
-      console.log(`  Copied: ${iconName}`);
+      if (!validateOnly) {
+        fs.copyFileSync(sourceIcon, distIcon);
+        console.log(`  Copied: ${iconName}`);
+      } else {
+        console.log(`  Found: ${iconName} (source)`);
+      }
     } else if (!fs.existsSync(distIcon)) {
       hasAllIcons = false;
       console.warn(`  WARNING: Missing icon: ${iconName} (${size}x${size})`);
@@ -85,10 +120,10 @@ function verifyIcons() {
 
   if (!hasAllIcons) {
     console.warn("\n  Some icons are missing. Adobe Exchange requires:");
-    console.warn("  - icon_24.png (24x24) - panel title bar");
-    console.warn("  - icon_48.png (48x48) - plugin manager");
-    console.warn("  - icon_96.png (96x96) - Exchange listing");
-    console.warn("  - icon_192.png (192x192) - Exchange hero");
+    console.warn("  - icon-24.png (24x24) - panel title bar");
+    console.warn("  - icon-48.png (48x48) - plugin manager");
+    console.warn("  - icon-96.png (96x96) - Exchange listing");
+    console.warn("  - icon-192.png (192x192) - Exchange hero");
     console.warn("  Place icons in plugin/icons/ and rebuild.\n");
   }
 
@@ -98,26 +133,78 @@ function verifyIcons() {
 function reportBundleSize() {
   console.log("\nBundle analysis:");
 
-  const files = fs.readdirSync(distDir).filter((f) => !fs.statSync(path.join(distDir, f)).isDirectory());
+  const files = fs
+    .readdirSync(distDir)
+    .filter((f) => !fs.statSync(path.join(distDir, f)).isDirectory());
   let totalSize = 0;
 
   for (const file of files) {
     const size = fs.statSync(path.join(distDir, file)).size;
     totalSize += size;
-    const sizeStr = size > 1024 * 1024
-      ? `${(size / 1024 / 1024).toFixed(1)} MB`
-      : `${(size / 1024).toFixed(1)} KB`;
+    const sizeStr =
+      size > 1024 * 1024
+        ? `${(size / 1024 / 1024).toFixed(1)} MB`
+        : `${(size / 1024).toFixed(1)} KB`;
     console.log(`  ${file}: ${sizeStr}`);
   }
 
-  const totalStr = totalSize > 1024 * 1024
-    ? `${(totalSize / 1024 / 1024).toFixed(1)} MB`
-    : `${(totalSize / 1024).toFixed(1)} KB`;
+  const totalStr =
+    totalSize > 1024 * 1024
+      ? `${(totalSize / 1024 / 1024).toFixed(1)} MB`
+      : `${(totalSize / 1024).toFixed(1)} KB`;
   console.log(`  Total: ${totalStr}`);
 
-  if (totalSize > 5 * 1024 * 1024) {
-    console.warn("\n  WARNING: Bundle exceeds 5 MB. Consider optimizing.");
+  if (totalSize > BUNDLE_SIZE_WARN_MB * 1024 * 1024) {
+    console.warn(`\n  WARNING: Bundle exceeds ${BUNDLE_SIZE_WARN_MB} MB. Consider optimizing.`);
   }
+
+  return totalSize;
+}
+
+function generateExchangeMetadata(manifest) {
+  console.log("\nGenerating Exchange listing metadata...");
+
+  const metadata = {
+    name: manifest.name,
+    version: manifest.version,
+    id: manifest.id,
+    shortDescription: "Browse, import, publish, and manage Kaltura media directly from Premiere Pro.",
+    longDescription: [
+      `${manifest.name} integrates Adobe Premiere Pro with Kaltura's video platform.`,
+      "",
+      "Features:",
+      "- Browse and search your Kaltura media library",
+      "- Import assets directly into Premiere Pro timelines",
+      "- Publish sequences to Kaltura with metadata and categories",
+      "- AI-powered captioning via Kaltura REACH",
+      "- Real-time collaboration with time-coded annotations",
+      "- Analytics dashboard with engagement data",
+      "- Interactive video: chapters, cue points, quizzes",
+      "- Enterprise governance: content holds, audit trail, DRM",
+      "- Proxy workflow for large files",
+      "",
+      `Requires Premiere Pro ${manifest.host.minVersion} or later.`,
+      "Requires an active Kaltura account.",
+    ].join("\n"),
+    supportUrl: `https://github.com/${packageJson.repository || "zoharbabin/kaltura-premiere-panel"}/issues`,
+    privacyPolicyUrl: "https://corp.kaltura.com/privacy-policy/",
+    compatibility: {
+      host: manifest.host.app,
+      minVersion: manifest.host.minVersion,
+    },
+    categories: ["Video", "Collaboration", "Media Management"],
+    keywords: ["kaltura", "video", "media", "publishing", "captioning", "analytics"],
+  };
+
+  const metadataPath = path.join(distDir, "exchange-metadata.json");
+  if (!validateOnly) {
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
+    console.log(`  Written: exchange-metadata.json`);
+  } else {
+    console.log("  Exchange metadata validated (not written in validate-only mode)");
+  }
+
+  return metadata;
 }
 
 function printInstructions(manifest) {
@@ -128,13 +215,16 @@ function printInstructions(manifest) {
   console.log("  Use UXP Developer Tool > Package Plugin > Select dist/\n");
   console.log("Option 3: Adobe Admin Console (enterprise)");
   console.log("  Upload .ccx via Adobe Admin Console > Packages\n");
+  console.log("Option 4: UPIA command-line (IT automation)");
+  console.log(
+    '  upia install --path "kaltura-premiere-panel.ccx" --targets "premierepro"\n',
+  );
   console.log("Adobe Exchange submission checklist:");
   console.log("  [ ] All icons present (24, 48, 96, 192 px)");
   console.log("  [ ] Screenshots (min 3): browse, publish, settings");
-  console.log("  [ ] Short description (< 80 chars)");
-  console.log("  [ ] Long description with features list");
-  console.log("  [ ] Support URL");
-  console.log("  [ ] Privacy policy URL");
+  console.log("  [ ] exchange-metadata.json reviewed and customized");
+  console.log("  [ ] Support URL verified");
+  console.log("  [ ] Privacy policy URL verified");
   console.log(`  [ ] Compatible: Premiere Pro >= ${manifest.host.minVersion}`);
 }
 
@@ -142,6 +232,7 @@ function printInstructions(manifest) {
 const manifest = verifyBuild();
 const hasIcons = verifyIcons();
 reportBundleSize();
+generateExchangeMetadata(manifest);
 printInstructions(manifest);
 
 if (!hasIcons) {
