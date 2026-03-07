@@ -194,6 +194,34 @@ export class PremiereService {
     log.info("Added markers", { count: markers.length });
   }
 
+  /** Get markers from the active sequence */
+  async getMarkers(): Promise<MarkerData[]> {
+    const pp = getPremiere();
+    const project = await pp.Project.getActiveProject();
+    const sequence = await project.getActiveSequence();
+
+    if (!sequence) {
+      throw new PremiereApiError("No active sequence");
+    }
+
+    const sequenceMarkers = await sequence.getMarkers();
+    const results: MarkerData[] = [];
+
+    if (sequenceMarkers && Array.isArray(sequenceMarkers)) {
+      for (const m of sequenceMarkers) {
+        results.push({
+          start: m.start?.toSeconds?.() ?? 0,
+          name: m.name ?? "",
+          comments: m.comments ?? "",
+          colorIndex: m.colorIndex ?? 0,
+          duration: m.duration?.toSeconds?.(),
+        });
+      }
+    }
+
+    return results;
+  }
+
   /** Save an asset mapping (tracks which Kaltura entries are imported locally) */
   saveMapping(entryId: string, mapping: AssetMapping): void {
     this.mappings.set(entryId, mapping);

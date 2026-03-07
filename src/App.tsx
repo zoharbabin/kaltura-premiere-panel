@@ -10,9 +10,17 @@ import {
   MetadataService,
   CaptionService,
   NotificationService,
+  ReviewService,
 } from "./services";
 import { useAuth } from "./hooks";
-import { LoginPanel, BrowsePanel, PublishPanel, CaptionsPanel, SettingsPanel } from "./panels";
+import {
+  LoginPanel,
+  BrowsePanel,
+  PublishPanel,
+  CaptionsPanel,
+  ReviewPanel,
+  SettingsPanel,
+} from "./panels";
 import { StatusBar, LoadingSpinner } from "./components";
 import { DEFAULT_SERVICE_URL } from "./utils/constants";
 import { createLogger } from "./utils/logger";
@@ -41,7 +49,10 @@ export const App: React.FC = () => {
   );
   const captionService = useMemo(() => new CaptionService(client), [client]);
   const notificationService = useMemo(() => new NotificationService(client), [client]);
-
+  const reviewService = useMemo(
+    () => new ReviewService(client, premiereService),
+    [client, premiereService],
+  );
   const { authState, login, logout, isLoading, error, clearError } = useAuth(client, authService);
 
   // Update client when auth changes
@@ -60,6 +71,14 @@ export const App: React.FC = () => {
     }
     return () => notificationService.disconnect();
   }, [authState.isAuthenticated, notificationService]);
+
+  // Watch selected entry for real-time notifications
+  React.useEffect(() => {
+    if (selectedEntryId) {
+      notificationService.watchEntry(selectedEntryId);
+      return () => notificationService.unwatchEntry(selectedEntryId);
+    }
+  }, [selectedEntryId, notificationService]);
 
   const handleServerUrlChange = useCallback(
     (url: string) => {
@@ -86,7 +105,9 @@ export const App: React.FC = () => {
     [authState.partnerId, downloadService],
   );
 
-  const handlePublished = useCallback((_entry: KalturaMediaEntry) => {
+  const handlePublished = useCallback((entry: KalturaMediaEntry) => {
+    setSelectedEntryId(entry.id);
+    setSelectedEntryName(entry.name);
     setActiveTab("browse");
   }, []);
 
@@ -125,6 +146,7 @@ export const App: React.FC = () => {
         <TabButton id="browse" label="Browse" active={activeTab} onClick={setActiveTab} />
         <TabButton id="publish" label="Publish" active={activeTab} onClick={setActiveTab} />
         <TabButton id="captions" label="Captions" active={activeTab} onClick={setActiveTab} />
+        <TabButton id="review" label="Review" active={activeTab} onClick={setActiveTab} />
         <TabButton id="settings" label="Settings" active={activeTab} onClick={setActiveTab} />
       </div>
 
@@ -153,6 +175,13 @@ export const App: React.FC = () => {
         {activeTab === "captions" && (
           <CaptionsPanel
             captionService={captionService}
+            entryId={selectedEntryId}
+            entryName={selectedEntryName}
+          />
+        )}
+        {activeTab === "review" && (
+          <ReviewPanel
+            reviewService={reviewService}
             entryId={selectedEntryId}
             entryName={selectedEntryName}
           />
