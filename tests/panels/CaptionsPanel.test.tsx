@@ -146,14 +146,15 @@ describe("CaptionsPanel", () => {
     expect(screen.queryByText("Translate")).toBeNull();
   });
 
-  it("shows error on load failure", async () => {
+  it("degrades gracefully when a data source fails", async () => {
     const service = mockCaptionService({
       listCaptions: jest.fn().mockRejectedValue(new Error("API error")),
     });
     render(<CaptionsPanel captionService={service} entryId="e-1" entryName="Video" />);
 
+    // Individual promise failure is caught — panel shows empty tracks instead of error
     await waitFor(() => {
-      expect(screen.getByText("API error")).toBeTruthy();
+      expect(screen.getByText("Tracks (0)")).toBeTruthy();
     });
   });
 });
