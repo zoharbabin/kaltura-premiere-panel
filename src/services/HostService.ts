@@ -41,6 +41,9 @@ export interface HostService {
   /** Add markers/cue points to the active composition */
   addMarkers(markers: MarkerData[]): Promise<void>;
 
+  /** Read markers from the active sequence (not all hosts support this) */
+  getMarkers?(): Promise<MarkerData[]>;
+
   /** Check if an asset has been imported by Kaltura entry ID */
   isImported(entryId: string): boolean;
 

@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect } from "react";
 import { KalturaMediaEntry, KalturaMediaType, KalturaCategory } from "../types/kaltura";
 import { ExportProgress } from "../types/premiere";
 import { MediaService, UploadService, MetadataService } from "../services";
-import { PremiereService } from "../services/PremiereService";
 import { ProgressBar, ErrorBanner } from "../components";
 import { getUserMessage } from "../utils/errors";
 import { createLogger } from "../utils/logger";
@@ -27,11 +26,17 @@ interface AuditServiceLike {
   logAction(action: string, entryId?: string, details?: string): Promise<void>;
 }
 
+/** Minimal host interface needed by PublishPanel */
+interface HostServiceLike {
+  isAvailable(): boolean;
+  getActiveSequence(): Promise<{ name: string } | null>;
+}
+
 interface PublishPanelProps {
   mediaService: MediaService;
   uploadService: UploadService;
   metadataService: MetadataService;
-  premiereService: PremiereService;
+  premiereService: HostServiceLike;
   publishWorkflowService?: PublishWorkflowServiceLike;
   auditService?: AuditServiceLike;
   onPublished: (entry: KalturaMediaEntry) => void;

@@ -48,6 +48,10 @@ class PremiereHostAdapter implements HostService {
     return this.premiere.addMarkers(markers);
   }
 
+  getMarkers(): Promise<MarkerData[]> {
+    return this.premiere.getMarkers();
+  }
+
   isImported(entryId: string): boolean {
     return this.premiere.isImported(entryId);
   }

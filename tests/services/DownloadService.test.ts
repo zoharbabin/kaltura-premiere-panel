@@ -1,15 +1,22 @@
 import { DownloadService } from "../../src/services/DownloadService";
 import { KalturaClient } from "../../src/services/KalturaClient";
 import { MediaService } from "../../src/services/MediaService";
-import { PremiereService } from "../../src/services/PremiereService";
 import { KalturaFlavorAsset } from "../../src/types/kaltura";
 
 const mockFetch = global.fetch as jest.Mock;
 
+function createMockHostService() {
+  return {
+    importFile: jest.fn().mockResolvedValue({ success: true }),
+    isImported: jest.fn().mockReturnValue(false),
+    storeMapping: jest.fn(),
+  };
+}
+
 describe("DownloadService", () => {
   let client: KalturaClient;
   let mediaService: MediaService;
-  let premiereService: PremiereService;
+  let hostService: ReturnType<typeof createMockHostService>;
   let service: DownloadService;
 
   const mockFlavor: KalturaFlavorAsset = {
@@ -31,10 +38,8 @@ describe("DownloadService", () => {
     client = new KalturaClient({ serviceUrl: "https://test.kaltura.com", partnerId: 12345 });
     client.setKs("test_ks");
     mediaService = new MediaService(client);
-    premiereService = new PremiereService();
-    // Mock importFiles to avoid calling real Premiere API
-    jest.spyOn(premiereService, "importFiles").mockResolvedValue({ success: true });
-    service = new DownloadService(client, mediaService, premiereService);
+    hostService = createMockHostService();
+    service = new DownloadService(client, mediaService, hostService);
     mockFetch.mockReset();
   });
 
@@ -44,19 +49,13 @@ describe("DownloadService", () => {
   });
 
   it("reuses existing mapping if asset already imported", async () => {
-    const mapping = {
-      entryId: "0_existing",
-      flavorId: "flavor_existing",
-      localPath: "/tmp/test.mp4",
-      importDate: Date.now(),
-      isProxy: false,
-    };
+    hostService.isImported.mockReturnValue(true);
     const existingFlavor = { ...mockFlavor, id: "flavor_existing", entryId: "0_existing" };
-    premiereService.saveMapping("0_existing", mapping);
 
     const result = await service.downloadAndImport("0_existing", existingFlavor);
 
-    expect(result).toEqual(mapping);
+    expect(result.entryId).toBe("0_existing");
+    expect(result.flavorId).toBe("flavor_existing");
     expect(mockFetch).not.toHaveBeenCalled();
   });
 

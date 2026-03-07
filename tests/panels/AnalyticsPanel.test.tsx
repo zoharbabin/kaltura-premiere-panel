@@ -84,11 +84,13 @@ describe("AnalyticsPanel", () => {
   it("displays error on fetch failure", async () => {
     const service = mockAnalyticsService({
       getViewerStats: jest.fn().mockRejectedValue(new Error("API error")),
+      getTopMoments: jest.fn().mockRejectedValue(new Error("API error")),
+      getDropOffPoints: jest.fn().mockRejectedValue(new Error("API error")),
     });
     render(<AnalyticsPanel analyticsService={service} entryId="e-1" entryName="Video" />);
 
     await waitFor(() => {
-      expect(screen.getByText("API error")).toBeTruthy();
+      expect(screen.getByText("Failed to load analytics data.")).toBeTruthy();
     });
   });
 });

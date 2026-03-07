@@ -1,3 +1,5 @@
+import { RESOLUTION_FULL_HD, RESOLUTION_HD, RESOLUTION_SD } from "./constants";
+
 /** Format seconds to MM:SS or HH:MM:SS */
 export function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -64,8 +66,8 @@ export function formatBitrate(kbps: number): string {
 export function formatResolution(width: number, height: number): string {
   if (height >= 2160) return "4K";
   if (height >= 1440) return "1440p";
-  if (height >= 1080) return "1080p";
-  if (height >= 720) return "720p";
-  if (height >= 480) return "480p";
+  if (height >= RESOLUTION_FULL_HD) return "1080p";
+  if (height >= RESOLUTION_HD) return "720p";
+  if (height >= RESOLUTION_SD) return "480p";
   return `${width}×${height}`;
 }
