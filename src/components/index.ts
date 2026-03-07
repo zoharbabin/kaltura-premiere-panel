@@ -3,3 +3,8 @@ export { ErrorBanner } from "./ErrorBanner";
 export { EmptyState } from "./EmptyState";
 export { ProgressBar } from "./ProgressBar";
 export { StatusBar } from "./StatusBar";
+export { FilterBar, defaultFilters, countActiveFilters, dateRangeToTimestamp } from "./FilterBar";
+export type { FilterState, DateRange, OwnerFilter } from "./FilterBar";
+export { QualityPicker } from "./QualityPicker";
+export { MetadataEditor } from "./MetadataEditor";
+export { ConfirmDialog } from "./ConfirmDialog";

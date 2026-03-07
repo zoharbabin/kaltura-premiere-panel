@@ -45,6 +45,13 @@ jest.mock(
 // Mock fetch globally
 global.fetch = jest.fn();
 
+// Polyfill TextEncoder/TextDecoder for jsdom
+if (typeof global.TextEncoder === "undefined") {
+  const { TextEncoder, TextDecoder } = require("util");
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+}
+
 // Mock crypto.subtle for SHA-256 in AuthService
 Object.defineProperty(global, "crypto", {
   value: {

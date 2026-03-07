@@ -5,3 +5,6 @@ export { MediaService } from "./MediaService";
 export { UploadService } from "./UploadService";
 export type { UploadProgressCallback } from "./UploadService";
 export { PremiereService } from "./PremiereService";
+export { DownloadService } from "./DownloadService";
+export type { DownloadProgress } from "./DownloadService";
+export { MetadataService } from "./MetadataService";
