@@ -48,6 +48,8 @@ module.exports = (env, argv) => {
       // UXP modules are provided by the host runtime
       uxp: "commonjs2 uxp",
       premierepro: "commonjs2 premierepro",
+      aftereffects: "commonjs2 aftereffects",
+      audition: "commonjs2 audition",
     },
     target: "web",
     optimization: {
