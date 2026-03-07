@@ -127,7 +127,7 @@ docs/                         # Documentation
 
 ## Service Wiring (App.tsx)
 
-18 services instantiated in `App.tsx` via `useMemo` (+ 3 host services created dynamically):
+17 services instantiated in `App.tsx` via `useMemo` (+ host service created dynamically):
 
 - `KalturaClient` → base HTTP client
 - `AuthService`, `MediaService`, `UploadService`, `MetadataService` → core CRUD
@@ -140,7 +140,7 @@ docs/                         # Documentation
 
 Not directly instantiated (used dynamically or indirectly):
 
-- `ProxyService` → proxy download/reconnect (used via panels)
+- `ProxyService` → proxy download/reconnect (defined but not yet wired to panels)
 - `PremiereService` → wrapped by `PremiereHostAdapter` inside factory
 - `AfterEffectsHostService`, `AuditionHostService` → created by factory when running in AE/Audition
 
