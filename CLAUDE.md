@@ -27,6 +27,7 @@ src/
     PublishPanel.tsx           # Export + upload workflow
     CaptionsPanel.tsx         # REACH AI captions: order, translate, track management
     ReviewPanel.tsx           # Annotation review: comments, replies, marker sync
+    AnalyticsPanel.tsx        # Viewer stats, top moments, drop-off analysis
     SettingsPanel.tsx          # Preferences, cache, about
   components/                 # Shared UI components
     FilterBar.tsx             # Media type, date, owner filters
@@ -51,6 +52,9 @@ src/
     ProxyService.ts           # Proxy download for editing, reconnect to original
     ReviewService.ts          # Annotation CRUD, marker sync, threaded replies
     PublishWorkflowService.ts # Multi-destination, approval, versioning, scheduling
+    AnalyticsService.ts       # Viewer stats, engagement timeline, top moments, drop-off
+    InteractiveService.ts     # Chapters, quizzes, hotspots, CTAs via cue points
+    BatchService.ts           # Multi-request batch ops, offline cache, governance
     PremiereService.ts        # UXP API: sequence, import, markers, mappings
   hooks/                      # React custom hooks
     useAuth.ts                # Auth state management + session restore
@@ -117,6 +121,11 @@ docs/                         # Documentation
 - Category assignment: `categoryEntry.add` for multi-destination publishing
 - Moderation: `media.update` with `moderationStatus` field for approval workflow
 - Version replace: `media.updateContent` with `KalturaUploadedFileTokenResource`
+- Analytics: `analytics.query` with semicolon-delimited `columns`/`results` response format
+- Cue points: `cuePoint_cuePoint.add/list/delete` with tag-based type discrimination (`premiere-panel-{type}`)
+- Batch operations: `client.multiRequest()` for parallel API calls, check `objectType === 'KalturaAPIException'` per response
+- Audit trail: `auditTrail.list` filtered by `relatedObjectIdEqual` for entry governance
+- Content hold: `media.update` with `adminTags` containing `content-hold:{reason}`
 
 ### Premiere UXP API
 
