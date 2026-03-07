@@ -80,9 +80,8 @@ describe("SettingsPanel", () => {
 
   it("shows host app name and version in about section", () => {
     render(<SettingsPanel {...defaultProps} />);
-    // "Premiere Pro" appears in both plugin name and host line
-    const matches = screen.getAllByText(/Premiere Pro/);
-    expect(matches.length).toBeGreaterThanOrEqual(2);
+    // "Premiere Pro" appears in host line
+    expect(screen.getByText(/Premiere Pro/)).toBeTruthy();
     expect(screen.getByText(/25\.2\.0/)).toBeTruthy();
   });
 

@@ -83,6 +83,13 @@ interface AuditServiceLike {
   getEntryDrmPolicy(entryId: string): Promise<{ provider: string; licenseUrl?: string }[]>;
 }
 
+/** Duck-typed ProxyService for proxy editing workflow */
+interface ProxyServiceLike {
+  isProxyLoaded(entryId: string): boolean;
+  downloadProxy(entryId: string, onProgress?: (percent: number) => void): Promise<unknown>;
+  reconnectToOriginal(entryId: string): Promise<unknown>;
+}
+
 /** Duck-typed OfflineService for caching */
 interface OfflineServiceLike {
   getIsOnline(): boolean;
@@ -100,6 +107,7 @@ interface BrowsePanelProps {
   batchService?: BatchServiceLike;
   auditService?: AuditServiceLike;
   offlineService?: OfflineServiceLike;
+  proxyService?: ProxyServiceLike;
   partnerId: number;
   userId?: string;
   isImported: (entryId: string) => boolean;
@@ -120,6 +128,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   batchService,
   auditService,
   offlineService,
+  proxyService,
   partnerId,
   userId,
   isImported,

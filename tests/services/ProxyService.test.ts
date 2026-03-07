@@ -1,7 +1,6 @@
 import { ProxyService } from "../../src/services/ProxyService";
 import { KalturaClient } from "../../src/services/KalturaClient";
 import { MediaService } from "../../src/services/MediaService";
-import { PremiereService } from "../../src/services/PremiereService";
 import { KalturaFlavorAsset } from "../../src/types/kaltura";
 
 const mockRequest = jest.fn();
@@ -13,10 +12,12 @@ const mediaService = {
   getFlavorDownloadUrl: jest.fn(),
 } as unknown as MediaService;
 
-const premiereService = {
-  importFiles: jest.fn(),
-  saveMapping: jest.fn(),
-} as unknown as PremiereService;
+function createMockHostService() {
+  return {
+    importFile: jest.fn().mockResolvedValue({ success: true }),
+    storeMapping: jest.fn(),
+  };
+}
 
 function makeFlavor(overrides: Partial<KalturaFlavorAsset>): KalturaFlavorAsset {
   return {
@@ -38,9 +39,11 @@ function makeFlavor(overrides: Partial<KalturaFlavorAsset>): KalturaFlavorAsset 
 
 describe("ProxyService", () => {
   let service: ProxyService;
+  let hostService: ReturnType<typeof createMockHostService>;
 
   beforeEach(() => {
-    service = new ProxyService(client, mediaService, premiereService);
+    hostService = createMockHostService();
+    service = new ProxyService(client, mediaService, hostService);
     jest.clearAllMocks();
   });
 
@@ -142,9 +145,9 @@ describe("ProxyService", () => {
       const result = await service.reconnectToOriginal("0_abc");
       expect(result.originalFlavor.id).toBe("flv_orig");
       expect(result.downloadUrl).toBe("https://cdn.kaltura.com/original.mp4");
-      expect(premiereService.saveMapping).toHaveBeenCalledWith(
+      expect(hostService.storeMapping).toHaveBeenCalledWith(
         "0_abc",
-        expect.objectContaining({ isProxy: false }),
+        "https://cdn.kaltura.com/original.mp4",
       );
     });
 
