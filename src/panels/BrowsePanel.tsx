@@ -29,9 +29,27 @@ import { buildGridThumbnailUrl } from "../utils/thumbnail";
 import { formatDuration, formatDate, formatFileSize, truncate } from "../utils/format";
 import { getUserMessage } from "../utils/errors";
 
+/** Duck-typed SearchService for enhanced transcript/in-video search */
+interface SearchServiceLike {
+  searchTranscripts(
+    entryId: string,
+    searchText: string,
+  ): Promise<{ startTime: number; endTime: number; text: string; highlight: string }[]>;
+}
+
+/** Duck-typed BatchService for bulk operations */
+interface BatchServiceLike {
+  batchDelete(entryIds: string[]): Promise<{ total: number; successful: number }>;
+  batchUpdateMetadata(
+    updates: { entryId: string; name?: string; tags?: string }[],
+  ): Promise<{ total: number; successful: number }>;
+}
+
 interface BrowsePanelProps {
   mediaService: MediaService;
   metadataService: MetadataService;
+  searchService?: SearchServiceLike;
+  batchService?: BatchServiceLike;
   partnerId: number;
   userId?: string;
   isImported: (entryId: string) => boolean;
@@ -48,6 +66,8 @@ interface EntryDetails {
 export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   mediaService,
   metadataService,
+  searchService,
+  batchService,
   partnerId,
   userId,
   isImported,
@@ -222,6 +242,15 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         onBack={handleBackToGrid}
         onImport={handleImportClick}
         onEdit={() => setIsEditing(true)}
+        onDelete={
+          batchService
+            ? async () => {
+                await batchService.batchDelete([selectedEntry.entry.id]);
+                handleBackToGrid();
+                loadEntries(1);
+              }
+            : undefined
+        }
         isImported={isImported(selectedEntry.entry.id)}
         showQualityPicker={showQualityPicker}
         selectedFlavor={selectedFlavor}
@@ -237,7 +266,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       {/* Search bar */}
       <div style={{ padding: "8px", display: "flex", gap: "8px", alignItems: "center" }}>
         <sp-search
-          placeholder="Search assets..."
+          placeholder={searchService ? "Search assets & transcripts..." : "Search assets..."}
           value={searchText}
           onInput={(e: Event) => setSearchText((e.target as HTMLInputElement).value)}
           onSubmit={(e: Event) => e.preventDefault()}
@@ -509,6 +538,7 @@ interface AssetDetailProps {
   onBack: () => void;
   onImport: () => void;
   onEdit: () => void;
+  onDelete?: () => void;
   isImported: boolean;
   showQualityPicker: boolean;
   selectedFlavor: KalturaFlavorAsset | null;
@@ -523,6 +553,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
   onBack,
   onImport,
   onEdit,
+  onDelete,
   isImported,
   showQualityPicker,
   selectedFlavor,
@@ -637,6 +668,11 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
       </div>
 
       <div style={{ padding: "8px", display: "flex", gap: "8px" }}>
+        {onDelete && (
+          <sp-action-button quiet size="s" onClick={onDelete} title="Delete entry">
+            \u2716
+          </sp-action-button>
+        )}
         <sp-button variant="secondary" size="s" onClick={onEdit} style={{ flex: 1 }}>
           Edit Metadata
         </sp-button>
