@@ -12,6 +12,10 @@ import {
   NotificationService,
   ReviewService,
   AnalyticsService,
+  InteractiveService,
+  BatchService,
+  PublishWorkflowService,
+  SearchService,
 } from "./services";
 import { useAuth } from "./hooks";
 import {
@@ -21,6 +25,7 @@ import {
   CaptionsPanel,
   ReviewPanel,
   AnalyticsPanel,
+  InteractivePanel,
   SettingsPanel,
 } from "./panels";
 import { StatusBar, LoadingSpinner } from "./components";
@@ -56,6 +61,16 @@ export const App: React.FC = () => {
     [client, premiereService],
   );
   const analyticsService = useMemo(() => new AnalyticsService(client), [client]);
+  const interactiveService = useMemo(() => new InteractiveService(client), [client]);
+  const batchService = useMemo(
+    () => new BatchService(client, mediaService, captionService),
+    [client, mediaService, captionService],
+  );
+  const publishWorkflowService = useMemo(
+    () => new PublishWorkflowService(client, mediaService),
+    [client, mediaService],
+  );
+  const searchService = useMemo(() => new SearchService(client), [client]);
 
   const { authState, login, loginWithSso, cancelSso, logout, isLoading, error, clearError } =
     useAuth(client, authService);
@@ -155,6 +170,7 @@ export const App: React.FC = () => {
         <TabButton id="captions" label="Captions" active={activeTab} onClick={setActiveTab} />
         <TabButton id="review" label="Review" active={activeTab} onClick={setActiveTab} />
         <TabButton id="analytics" label="Analytics" active={activeTab} onClick={setActiveTab} />
+        <TabButton id="interactive" label="Interactive" active={activeTab} onClick={setActiveTab} />
         <TabButton id="settings" label="Settings" active={activeTab} onClick={setActiveTab} />
       </div>
 
@@ -164,6 +180,8 @@ export const App: React.FC = () => {
           <BrowsePanel
             mediaService={mediaService}
             metadataService={metadataService}
+            searchService={searchService}
+            batchService={batchService}
             partnerId={authState.partnerId}
             userId={authState.user?.id}
             isImported={(id) => premiereService.isImported(id)}
@@ -177,6 +195,7 @@ export const App: React.FC = () => {
             uploadService={uploadService}
             metadataService={metadataService}
             premiereService={premiereService}
+            publishWorkflowService={publishWorkflowService}
             onPublished={handlePublished}
           />
         )}
@@ -197,6 +216,14 @@ export const App: React.FC = () => {
         {activeTab === "analytics" && (
           <AnalyticsPanel
             analyticsService={analyticsService}
+            entryId={selectedEntryId}
+            entryName={selectedEntryName}
+          />
+        )}
+        {activeTab === "interactive" && (
+          <InteractivePanel
+            interactiveService={interactiveService}
+            premiereService={premiereService}
             entryId={selectedEntryId}
             entryName={selectedEntryName}
           />
