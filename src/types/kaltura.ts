@@ -111,6 +111,7 @@ export interface KalturaMediaEntry extends KalturaObjectBase {
   views?: number;
   lastPlayedAt?: number;
   accessControlId?: number;
+  adminTags?: string;
 }
 
 /** Flavor (rendition) asset */

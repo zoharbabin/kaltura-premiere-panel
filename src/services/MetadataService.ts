@@ -223,12 +223,13 @@ export class MetadataService {
   /** Parse simple metadata XML to key-value pairs */
   private parseMetadataXml(xml: string): Record<string, string> {
     const values: Record<string, string> = {};
-    const tagRegex = /<(\w+)>(.*?)<\/\1>/g;
+    // Strip the outer <metadata> wrapper to expose field-level tags
+    const inner = xml.replace(/^<metadata>([\s\S]*)<\/metadata>$/, "$1").trim();
+    if (!inner || inner === xml) return values;
+    const tagRegex = /<(\w+)>([\s\S]*?)<\/\1>/g;
     let match;
-    while ((match = tagRegex.exec(xml)) !== null) {
-      if (match[1] !== "metadata") {
-        values[match[1]] = match[2];
-      }
+    while ((match = tagRegex.exec(inner)) !== null) {
+      values[match[1]] = match[2];
     }
     return values;
   }
