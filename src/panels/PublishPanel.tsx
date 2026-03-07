@@ -19,12 +19,21 @@ interface PublishWorkflowServiceLike {
   submitForApproval(entryId: string): Promise<unknown>;
 }
 
+/** Duck-typed AuditService for access control profiles */
+interface AuditServiceLike {
+  listAccessControlProfiles(): Promise<
+    { id: number; name: string; description?: string; isDefault: boolean }[]
+  >;
+  logAction(action: string, entryId?: string, details?: string): Promise<void>;
+}
+
 interface PublishPanelProps {
   mediaService: MediaService;
   uploadService: UploadService;
   metadataService: MetadataService;
   premiereService: PremiereService;
   publishWorkflowService?: PublishWorkflowServiceLike;
+  auditService?: AuditServiceLike;
   onPublished: (entry: KalturaMediaEntry) => void;
 }
 
@@ -37,6 +46,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   metadataService,
   premiereService,
   publishWorkflowService,
+  auditService,
   onPublished,
 }) => {
   const [title, setTitle] = useState("");
@@ -45,6 +55,10 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [categories, setCategories] = useState<KalturaCategory[]>([]);
   const [scheduledDate, setScheduledDate] = useState("");
+  const [accessControlProfiles, setAccessControlProfiles] = useState<
+    { id: number; name: string; isDefault: boolean }[]
+  >([]);
+  const [selectedAccessControlId, setSelectedAccessControlId] = useState<number | null>(null);
   const [publishMode, setPublishMode] = useState<PublishMode>("new");
   const [existingEntryId, setExistingEntryId] = useState("");
   const [phase, setPhase] = useState<PublishPhase>("form");
@@ -62,6 +76,19 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       .then(setCategories)
       .catch(() => setCategories([]));
   }, [metadataService]);
+
+  // Load access control profiles
+  useEffect(() => {
+    if (!auditService) return;
+    auditService
+      .listAccessControlProfiles()
+      .then((profiles) => {
+        setAccessControlProfiles(profiles);
+        const defaultProfile = profiles.find((p) => p.isDefault);
+        if (defaultProfile) setSelectedAccessControlId(defaultProfile.id);
+      })
+      .catch(() => setAccessControlProfiles([]));
+  }, [auditService]);
 
   // Pre-fill title from active sequence
   useEffect(() => {
@@ -93,6 +120,9 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         if (selectedCategoryIds.length === 1) {
           entryData.categoriesIds = String(selectedCategoryIds[0]);
         }
+        if (selectedAccessControlId) {
+          entryData.accessControlId = selectedAccessControlId;
+        }
 
         const entry = await mediaService.add(entryData);
         log.info("Entry created", { entryId: entry.id });
@@ -119,6 +149,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         setProgress({ progress: 100, phase: "complete", message: "Entry created!" });
         setPublishedEntry(entry);
         onPublished(entry);
+        auditService?.logAction("publish", entry.id, `New entry: ${entry.name}`);
       } else {
         // Update existing entry
         setPhase("processing");
@@ -135,6 +166,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         setPublishedEntry(updated);
         onPublished(updated);
         log.info("Update complete", { entryId: updated.id });
+        auditService?.logAction("update_metadata", updated.id, `Updated: ${updated.name}`);
       }
     } catch (err) {
       setPhase("error");
@@ -377,6 +409,38 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
               style={{ width: "100%" }}
               placeholder="Leave empty to publish immediately"
             />
+          </div>
+        )}
+
+        {/* Access control profile */}
+        {accessControlProfiles.length > 0 && publishMode === "new" && (
+          <div>
+            <sp-detail size="S">Access Control</sp-detail>
+            <sp-picker
+              size="s"
+              value={selectedAccessControlId != null ? String(selectedAccessControlId) : ""}
+              onChange={(e: Event) => {
+                const val = (e.target as HTMLSelectElement).value;
+                setSelectedAccessControlId(val ? Number(val) : null);
+              }}
+              style={{ width: "100%" }}
+            >
+              {accessControlProfiles.map((profile) => (
+                <sp-menu-item key={profile.id} value={String(profile.id)}>
+                  {profile.name}
+                  {profile.isDefault ? " (Default)" : ""}
+                </sp-menu-item>
+              ))}
+            </sp-picker>
+            <div
+              style={{
+                fontSize: "10px",
+                color: "var(--spectrum-global-color-gray-600)",
+                marginTop: "4px",
+              }}
+            >
+              Controls who can view the published content
+            </div>
           </div>
         )}
       </div>

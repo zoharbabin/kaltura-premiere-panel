@@ -16,6 +16,7 @@ import {
   BatchService,
   PublishWorkflowService,
   SearchService,
+  AuditService,
 } from "./services";
 import { useAuth } from "./hooks";
 import {
@@ -71,16 +72,23 @@ export const App: React.FC = () => {
     [client, mediaService],
   );
   const searchService = useMemo(() => new SearchService(client), [client]);
+  const auditService = useMemo(() => new AuditService(client), [client]);
 
   const { authState, login, loginWithSso, cancelSso, logout, isLoading, error, clearError } =
     useAuth(client, authService);
 
-  // Update client when auth changes
+  // Update client when auth changes; log auth events
   React.useEffect(() => {
     if (authState.partnerId) {
       client.configure({ partnerId: authState.partnerId });
     }
   }, [authState.partnerId, client]);
+
+  React.useEffect(() => {
+    if (authState.isAuthenticated) {
+      auditService.logAction("login", undefined, `User: ${authState.user?.email}`);
+    }
+  }, [authState.isAuthenticated, authState.user?.email, auditService]);
 
   // Connect/disconnect notification service with auth state
   React.useEffect(() => {
@@ -118,11 +126,12 @@ export const App: React.FC = () => {
       try {
         log.info("Importing entry", { entryId: entry.id, flavorId: flavor.id });
         await downloadService.downloadAndImport(entry.id, flavor);
+        auditService.logAction("import", entry.id, `Imported flavor ${flavor.id}`);
       } catch (err) {
         log.error("Import failed", err);
       }
     },
-    [authState.partnerId, downloadService],
+    [authState.partnerId, downloadService, auditService],
   );
 
   const handlePublished = useCallback((entry: KalturaMediaEntry) => {
@@ -182,6 +191,7 @@ export const App: React.FC = () => {
             metadataService={metadataService}
             searchService={searchService}
             batchService={batchService}
+            auditService={auditService}
             partnerId={authState.partnerId}
             userId={authState.user?.id}
             isImported={(id) => premiereService.isImported(id)}
@@ -196,6 +206,7 @@ export const App: React.FC = () => {
             metadataService={metadataService}
             premiereService={premiereService}
             publishWorkflowService={publishWorkflowService}
+            auditService={auditService}
             onPublished={handlePublished}
           />
         )}

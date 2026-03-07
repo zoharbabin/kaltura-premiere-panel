@@ -40,3 +40,11 @@ export type {
 } from "./InteractiveService";
 export { BatchService } from "./BatchService";
 export type { MetadataUpdate, BatchResult, CachedEntry, AuditEntry } from "./BatchService";
+export { AuditService } from "./AuditService";
+export type {
+  AuditAction,
+  AuditLogEntry,
+  AccessControlProfile,
+  AccessControlRestriction,
+  DrmPolicy,
+} from "./AuditService";
