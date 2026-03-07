@@ -57,7 +57,8 @@ export const App: React.FC = () => {
   );
   const analyticsService = useMemo(() => new AnalyticsService(client), [client]);
 
-  const { authState, login, logout, isLoading, error, clearError } = useAuth(client, authService);
+  const { authState, login, loginWithSso, cancelSso, logout, isLoading, error, clearError } =
+    useAuth(client, authService);
 
   // Update client when auth changes
   React.useEffect(() => {
@@ -126,6 +127,8 @@ export const App: React.FC = () => {
         <div style={{ flex: 1 }}>
           <LoginPanel
             onLogin={login}
+            onSsoLogin={loginWithSso}
+            onCancelSso={cancelSso}
             onServerUrlChange={handleServerUrlChange}
             isLoading={isLoading}
             error={error}
