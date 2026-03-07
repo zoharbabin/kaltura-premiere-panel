@@ -1,12 +1,18 @@
 import { KalturaClient } from "./KalturaClient";
 import { MediaService } from "./MediaService";
-import { PremiereService } from "./PremiereService";
 import { KalturaFlavorAsset, KalturaListResponse } from "../types/kaltura";
+import { ImportResult } from "../types/premiere";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("ProxyService");
 
 const MIN_PROXY_HEIGHT = 720;
+
+/** Minimal host interface needed by ProxyService */
+interface ProxyHostService {
+  importFile(filePath: string): Promise<ImportResult>;
+  storeMapping(entryId: string, localPath: string): void;
+}
 
 export interface ProxyDownloadResult {
   localPath: string;
@@ -29,7 +35,7 @@ export class ProxyService {
   constructor(
     private client: KalturaClient,
     private mediaService: MediaService,
-    private premiereService: PremiereService,
+    private hostService: ProxyHostService,
   ) {}
 
   /**
@@ -131,9 +137,9 @@ export class ProxyService {
     const fileName = `proxy_${entryId}_${proxyFlavor.id}.${proxyFlavor.fileExt || "mp4"}`;
     const localPath = await this.downloadFile(downloadUrl, fileName, onProgress);
 
-    const importResult = await this.premiereService.importFiles([localPath]);
+    const importResult = await this.hostService.importFile(localPath);
     if (!importResult.success) {
-      throw new Error(importResult.error || "Failed to import proxy into Premiere");
+      throw new Error(importResult.error || "Failed to import proxy into host app");
     }
 
     const result: ProxyDownloadResult = {
@@ -143,15 +149,7 @@ export class ProxyService {
     };
 
     this.loadedProxies.set(entryId, result);
-
-    // Save mapping in Premiere service
-    this.premiereService.saveMapping(entryId, {
-      entryId,
-      flavorId: proxyFlavor.id,
-      localPath,
-      importDate: Date.now(),
-      isProxy: true,
-    });
+    this.hostService.storeMapping(entryId, localPath);
 
     log.info("Proxy downloaded and imported", { entryId, localPath });
     return result;
@@ -176,13 +174,7 @@ export class ProxyService {
     const downloadUrl = await this.mediaService.getFlavorDownloadUrl(originalFlavor.id);
 
     // Update the mapping to reflect original quality
-    this.premiereService.saveMapping(entryId, {
-      entryId,
-      flavorId: originalFlavor.id,
-      localPath: downloadUrl,
-      importDate: Date.now(),
-      isProxy: false,
-    });
+    this.hostService.storeMapping(entryId, downloadUrl);
 
     // Remove from loaded proxies since we are switching to original
     this.loadedProxies.delete(entryId);

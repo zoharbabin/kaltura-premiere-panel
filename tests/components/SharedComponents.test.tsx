@@ -188,7 +188,7 @@ describe("StatusBar", () => {
 
   it("renders the plugin version", () => {
     render(<StatusBar connectionState={ConnectionState.CONNECTED} />);
-    expect(screen.getByText("v0.1.0")).toBeInTheDocument();
+    expect(screen.getByText("v1.0.0")).toBeInTheDocument();
   });
 });
 

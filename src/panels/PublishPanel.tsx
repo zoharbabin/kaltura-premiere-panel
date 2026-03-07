@@ -103,7 +103,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       .then((seq) => {
         if (seq && !title) setTitle(seq.name);
       })
-      .catch(() => {});
+      .catch((err) => log.debug("Failed to get active sequence for title pre-fill", err));
   }, [premiereService, title]);
 
   const handlePublish = useCallback(async () => {
