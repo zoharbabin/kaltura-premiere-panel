@@ -103,9 +103,9 @@ docs/                         # Documentation
 ### Testing
 
 - Jest + jsdom for unit tests; `tests/` mirrors `src/` directory structure
-- Mock `premierepro` and `uxp` modules globally in `tests/setup.ts`
+- Mock `premierepro` and `uxp` modules globally in `tests/setup.ts` (`aftereffects` and `audition` are NOT mocked — host services test unavailable state)
 - Mock `fetch` globally — never hit live API in CI
-- 374 tests across 34 suites — all passing
+- 387 tests across 34 suites — all passing
 - Panel tests use duck-typed service mocks and React Testing Library
 - Use `renderHook` + `act` for hook tests; `jest.useFakeTimers()` for debounce tests
 
@@ -127,17 +127,22 @@ docs/                         # Documentation
 
 ## Service Wiring (App.tsx)
 
-All 20 services are instantiated in `App.tsx` via `useMemo`:
+18 services instantiated in `App.tsx` via `useMemo` (+ 3 host services created dynamically):
 
 - `KalturaClient` → base HTTP client
 - `AuthService`, `MediaService`, `UploadService`, `MetadataService` → core CRUD
-- `DownloadService`, `CaptionService`, `NotificationService`, `SearchService`, `ProxyService` → Phase 2
+- `DownloadService`, `CaptionService`, `NotificationService`, `SearchService` → Phase 2
 - `ReviewService`, `PublishWorkflowService` → Phase 3
 - `AnalyticsService`, `InteractiveService`, `BatchService` → Phase 4
-- `AuditService` → governance audit trail, access control, DRM
+- `AuditService` → governance audit trail, access control, DRM, compliance templates
 - `OfflineService` → offline caching and operation queue
-- `PremiereService` → host API (Premiere Pro)
-- `HostServiceFactory` → creates host-appropriate service (AE/Audition)
+- `createHostService()` → auto-detects host app, returns `PremiereHostAdapter` | `AfterEffectsHostService` | `AuditionHostService`
+
+Not directly instantiated (used dynamically or indirectly):
+
+- `ProxyService` → proxy download/reconnect (used via panels)
+- `PremiereService` → wrapped by `PremiereHostAdapter` inside factory
+- `AfterEffectsHostService`, `AuditionHostService` → created by factory when running in AE/Audition
 
 ## Panel Architecture
 
