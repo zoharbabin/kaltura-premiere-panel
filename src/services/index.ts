@@ -50,3 +50,8 @@ export type {
 } from "./AuditService";
 export { OfflineService } from "./OfflineService";
 export type { OfflineCachedEntry, QueuedOperation, SyncStatus } from "./OfflineService";
+export type { HostService, HostAppId, HostAppInfo } from "./HostService";
+export { detectHostApp, getHostAppName } from "./HostService";
+export { AfterEffectsHostService } from "./AfterEffectsHostService";
+export { AuditionHostService } from "./AuditionHostService";
+export { createHostService } from "./HostServiceFactory";
