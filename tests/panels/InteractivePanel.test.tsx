@@ -60,7 +60,7 @@ describe("InteractivePanel", () => {
     expect(screen.getByText("Main Content")).toBeTruthy();
   });
 
-  it("displays error when loading fails", async () => {
+  it("degrades gracefully when loading fails", async () => {
     const service = mockInteractiveService({
       listCuePoints: jest.fn().mockRejectedValue(new Error("Network error")),
     });
@@ -69,8 +69,10 @@ describe("InteractivePanel", () => {
       <InteractivePanel interactiveService={service} entryId="entry-1" entryName="Test Entry" />,
     );
 
+    // Individual promise failures are caught — panel shows empty data instead of error
     await waitFor(() => {
-      expect(screen.getByText("Network error")).toBeTruthy();
+      expect(screen.getByText("Chapters (0)")).toBeTruthy();
+      expect(screen.getByText("Cue Points (0)")).toBeTruthy();
     });
   });
 

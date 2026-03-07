@@ -1,11 +1,17 @@
 import { KalturaClient } from "./KalturaClient";
 import { KalturaFlavorAsset } from "../types/kaltura";
-import { AssetMapping } from "../types/premiere";
-import { PremiereService } from "./PremiereService";
+import { AssetMapping, ImportResult } from "../types/premiere";
 import { MediaService } from "./MediaService";
 import { NetworkError } from "../utils/errors";
 import { MAX_CONCURRENT_DOWNLOADS } from "../utils/constants";
 import { createLogger } from "../utils/logger";
+
+/** Minimal host interface needed by DownloadService */
+interface DownloadHostService {
+  importFile(filePath: string): Promise<ImportResult>;
+  isImported(entryId: string): boolean;
+  storeMapping(entryId: string, localPath: string): void;
+}
 
 const log = createLogger("DownloadService");
 
@@ -41,7 +47,7 @@ export class DownloadService {
   constructor(
     private client: KalturaClient,
     private mediaService: MediaService,
-    private premiereService: PremiereService,
+    private hostService: DownloadHostService,
   ) {}
 
   /** Get the number of active downloads */
@@ -63,10 +69,15 @@ export class DownloadService {
     flavor: KalturaFlavorAsset,
     onProgress?: (progress: DownloadProgress) => void,
   ): Promise<AssetMapping> {
-    const existing = this.premiereService.getMapping(entryId);
-    if (existing && existing.flavorId === flavor.id) {
-      log.info("Asset already imported, reusing", { entryId });
-      return existing;
+    if (this.hostService.isImported(entryId)) {
+      log.info("Asset already imported, skipping", { entryId });
+      return {
+        entryId,
+        flavorId: flavor.id,
+        localPath: "",
+        importDate: Date.now(),
+        isProxy: false,
+      };
     }
 
     const fileName = `${entryId}_${flavor.id}.${flavor.fileExt || "mp4"}`;
@@ -181,12 +192,12 @@ export class DownloadService {
         });
       }
 
-      // Save file and import into Premiere
+      // Save file and import into host app
       const tempPath = await this.saveTempFile(request.fileName, chunks);
-      const importResult = await this.premiereService.importFiles([tempPath]);
+      const importResult = await this.hostService.importFile(tempPath);
 
       if (!importResult.success) {
-        throw new Error(importResult.error || "Import to Premiere failed");
+        throw new Error(importResult.error || "Import failed");
       }
 
       const mapping: AssetMapping = {
@@ -197,7 +208,7 @@ export class DownloadService {
         isProxy: false,
       };
 
-      this.premiereService.saveMapping(request.entryId, mapping);
+      this.hostService.storeMapping(request.entryId, tempPath);
       log.info("Download and import complete", { entryId: request.entryId, size: loaded });
 
       return mapping;

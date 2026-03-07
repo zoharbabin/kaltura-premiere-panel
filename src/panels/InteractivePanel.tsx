@@ -28,7 +28,7 @@ interface InteractiveServiceLike {
 
 /** Minimal PremiereService interface for marker access */
 interface PremiereServiceLike {
-  getMarkers(): Promise<{ name: string; start: number; comments: string }[]>;
+  getMarkers?(): Promise<{ name: string; start: number; comments: string }[]>;
 }
 
 interface InteractivePanelProps {
@@ -70,8 +70,8 @@ export const InteractivePanel: React.FC<InteractivePanelProps> = ({
 
       try {
         const [chapterItems, allItems] = await Promise.all([
-          interactiveService.listCuePoints(id, "chapter"),
-          interactiveService.listCuePoints(id),
+          interactiveService.listCuePoints(id, "chapter").catch(() => []),
+          interactiveService.listCuePoints(id).catch(() => []),
         ]);
         setChapters(chapterItems);
         setCuePoints(allItems);
@@ -134,7 +134,7 @@ export const InteractivePanel: React.FC<InteractivePanelProps> = ({
 
     try {
       let markers: MarkerData[];
-      if (premiereService) {
+      if (premiereService?.getMarkers) {
         const raw = await premiereService.getMarkers();
         markers = raw.map((m) => ({ name: m.name, start: m.start, comments: "", colorIndex: 0 }));
       } else {

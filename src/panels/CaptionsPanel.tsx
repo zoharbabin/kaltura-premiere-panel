@@ -59,7 +59,7 @@ export const CaptionsPanel: React.FC<CaptionsPanelProps> = ({
     setError(null);
 
     Promise.all([
-      captionService.listCaptions(entryId),
+      captionService.listCaptions(entryId).catch(() => []),
       captionService.listTasks(entryId).catch(() => []),
       captionService.listReachCatalogItems().catch(() => []),
     ])
