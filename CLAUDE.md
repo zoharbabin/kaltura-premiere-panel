@@ -1,4 +1,4 @@
-# Kaltura for Adobe Premiere Pro — Development Guidelines
+# Kaltura for Adobe Creative Cloud — Development Guidelines
 
 ## Project Overview
 
@@ -127,7 +127,7 @@ docs/                         # Documentation
 
 ## Service Wiring (App.tsx)
 
-17 services instantiated in `App.tsx` via `useMemo` (+ host service created dynamically):
+18 services instantiated in `App.tsx` via `useMemo` (including host service via factory):
 
 - `KalturaClient` → base HTTP client
 - `AuthService`, `MediaService`, `UploadService`, `MetadataService` → core CRUD
