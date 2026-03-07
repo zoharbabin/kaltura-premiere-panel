@@ -141,6 +141,126 @@ describe("MetadataService", () => {
     });
   });
 
+  describe("getEntryMetadata()", () => {
+    it("returns parsed metadata values for an entry", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          objectType: "KalturaMetadataListResponse",
+          totalCount: 1,
+          objects: [
+            {
+              id: 100,
+              xml: "<metadata><department>Engineering</department><priority>High</priority></metadata>",
+              metadataProfileId: 1,
+            },
+          ],
+        }),
+      });
+
+      const result = await service.getEntryMetadata("0_abc", 1);
+
+      expect(result).not.toBeNull();
+      expect(result!.profileId).toBe(1);
+      expect(result!.values).toEqual({ department: "Engineering", priority: "High" });
+    });
+
+    it("returns null when no metadata exists", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          objectType: "KalturaMetadataListResponse",
+          totalCount: 0,
+          objects: [],
+        }),
+      });
+
+      const result = await service.getEntryMetadata("0_abc", 1);
+      expect(result).toBeNull();
+    });
+
+    it("returns null on error", async () => {
+      mockFetch.mockRejectedValueOnce(new Error("Network error"));
+      const result = await service.getEntryMetadata("0_abc", 1);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("saveEntryMetadata()", () => {
+    it("creates new metadata when none exists", async () => {
+      // First call: getEntryMetadata returns empty
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          objectType: "KalturaMetadataListResponse",
+          totalCount: 0,
+          objects: [],
+        }),
+      });
+      // Second call: metadata.add
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ objectType: "KalturaMetadata", id: 200 }),
+      });
+
+      await service.saveEntryMetadata("0_abc", 1, { department: "Sales" });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const addBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+      expect(addBody.xmlData).toContain("<department>Sales</department>");
+      expect(addBody.metadataProfileId).toBe(1);
+    });
+
+    it("updates existing metadata", async () => {
+      // First call: getEntryMetadata returns existing
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          objectType: "KalturaMetadataListResponse",
+          totalCount: 1,
+          objects: [
+            {
+              id: 100,
+              xml: "<metadata><department>Old</department></metadata>",
+              metadataProfileId: 1,
+            },
+          ],
+        }),
+      });
+      // Second call: metadata.update
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ objectType: "KalturaMetadata", id: 100 }),
+      });
+
+      await service.saveEntryMetadata("0_abc", 1, { department: "New" });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const updateUrl = mockFetch.mock.calls[1][0] as string;
+      expect(updateUrl).toContain("metadata_metadata/action/update");
+    });
+
+    it("escapes XML special characters in values", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          objectType: "KalturaMetadataListResponse",
+          totalCount: 0,
+          objects: [],
+        }),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ objectType: "KalturaMetadata", id: 201 }),
+      });
+
+      await service.saveEntryMetadata("0_abc", 1, { notes: "A & B <test>" });
+
+      const addBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+      expect(addBody.xmlData).toContain("A &amp; B &lt;test&gt;");
+    });
+  });
+
   describe("addToCategory() / removeFromCategory()", () => {
     it("adds entry to category", async () => {
       mockFetch.mockResolvedValueOnce({

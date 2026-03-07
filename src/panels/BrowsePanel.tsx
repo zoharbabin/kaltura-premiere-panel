@@ -29,6 +29,18 @@ import { buildGridThumbnailUrl } from "../utils/thumbnail";
 import { formatDuration, formatDate, formatFileSize, truncate } from "../utils/format";
 import { getUserMessage } from "../utils/errors";
 
+/** Check if an entry is under content hold (governance) */
+function isContentHeld(entry: KalturaMediaEntry): boolean {
+  return Boolean(entry.adminTags && entry.adminTags.includes("content_hold"));
+}
+
+/** Extract hold reason from adminTags */
+function getHoldReason(entry: KalturaMediaEntry): string | null {
+  if (!entry.adminTags) return null;
+  const match = entry.adminTags.match(/hold_reason:([^,]+)/);
+  return match ? match[1] : null;
+}
+
 /** Duck-typed SearchService for enhanced transcript/in-video search */
 interface SearchServiceLike {
   searchTranscripts(
@@ -188,6 +200,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
 
   const handleImportClick = useCallback(() => {
     if (!selectedEntry || selectedEntry.flavors.length === 0) return;
+    if (isContentHeld(selectedEntry.entry)) return;
     if (selectedEntry.flavors.length === 1) {
       onImportEntry(selectedEntry.entry, selectedEntry.flavors[0]);
       return;
@@ -342,7 +355,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 imported={isImported(entry.id)}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => {
-                  // Quick import with first web flavor
+                  if (isContentHeld(entry)) return; // Block import for held entries
                   mediaService.getEntryDetails(entry.id).then((details) => {
                     const webFlavor = details.flavors.find((f) => f.isWeb);
                     if (webFlavor) onImportEntry(entry, webFlavor);
@@ -362,6 +375,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 imported={isImported(entry.id)}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => {
+                  if (isContentHeld(entry)) return; // Block import for held entries
                   mediaService.getEntryDetails(entry.id).then((details) => {
                     const webFlavor = details.flavors.find((f) => f.isWeb);
                     if (webFlavor) onImportEntry(entry, webFlavor);
@@ -441,6 +455,26 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
           {formatDuration(entry.duration)}
         </div>
       )}
+      {/* Content hold badge */}
+      {isContentHeld(entry) && (
+        <div
+          style={{
+            position: "absolute",
+            top: 4,
+            left: 4,
+            backgroundColor: "var(--spectrum-global-color-red-500)",
+            color: "white",
+            padding: "1px 5px",
+            borderRadius: "2px",
+            fontSize: "9px",
+            fontWeight: "bold",
+            letterSpacing: "0.5px",
+          }}
+          title={getHoldReason(entry) ?? "Content held"}
+        >
+          HOLD
+        </div>
+      )}
       {/* Imported indicator */}
       {imported && (
         <div
@@ -471,6 +505,7 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          color: isContentHeld(entry) ? "var(--spectrum-global-color-red-600)" : undefined,
         }}
       >
         {truncate(entry.name, 30)}
@@ -520,13 +555,34 @@ const ListRow: React.FC<ListRowProps> = ({
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          color: isContentHeld(entry) ? "var(--spectrum-global-color-red-600)" : undefined,
         }}
       >
+        {isContentHeld(entry) && (
+          <span
+            style={{
+              backgroundColor: "var(--spectrum-global-color-red-500)",
+              color: "white",
+              padding: "0 4px",
+              borderRadius: "2px",
+              fontSize: "9px",
+              fontWeight: "bold",
+              marginRight: "4px",
+            }}
+          >
+            HOLD
+          </span>
+        )}
         {imported && "\u2713 "}
         {entry.name}
       </div>
       <div style={{ fontSize: "10px", color: "var(--spectrum-global-color-gray-600)" }}>
         {formatDuration(entry.duration)} \u00B7 {formatDate(entry.createdAt)}
+        {isContentHeld(entry) && (
+          <span style={{ color: "var(--spectrum-global-color-red-500)", marginLeft: "4px" }}>
+            {getHoldReason(entry) ? `Hold: ${getHoldReason(entry)}` : "Content held"}
+          </span>
+        )}
       </div>
     </div>
   </div>
@@ -635,6 +691,27 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
               <strong>Owner:</strong> {entry.userId}
             </div>
           )}
+          {isContentHeld(entry) && (
+            <div
+              style={{
+                marginTop: "8px",
+                padding: "8px",
+                backgroundColor: "var(--spectrum-global-color-red-100)",
+                border: "1px solid var(--spectrum-global-color-red-400)",
+                borderRadius: "4px",
+                fontSize: "12px",
+              }}
+            >
+              <strong style={{ color: "var(--spectrum-global-color-red-700)" }}>
+                Content Hold
+              </strong>
+              <div style={{ marginTop: "4px", color: "var(--spectrum-global-color-red-600)" }}>
+                {getHoldReason(entry)
+                  ? `Reason: ${getHoldReason(entry)}`
+                  : "This entry is under content hold and cannot be imported."}
+              </div>
+            </div>
+          )}
         </div>
 
         {flavors.length > 0 && (
@@ -679,10 +756,14 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         <sp-button
           variant="accent"
           onClick={onImport}
-          disabled={isImported || flavors.length === 0 || undefined}
+          disabled={isImported || isContentHeld(entry) || flavors.length === 0 || undefined}
           style={{ flex: 1 }}
         >
-          {isImported ? "Already Imported" : "Import to Project"}
+          {isImported
+            ? "Already Imported"
+            : isContentHeld(entry)
+              ? "Import Blocked (Hold)"
+              : "Import to Project"}
         </sp-button>
       </div>
     </div>

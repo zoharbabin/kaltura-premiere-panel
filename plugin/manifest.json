@@ -61,6 +61,20 @@
       "path": "icons/icon-48.png",
       "scale": [1, 2],
       "theme": ["all"]
+    },
+    {
+      "width": 96,
+      "height": 96,
+      "path": "icons/icon-96.png",
+      "scale": [1, 2],
+      "theme": ["all"]
+    },
+    {
+      "width": 192,
+      "height": 192,
+      "path": "icons/icon-192.png",
+      "scale": [1, 2],
+      "theme": ["all"]
     }
   ]
 }
