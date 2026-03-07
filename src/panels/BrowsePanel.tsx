@@ -77,12 +77,23 @@ interface AuditServiceLike {
   getEntryDrmPolicy(entryId: string): Promise<{ provider: string; licenseUrl?: string }[]>;
 }
 
+/** Duck-typed OfflineService for caching */
+interface OfflineServiceLike {
+  getIsOnline(): boolean;
+  isCached(entryId: string): boolean;
+  cacheEntries(entries: KalturaMediaEntry[]): void;
+  getCachedEntries(): { entry: KalturaMediaEntry; cachedAt: number }[];
+  getSyncStatus(): { isOnline: boolean; pendingOperations: number; cacheEntryCount: number };
+  onStatusChange(listener: (online: boolean) => void): () => void;
+}
+
 interface BrowsePanelProps {
   mediaService: MediaService;
   metadataService: MetadataService;
   searchService?: SearchServiceLike;
   batchService?: BatchServiceLike;
   auditService?: AuditServiceLike;
+  offlineService?: OfflineServiceLike;
   partnerId: number;
   userId?: string;
   isImported: (entryId: string) => boolean;
@@ -102,6 +113,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   searchService,
   batchService,
   auditService,
+  offlineService,
   partnerId,
   userId,
   isImported,
@@ -111,6 +123,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   const [entries, setEntries] = useState<KalturaMediaEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState("");
+  const [isOffline, setIsOffline] = useState(!offlineService?.getIsOnline());
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -169,6 +182,11 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         setEntries((prev) => (append ? [...prev, ...result.objects] : result.objects));
         setTotalCount(result.totalCount);
         setPage(pageIndex);
+
+        // Cache results for offline access
+        if (offlineService && result.objects.length > 0) {
+          offlineService.cacheEntries(result.objects);
+        }
       } catch (err) {
         setError(getUserMessage(err));
       } finally {
@@ -179,10 +197,27 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
     [buildFilter, mediaService],
   );
 
+  // Subscribe to offline status changes
+  useEffect(() => {
+    if (!offlineService) return;
+    return offlineService.onStatusChange((online) => {
+      setIsOffline(!online);
+      if (online) loadEntries(1); // Refresh when coming back online
+    });
+  }, [offlineService, loadEntries]);
+
   // Reload when search or filters change
   useEffect(() => {
+    if (isOffline && offlineService) {
+      // Show cached entries when offline
+      const cached = offlineService.getCachedEntries();
+      const cachedEntries = cached.map((c) => c.entry);
+      setEntries(cachedEntries);
+      setTotalCount(cachedEntries.length);
+      return;
+    }
     loadEntries(1);
-  }, [loadEntries]);
+  }, [loadEntries, isOffline, offlineService]);
 
   // Infinite scroll
   const handleScroll = useCallback(() => {
@@ -339,6 +374,33 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
             : searchText || activeFilterCount > 0
               ? "No results"
               : ""}
+        </div>
+      )}
+
+      {/* Offline mode banner */}
+      {isOffline && (
+        <div
+          style={{
+            padding: "6px 8px",
+            backgroundColor: "var(--spectrum-global-color-yellow-100)",
+            borderBottom: "1px solid var(--spectrum-global-color-yellow-400)",
+            fontSize: "11px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <span style={{ fontSize: "14px" }}>{"\u26A0"}</span>
+          <span>
+            <strong>Offline Mode</strong> — Showing {entries.length} cached assets.
+            {offlineService && offlineService.getSyncStatus().pendingOperations > 0 && (
+              <span>
+                {" "}
+                {offlineService.getSyncStatus().pendingOperations} pending operations will sync when
+                online.
+              </span>
+            )}
+          </span>
         </div>
       )}
 
