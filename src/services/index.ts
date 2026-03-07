@@ -48,3 +48,5 @@ export type {
   AccessControlRestriction,
   DrmPolicy,
 } from "./AuditService";
+export { OfflineService } from "./OfflineService";
+export type { OfflineCachedEntry, QueuedOperation, SyncStatus } from "./OfflineService";
