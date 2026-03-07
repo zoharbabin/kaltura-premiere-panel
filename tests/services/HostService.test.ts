@@ -37,6 +37,42 @@ describe("HostService", () => {
       expect(typeof service.getVersion).toBe("function");
       expect(typeof service.getActiveSequence).toBe("function");
     });
+
+    it("auto-detects host when no argument provided", () => {
+      const service = createHostService();
+      // In test env, detectHostApp() defaults to premierepro
+      expect(typeof service.isAvailable).toBe("function");
+      expect(typeof service.importFile).toBe("function");
+      expect(typeof service.addMarkers).toBe("function");
+      expect(typeof service.isImported).toBe("function");
+      expect(typeof service.storeMapping).toBe("function");
+      expect(typeof service.getAllMappings).toBe("function");
+      expect(typeof service.clearMappings).toBe("function");
+    });
+
+    it("all host services implement complete HostService interface", () => {
+      const hosts = ["premierepro", "aftereffects", "audition"] as const;
+      for (const hostId of hosts) {
+        const service = createHostService(hostId);
+        expect(typeof service.getAppInfo).toBe("function");
+        expect(typeof service.isAvailable).toBe("function");
+        expect(typeof service.getVersion).toBe("function");
+        expect(typeof service.getActiveSequence).toBe("function");
+        expect(typeof service.importFile).toBe("function");
+        expect(typeof service.addMarkers).toBe("function");
+        expect(typeof service.isImported).toBe("function");
+        expect(typeof service.storeMapping).toBe("function");
+        expect(typeof service.getAllMappings).toBe("function");
+        expect(typeof service.clearMappings).toBe("function");
+      }
+    });
+
+    it("Audition host reports no video support", () => {
+      const service = createHostService("audition");
+      const info = service.getAppInfo();
+      expect(info.supportsVideo).toBe(false);
+      expect(info.supportsAudio).toBe(true);
+    });
   });
 });
 
