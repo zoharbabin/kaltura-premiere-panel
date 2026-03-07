@@ -1,0 +1,66 @@
+{
+  "manifestVersion": 5,
+  "id": "com.kaltura.premiere.panel",
+  "name": "Kaltura for Premiere Pro",
+  "version": "0.1.0",
+  "main": "index.js",
+  "host": {
+    "app": "premierepro",
+    "minVersion": "25.2.0"
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "kalturaMainPanel",
+      "label": {
+        "default": "Kaltura"
+      },
+      "minimumSize": {
+        "width": 280,
+        "height": 400
+      },
+      "preferredDockedSize": {
+        "width": 360,
+        "height": 600
+      },
+      "preferredFloatingSize": {
+        "width": 500,
+        "height": 700
+      }
+    }
+  ],
+  "requiredPermissions": {
+    "network": {
+      "domains": ["https://*.kaltura.com", "https://*.kaltura.cloud", "wss://*.kaltura.com"]
+    },
+    "localFileSystem": "fullAccess",
+    "launchProcess": {
+      "schemes": ["https"]
+    },
+    "webview": {
+      "allow": "yes",
+      "domains": ["https://*.kaltura.com"]
+    },
+    "clipboard": "readAndWrite",
+    "enableUserInfo": true
+  },
+  "featureFlags": {
+    "enableSWCSupport": true
+  },
+  "icons": [
+    {
+      "width": 24,
+      "height": 24,
+      "path": "icons/icon-24.png",
+      "scale": [1, 2],
+      "theme": ["all"]
+    },
+    {
+      "width": 48,
+      "height": 48,
+      "path": "icons/icon-48.png",
+      "scale": [1, 2],
+      "theme": ["all"]
+    }
+  ]
+}
