@@ -159,4 +159,94 @@ describe("AuthService", () => {
       expect(result).toBeNull();
     });
   });
+
+  describe("loginWithSso()", () => {
+    beforeEach(() => {
+      // Mock the private sleep method to resolve immediately
+      jest
+        .spyOn(AuthService.prototype as unknown as { sleep: () => Promise<void> }, "sleep" as never)
+        .mockResolvedValue(undefined as never);
+    });
+
+    it("opens browser and polls until KS is returned", async () => {
+      // Mock sso.getLoginToken
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "sso_token_1",
+          loginUrl: "https://idp.example.com/login?token=sso_token_1",
+        }),
+      });
+
+      // Mock first poll -> pending
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "pending" }),
+      });
+
+      // Mock second poll -> complete with KS
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "complete", ks: "sso_ks_abc" }),
+      });
+
+      // Mock user.get
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          objectType: "KalturaUser",
+          id: "sso_user",
+          email: "sso@corp.com",
+          firstName: "SSO",
+          lastName: "User",
+          fullName: "SSO User",
+          partnerId: 99,
+          isAdmin: false,
+        }),
+      });
+
+      const session = await service.loginWithSso("https://test.kaltura.com", 99);
+      expect(session.ks).toBe("sso_ks_abc");
+      expect(session.user.fullName).toBe("SSO User");
+      expect(session.partnerId).toBe(99);
+    });
+
+    it("throws when SSO token expires", async () => {
+      // Mock sso.getLoginToken
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: "sso_token_2", loginUrl: "https://idp.example.com/login" }),
+      });
+
+      // Mock poll -> expired
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "expired" }),
+      });
+
+      await expect(service.loginWithSso("https://test.kaltura.com", 99)).rejects.toThrow(
+        "SSO login token expired",
+      );
+    });
+
+    it("can be cancelled via AbortSignal", async () => {
+      // Mock sso.getLoginToken
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: "sso_token_3", loginUrl: "https://idp.example.com/login" }),
+      });
+
+      // Mock poll -> always pending (will be cancelled before second poll)
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: "pending" }),
+      });
+
+      const controller = new AbortController();
+      controller.abort(); // Pre-abort
+      await expect(
+        service.loginWithSso("https://test.kaltura.com", 99, controller.signal),
+      ).rejects.toThrow("SSO login cancelled");
+    });
+  });
 });

@@ -10,6 +10,8 @@ import {
   SESSION_REFRESH_THRESHOLD,
   SECURE_STORAGE_KEY_KS,
   SECURE_STORAGE_KEY_USER,
+  SSO_POLL_INTERVAL_MS,
+  SSO_TIMEOUT_MS,
 } from "../utils/constants";
 import { createLogger } from "../utils/logger";
 
@@ -158,6 +160,93 @@ export class AuthService {
   }
 
   /**
+   * Login via SSO (three-party OAuth).
+   *
+   * 1. Request a one-time login token from Kaltura (creates a pending session)
+   * 2. Open the system browser to the IdP login page
+   * 3. Poll Kaltura until the token is exchanged for a KS
+   * 4. Store the session and return
+   *
+   * Call `cancelSso()` to abort a pending SSO flow.
+   */
+  async loginWithSso(
+    serverUrl: string,
+    partnerId: number,
+    signal?: AbortSignal,
+  ): Promise<AuthSession> {
+    log.info("Starting SSO login flow");
+
+    // Step 1: Request a one-time login token
+    const tokenResponse = await this.client.request<{
+      objectType?: string;
+      id: string;
+      loginUrl: string;
+    }>({
+      service: "sso",
+      action: "getLoginToken",
+      params: { partnerId },
+    });
+
+    const { id: tokenId, loginUrl } = tokenResponse;
+    log.info("SSO token created, opening browser", { tokenId });
+
+    // Step 2: Open system browser to IdP
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const uxp = require("uxp");
+      uxp.shell.openExternal(loginUrl);
+    } catch {
+      window.open(loginUrl, "_blank");
+    }
+
+    // Step 3: Poll for completion
+    const deadline = Date.now() + SSO_TIMEOUT_MS;
+
+    while (Date.now() < deadline) {
+      if (signal?.aborted) {
+        throw new AuthenticationError("SSO login cancelled", "SSO_CANCELLED");
+      }
+
+      await this.sleep(SSO_POLL_INTERVAL_MS);
+
+      try {
+        const pollResponse = await this.client.request<{
+          objectType?: string;
+          status: "pending" | "complete" | "expired";
+          ks?: string;
+        }>({
+          service: "sso",
+          action: "checkLoginToken",
+          params: { id: tokenId, partnerId },
+        });
+
+        if (pollResponse.status === "complete" && pollResponse.ks) {
+          this.client.setKs(pollResponse.ks);
+          const user = await this.fetchUserInfo();
+          const session: AuthSession = {
+            ks: pollResponse.ks,
+            user,
+            expiry: Date.now() / 1000 + 86400,
+            partnerId,
+          };
+          await this.setSession(session);
+          log.info("SSO login complete");
+          return session;
+        }
+
+        if (pollResponse.status === "expired") {
+          throw new AuthenticationError("SSO login token expired", "SSO_EXPIRED");
+        }
+      } catch (err) {
+        if (err instanceof AuthenticationError) throw err;
+        log.debug("SSO poll attempt failed, retrying", err);
+      }
+    }
+
+    throw new AuthenticationError("SSO login timed out", "SSO_TIMEOUT");
+  }
+
+  /**
    * Restore session from secure storage (called on panel launch).
    * Returns null if no stored session or if expired.
    */
@@ -289,6 +378,10 @@ export class AuthService {
     } catch (error) {
       log.error("Session refresh failed", error);
     }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async sha256(input: string): Promise<string> {
