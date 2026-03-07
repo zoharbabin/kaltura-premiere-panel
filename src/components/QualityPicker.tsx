@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import { KalturaFlavorAsset } from "../types/kaltura";
 import { formatFileSize, formatBitrate, formatResolution } from "../utils/format";
+import { RESOLUTION_FULL_HD, RESOLUTION_HD, RESOLUTION_SD } from "../utils/constants";
 
 interface QualityPickerProps {
   flavors: KalturaFlavorAsset[];
@@ -22,9 +23,9 @@ function sortFlavors(flavors: KalturaFlavorAsset[]): KalturaFlavorAsset[] {
 function getFlavorLabel(flavor: KalturaFlavorAsset): string {
   if (flavor.isOriginal) return "Original";
   const res = formatResolution(flavor.width, flavor.height);
-  if (flavor.height >= 1080) return `Full HD (${res})`;
-  if (flavor.height >= 720) return `HD (${res})`;
-  if (flavor.height >= 480) return `SD (${res})`;
+  if (flavor.height >= RESOLUTION_FULL_HD) return `Full HD (${res})`;
+  if (flavor.height >= RESOLUTION_HD) return `HD (${res})`;
+  if (flavor.height >= RESOLUTION_SD) return `SD (${res})`;
   return res || "Unknown";
 }
 

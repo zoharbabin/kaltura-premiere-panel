@@ -36,6 +36,17 @@ export const WEBSOCKET_RECONNECT_MAX_MS = 30_000;
 export const SSO_POLL_INTERVAL_MS = 2_000;
 export const SSO_TIMEOUT_MS = 300_000; // 5 minutes
 
+/** Governance */
+export const CONTENT_HOLD_TAG = "content_hold";
+export const HOLD_REASON_PREFIX = "hold_reason:";
+export const LICENSE_EXPIRY_WARNING_DAYS = 7;
+export const LICENSE_EXPIRY_WARNING_SECONDS = LICENSE_EXPIRY_WARNING_DAYS * 24 * 60 * 60;
+
+/** Resolution thresholds for quality labels */
+export const RESOLUTION_FULL_HD = 1080;
+export const RESOLUTION_HD = 720;
+export const RESOLUTION_SD = 480;
+
 /** Premiere panel */
 export const KALTURA_BIN_NAME = "Kaltura Assets";
 export const HOVER_PREVIEW_FRAME_COUNT = 10;
