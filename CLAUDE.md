@@ -105,9 +105,10 @@ docs/                         # Documentation
 - Jest + jsdom for unit tests; `tests/` mirrors `src/` directory structure
 - Mock `premierepro` and `uxp` modules globally in `tests/setup.ts` (`aftereffects` and `audition` are NOT mocked — host services test unavailable state)
 - Mock `fetch` globally — never hit live API in CI
-- 440 tests across 37 suites — all passing
+- 506 tests across 45 suites — all passing
 - Panel tests use duck-typed service mocks and React Testing Library
 - Use `renderHook` + `act` for hook tests; `jest.useFakeTimers()` for debounce tests
+- Coverage thresholds enforced: statements 72%, branches 58%, functions 68%, lines 73%
 
 ### Quality
 
@@ -127,7 +128,7 @@ docs/                         # Documentation
 
 ## Service Wiring (App.tsx)
 
-18 services instantiated in `App.tsx` via `useMemo` (including host service via factory):
+19 services instantiated in `App.tsx` via `useMemo` (including host service via factory):
 
 - `KalturaClient` → base HTTP client
 - `AuthService`, `MediaService`, `UploadService`, `MetadataService` → core CRUD
@@ -136,11 +137,11 @@ docs/                         # Documentation
 - `AnalyticsService`, `InteractiveService`, `BatchService` → Phase 4
 - `AuditService` → governance audit trail, access control, DRM, compliance templates
 - `OfflineService` → offline caching and operation queue
+- `ProxyService` → proxy download/reconnect (wired to BrowsePanel via duck-typed interface)
 - `createHostService()` → auto-detects host app, returns `PremiereHostAdapter` | `AfterEffectsHostService` | `AuditionHostService`
 
 Not directly instantiated (used dynamically or indirectly):
 
-- `ProxyService` → proxy download/reconnect (defined but not yet wired to panels)
 - `PremiereService` → wrapped by `PremiereHostAdapter` inside factory
 - `AfterEffectsHostService`, `AuditionHostService` → created by factory when running in AE/Audition
 
