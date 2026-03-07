@@ -1,15 +1,17 @@
 # Plugin Icons
 
-Place PNG icons here for Adobe Exchange distribution:
+All 4 required icon sizes are present for Adobe Exchange distribution:
 
-| File           | Size    | Usage                      |
-| -------------- | ------- | -------------------------- |
-| `icon-24.png`  | 24x24   | Panel title bar            |
-| `icon-48.png`  | 48x48   | Plugin manager             |
-| `icon-96.png`  | 96x96   | Exchange listing thumbnail |
-| `icon-192.png` | 192x192 | Exchange hero image        |
+| File           | Size    | Usage                      | Status      |
+| -------------- | ------- | -------------------------- | ----------- |
+| `icon-24.png`  | 24x24   | Panel title bar            | Placeholder |
+| `icon-48.png`  | 48x48   | Plugin manager             | Placeholder |
+| `icon-96.png`  | 96x96   | Exchange listing thumbnail | Placeholder |
+| `icon-192.png` | 192x192 | Exchange hero image        | Placeholder |
 
-Requirements:
+Current icons are programmatically generated placeholders with Kaltura brand colors. Replace with professionally designed icons before Exchange submission.
+
+Requirements for production icons:
 
 - PNG format with transparent background
 - Kaltura brand colors on dark/light themes
