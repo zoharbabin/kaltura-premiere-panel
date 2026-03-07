@@ -135,6 +135,60 @@ describe("AuditService", () => {
     });
   });
 
+  describe("listComplianceTemplates()", () => {
+    it("returns server-side compliance templates", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          objectType: "KalturaMetadataProfileListResponse",
+          totalCount: 1,
+          objects: [
+            {
+              id: 100,
+              systemName: "compliance",
+              name: "Corporate Compliance",
+              xsd: `<xsd:schema><xsd:element name="classification"><xsd:simpleType><xsd:restriction><xsd:enumeration value="Public"/><xsd:enumeration value="Internal"/></xsd:restriction></xsd:simpleType></xsd:element><xsd:element name="department" minOccurs="0"/></xsd:schema>`,
+            },
+          ],
+        }),
+      });
+
+      const templates = await service.listComplianceTemplates();
+
+      expect(templates).toHaveLength(1);
+      expect(templates[0].name).toBe("Corporate Compliance");
+      expect(templates[0].fields.length).toBeGreaterThanOrEqual(1);
+      const classField = templates[0].fields.find((f) => f.key === "classification");
+      expect(classField).toBeDefined();
+      expect(classField!.type).toBe("select");
+      expect(classField!.options).toContain("Public");
+    });
+
+    it("falls back to default templates when server unavailable", async () => {
+      mockFetch.mockRejectedValueOnce(new Error("Service not found"));
+
+      const templates = await service.listComplianceTemplates();
+
+      expect(templates).toHaveLength(1);
+      expect(templates[0].id).toBe("default_compliance");
+      expect(templates[0].fields.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("getDefaultComplianceTemplates()", () => {
+    it("returns built-in compliance template with required fields", () => {
+      const templates = service.getDefaultComplianceTemplates();
+
+      expect(templates).toHaveLength(1);
+      const fields = templates[0].fields;
+      const required = fields.filter((f) => f.required);
+      expect(required.length).toBeGreaterThanOrEqual(2);
+      expect(fields.find((f) => f.key === "contentClassification")).toBeDefined();
+      expect(fields.find((f) => f.key === "retentionPolicy")).toBeDefined();
+      expect(fields.find((f) => f.key === "department")).toBeDefined();
+    });
+  });
+
   describe("getEntryDrmPolicy()", () => {
     it("returns DRM policies", async () => {
       mockFetch.mockResolvedValueOnce({

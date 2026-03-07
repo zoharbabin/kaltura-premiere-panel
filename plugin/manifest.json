@@ -4,10 +4,20 @@
   "name": "Kaltura for Premiere Pro",
   "version": "0.1.0",
   "main": "index.js",
-  "host": {
-    "app": "premierepro",
-    "minVersion": "25.2.0"
-  },
+  "host": [
+    {
+      "app": "premierepro",
+      "minVersion": "25.2.0"
+    },
+    {
+      "app": "aftereffects",
+      "minVersion": "25.2.0"
+    },
+    {
+      "app": "audition",
+      "minVersion": "25.2.0"
+    }
+  ],
   "entrypoints": [
     {
       "type": "panel",

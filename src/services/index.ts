@@ -47,6 +47,8 @@ export type {
   AccessControlProfile,
   AccessControlRestriction,
   DrmPolicy,
+  ComplianceTemplate,
+  ComplianceField,
 } from "./AuditService";
 export { OfflineService } from "./OfflineService";
 export type { OfflineCachedEntry, QueuedOperation, SyncStatus } from "./OfflineService";

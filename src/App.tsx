@@ -5,7 +5,6 @@ import {
   AuthService,
   MediaService,
   UploadService,
-  PremiereService,
   DownloadService,
   MetadataService,
   CaptionService,
@@ -18,6 +17,7 @@ import {
   SearchService,
   AuditService,
   OfflineService,
+  createHostService,
 } from "./services";
 import { useAuth } from "./hooks";
 import {
@@ -50,17 +50,18 @@ export const App: React.FC = () => {
   const authService = useMemo(() => new AuthService(client), [client]);
   const mediaService = useMemo(() => new MediaService(client), [client]);
   const uploadService = useMemo(() => new UploadService(client), [client]);
-  const premiereService = useMemo(() => new PremiereService(), []);
+  const hostService = useMemo(() => createHostService(), []);
+  const hostAppInfo = useMemo(() => hostService.getAppInfo(), [hostService]);
   const metadataService = useMemo(() => new MetadataService(client), [client]);
   const downloadService = useMemo(
-    () => new DownloadService(client, mediaService, premiereService),
-    [client, mediaService, premiereService],
+    () => new DownloadService(client, mediaService, hostService as never),
+    [client, mediaService, hostService],
   );
   const captionService = useMemo(() => new CaptionService(client), [client]);
   const notificationService = useMemo(() => new NotificationService(client), [client]);
   const reviewService = useMemo(
-    () => new ReviewService(client, premiereService),
-    [client, premiereService],
+    () => new ReviewService(client, hostService as never),
+    [client, hostService],
   );
   const analyticsService = useMemo(() => new AnalyticsService(client), [client]);
   const interactiveService = useMemo(() => new InteractiveService(client), [client]);
@@ -178,10 +179,21 @@ export const App: React.FC = () => {
       >
         <TabButton id="browse" label="Browse" active={activeTab} onClick={setActiveTab} />
         <TabButton id="publish" label="Publish" active={activeTab} onClick={setActiveTab} />
-        <TabButton id="captions" label="Captions" active={activeTab} onClick={setActiveTab} />
+        {hostAppInfo.supportsVideo && (
+          <TabButton id="captions" label="Captions" active={activeTab} onClick={setActiveTab} />
+        )}
         <TabButton id="review" label="Review" active={activeTab} onClick={setActiveTab} />
-        <TabButton id="analytics" label="Analytics" active={activeTab} onClick={setActiveTab} />
-        <TabButton id="interactive" label="Interactive" active={activeTab} onClick={setActiveTab} />
+        {hostAppInfo.supportsVideo && (
+          <TabButton id="analytics" label="Analytics" active={activeTab} onClick={setActiveTab} />
+        )}
+        {hostAppInfo.supportsVideo && (
+          <TabButton
+            id="interactive"
+            label="Interactive"
+            active={activeTab}
+            onClick={setActiveTab}
+          />
+        )}
         <TabButton id="settings" label="Settings" active={activeTab} onClick={setActiveTab} />
       </div>
 
@@ -197,7 +209,7 @@ export const App: React.FC = () => {
             offlineService={offlineService}
             partnerId={authState.partnerId}
             userId={authState.user?.id}
-            isImported={(id) => premiereService.isImported(id)}
+            isImported={(id) => hostService.isImported(id)}
             onSelectEntry={handleSelectEntry}
             onImportEntry={handleImportEntry}
           />
@@ -207,7 +219,7 @@ export const App: React.FC = () => {
             mediaService={mediaService}
             uploadService={uploadService}
             metadataService={metadataService}
-            premiereService={premiereService}
+            premiereService={hostService as never}
             publishWorkflowService={publishWorkflowService}
             auditService={auditService}
             onPublished={handlePublished}
@@ -237,7 +249,7 @@ export const App: React.FC = () => {
         {activeTab === "interactive" && (
           <InteractivePanel
             interactiveService={interactiveService}
-            premiereService={premiereService}
+            premiereService={hostService as never}
             entryId={selectedEntryId}
             entryName={selectedEntryName}
           />
@@ -248,7 +260,9 @@ export const App: React.FC = () => {
             currentPartnerId={authState.partnerId}
             userName={authState.user?.fullName ?? null}
             userEmail={authState.user?.email ?? null}
-            premiereService={premiereService}
+            hostService={hostService}
+            offlineService={offlineService}
+            auditService={auditService}
             onLogout={logout}
             onServerUrlChange={handleServerUrlChange}
           />
