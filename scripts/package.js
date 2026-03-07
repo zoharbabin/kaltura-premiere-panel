@@ -68,7 +68,7 @@ function verifyIcons() {
   let hasAllIcons = true;
 
   for (const size of REQUIRED_ICON_SIZES) {
-    const iconName = `icon_${size}.png`;
+    const iconName = `icon-${size}.png`;
     const distIcon = path.join(iconsDir, iconName);
     const sourceIcon = path.join(sourceIconsDir, iconName);
 
@@ -125,7 +125,7 @@ function printInstructions(manifest) {
   console.log("Option 1: UXP Developer Tool (development)");
   console.log("  Load dist/manifest.json in UXP Developer Tool\n");
   console.log("Option 2: Create .ccx package (distribution)");
-  console.log("  npx @anthropic-ai/ucf pack dist/ -o kaltura-premiere-panel.ccx\n");
+  console.log("  Use UXP Developer Tool > Package Plugin > Select dist/\n");
   console.log("Option 3: Adobe Admin Console (enterprise)");
   console.log("  Upload .ccx via Adobe Admin Console > Packages\n");
   console.log("Adobe Exchange submission checklist:");
