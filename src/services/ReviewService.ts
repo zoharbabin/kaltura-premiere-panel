@@ -1,8 +1,13 @@
 import { KalturaClient } from "./KalturaClient";
-import { PremiereService } from "./PremiereService";
 import { KalturaAnnotation, KalturaListResponse } from "../types/kaltura";
 import { MarkerColor, MarkerData } from "../types/premiere";
 import { createLogger } from "../utils/logger";
+
+/** Minimal host interface needed by ReviewService for marker sync */
+interface ReviewHostService {
+  addMarkers(markers: MarkerData[]): Promise<void>;
+  getMarkers?(): Promise<MarkerData[]>;
+}
 
 const log = createLogger("ReviewService");
 
@@ -31,7 +36,7 @@ const KALTURA_MARKER_PREFIX = "[Kaltura]";
 export class ReviewService {
   constructor(
     private client: KalturaClient,
-    private premiereService: PremiereService,
+    private hostService: ReviewHostService,
   ) {}
 
   /** List annotations for an entry, optionally filtered by parentId for thread replies */
@@ -168,7 +173,7 @@ export class ReviewService {
 
     if (markers.length > 0) {
       try {
-        await this.premiereService.addMarkers(markers);
+        await this.hostService.addMarkers(markers);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to add markers";
         result.errors.push(message);
@@ -192,7 +197,11 @@ export class ReviewService {
 
     let markers: MarkerData[];
     try {
-      markers = await this.premiereService.getMarkers();
+      if (!this.hostService.getMarkers) {
+        result.errors.push("Host app does not support reading markers");
+        return result;
+      }
+      markers = await this.hostService.getMarkers();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to get markers";
       result.errors.push(message);

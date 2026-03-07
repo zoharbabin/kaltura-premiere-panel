@@ -54,13 +54,13 @@ export const App: React.FC = () => {
   const hostAppInfo = useMemo(() => hostService.getAppInfo(), [hostService]);
   const metadataService = useMemo(() => new MetadataService(client), [client]);
   const downloadService = useMemo(
-    () => new DownloadService(client, mediaService, hostService as never),
+    () => new DownloadService(client, mediaService, hostService),
     [client, mediaService, hostService],
   );
   const captionService = useMemo(() => new CaptionService(client), [client]);
   const notificationService = useMemo(() => new NotificationService(client), [client]);
   const reviewService = useMemo(
-    () => new ReviewService(client, hostService as never),
+    () => new ReviewService(client, hostService),
     [client, hostService],
   );
   const analyticsService = useMemo(() => new AnalyticsService(client), [client]);
@@ -219,7 +219,7 @@ export const App: React.FC = () => {
             mediaService={mediaService}
             uploadService={uploadService}
             metadataService={metadataService}
-            premiereService={hostService as never}
+            premiereService={hostService}
             publishWorkflowService={publishWorkflowService}
             auditService={auditService}
             onPublished={handlePublished}
@@ -249,7 +249,7 @@ export const App: React.FC = () => {
         {activeTab === "interactive" && (
           <InteractivePanel
             interactiveService={interactiveService}
-            premiereService={hostService as never}
+            premiereService={hostService}
             entryId={selectedEntryId}
             entryName={selectedEntryName}
           />

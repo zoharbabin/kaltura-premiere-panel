@@ -58,12 +58,15 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
     setError(null);
 
     Promise.all([
-      analyticsService.getViewerStats(entryId),
-      analyticsService.getTopMoments(entryId, 5),
-      analyticsService.getDropOffPoints(entryId),
+      analyticsService.getViewerStats(entryId).catch(() => null),
+      analyticsService.getTopMoments(entryId, 5).catch(() => []),
+      analyticsService.getDropOffPoints(entryId).catch(() => []),
     ])
       .then(([s, m, d]) => {
-        setStats(s);
+        if (!s && m.length === 0 && d.length === 0) {
+          setError("Failed to load analytics data.");
+        }
+        if (s) setStats(s);
         setMoments(m);
         setDropoffs(d);
       })
