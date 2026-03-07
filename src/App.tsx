@@ -1,23 +1,27 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { TabId, KalturaMediaEntry } from "./types";
+import { TabId, KalturaMediaEntry, KalturaFlavorAsset } from "./types";
 import {
   KalturaClient,
   AuthService,
   MediaService,
   UploadService,
   PremiereService,
+  DownloadService,
+  MetadataService,
 } from "./services";
 import { useAuth } from "./hooks";
 import { LoginPanel, BrowsePanel, PublishPanel, SettingsPanel } from "./panels";
 import { StatusBar, LoadingSpinner } from "./components";
 import { DEFAULT_SERVICE_URL } from "./utils/constants";
+import { createLogger } from "./utils/logger";
 
-const PARTNER_ID = 0; // Will be set by login
+const log = createLogger("App");
+const PARTNER_ID = 0; // Set by login
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>("browse");
 
-  // Initialize services (memoized — created once)
+  // Initialize services (memoized)
   const client = useMemo(
     () => new KalturaClient({ serviceUrl: DEFAULT_SERVICE_URL, partnerId: PARTNER_ID }),
     [],
@@ -26,43 +30,43 @@ export const App: React.FC = () => {
   const mediaService = useMemo(() => new MediaService(client), [client]);
   const uploadService = useMemo(() => new UploadService(client), [client]);
   const premiereService = useMemo(() => new PremiereService(), []);
+  const metadataService = useMemo(() => new MetadataService(client), [client]);
+  const downloadService = useMemo(
+    () => new DownloadService(client, mediaService, premiereService),
+    [client, mediaService, premiereService],
+  );
 
   const { authState, login, logout, isLoading, error, clearError } = useAuth(client, authService);
 
-  // Update client partner ID when auth changes
+  // Update client when auth changes
   React.useEffect(() => {
     if (authState.partnerId) {
       client.configure({ partnerId: authState.partnerId });
     }
   }, [authState.partnerId, client]);
 
+  const handleServerUrlChange = useCallback(
+    (url: string) => {
+      client.configure({ serviceUrl: url });
+    },
+    [client],
+  );
+
   const handleSelectEntry = useCallback((_entry: KalturaMediaEntry) => {
-    // Future: track selected entry for context
+    // Track selected entry for context
   }, []);
 
   const handleImportEntry = useCallback(
-    async (entry: KalturaMediaEntry) => {
-      // Simplified import — full implementation in Phase 1 import issue
+    async (entry: KalturaMediaEntry, flavor: KalturaFlavorAsset) => {
       if (!authState.partnerId) return;
       try {
-        const flavors = (await mediaService.getEntryDetails(entry.id)).flavors;
-        if (flavors.length === 0) return;
-
-        const url = await mediaService.getFlavorDownloadUrl(flavors[0].id);
-        // In Premiere runtime: download + import
-        // For now, log the URL
-        premiereService.saveMapping(entry.id, {
-          entryId: entry.id,
-          flavorId: flavors[0].id,
-          localPath: url,
-          importDate: Date.now(),
-          isProxy: !flavors[0].isOriginal,
-        });
+        log.info("Importing entry", { entryId: entry.id, flavorId: flavor.id });
+        await downloadService.downloadAndImport(entry.id, flavor);
       } catch (err) {
-        console.error("Import failed", err);
+        log.error("Import failed", err);
       }
     },
-    [authState.partnerId, mediaService, premiereService],
+    [authState.partnerId, downloadService],
   );
 
   const handlePublished = useCallback((_entry: KalturaMediaEntry) => {
@@ -71,7 +75,7 @@ export const App: React.FC = () => {
 
   // Auth gate
   if (isLoading && !authState.isAuthenticated) {
-    return <LoadingSpinner label="Loading…" size="large" />;
+    return <LoadingSpinner label="Loading..." size="large" />;
   }
 
   if (!authState.isAuthenticated) {
@@ -80,6 +84,7 @@ export const App: React.FC = () => {
         <div style={{ flex: 1 }}>
           <LoginPanel
             onLogin={login}
+            onServerUrlChange={handleServerUrlChange}
             isLoading={isLoading}
             error={error}
             onClearError={clearError}
@@ -90,7 +95,6 @@ export const App: React.FC = () => {
     );
   }
 
-  // Main panel with tabs
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Tab bar */}
@@ -111,7 +115,9 @@ export const App: React.FC = () => {
         {activeTab === "browse" && authState.partnerId && (
           <BrowsePanel
             mediaService={mediaService}
+            metadataService={metadataService}
             partnerId={authState.partnerId}
+            userId={authState.user?.id}
             isImported={(id) => premiereService.isImported(id)}
             onSelectEntry={handleSelectEntry}
             onImportEntry={handleImportEntry}
@@ -121,6 +127,7 @@ export const App: React.FC = () => {
           <PublishPanel
             mediaService={mediaService}
             uploadService={uploadService}
+            metadataService={metadataService}
             premiereService={premiereService}
             onPublished={handlePublished}
           />
@@ -131,7 +138,9 @@ export const App: React.FC = () => {
             currentPartnerId={authState.partnerId}
             userName={authState.user?.fullName ?? null}
             userEmail={authState.user?.email ?? null}
+            premiereService={premiereService}
             onLogout={logout}
+            onServerUrlChange={handleServerUrlChange}
           />
         )}
       </div>
