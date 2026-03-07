@@ -122,10 +122,22 @@ export class PremiereService {
 
     if (!sequence) return null;
 
+    // Compute duration from sequence end point via markers or default to 0
+    // UXP Premiere API exposes sequence.end as a TickTime when available
+    let duration = 0;
+    try {
+      const seqEnd = (sequence as unknown as { end?: { toSeconds(): number } }).end;
+      if (seqEnd && typeof seqEnd.toSeconds === "function") {
+        duration = seqEnd.toSeconds();
+      }
+    } catch {
+      // Fallback: duration remains 0 when sequence.end is unavailable
+    }
+
     return {
       name: sequence.name,
       id: sequence.id,
-      duration: 0, // TODO: compute from sequence
+      duration,
       frameRate: sequence.settings.videoFrameRate?.seconds
         ? 1 / sequence.settings.videoFrameRate.seconds
         : 29.97,

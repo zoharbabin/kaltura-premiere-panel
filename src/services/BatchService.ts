@@ -2,6 +2,7 @@ import { KalturaClient } from "./KalturaClient";
 import { MediaService } from "./MediaService";
 import { CaptionService } from "./CaptionService";
 import { KalturaMediaEntry, KalturaListResponse } from "../types/kaltura";
+import { CONTENT_HOLD_TAG, HOLD_REASON_PREFIX } from "../utils/constants";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("BatchService");
@@ -286,7 +287,7 @@ export class BatchService {
         entryId,
         mediaEntry: {
           objectType: "KalturaMediaEntry",
-          adminTags: `content_hold,hold_reason:${reason}`,
+          adminTags: `${CONTENT_HOLD_TAG},${HOLD_REASON_PREFIX}${reason}`,
         },
       },
     });
