@@ -16,3 +16,7 @@ export { SearchService } from "./SearchService";
 export type { TranscriptSearchResult, InVideoSearchResult, SearchHighlight } from "./SearchService";
 export { ProxyService } from "./ProxyService";
 export type { ProxyDownloadResult, ReconnectResult } from "./ProxyService";
+export { ReviewService } from "./ReviewService";
+export type { SyncResult, AnnotationThread } from "./ReviewService";
+export { PublishWorkflowService } from "./PublishWorkflowService";
+export type { PublishResult, EntryVersion, PublishPreset } from "./PublishWorkflowService";

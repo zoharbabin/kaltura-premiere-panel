@@ -26,6 +26,7 @@ src/
     BrowsePanel.tsx           # Asset browser with search, filters, grid/list, detail flyout
     PublishPanel.tsx           # Export + upload workflow
     CaptionsPanel.tsx         # REACH AI captions: order, translate, track management
+    ReviewPanel.tsx           # Annotation review: comments, replies, marker sync
     SettingsPanel.tsx          # Preferences, cache, about
   components/                 # Shared UI components
     FilterBar.tsx             # Media type, date, owner filters
@@ -48,6 +49,8 @@ src/
     NotificationService.ts    # WebSocket push notifications with polling fallback
     SearchService.ts          # eSearch-powered transcript/visual/in-video search
     ProxyService.ts           # Proxy download for editing, reconnect to original
+    ReviewService.ts          # Annotation CRUD, marker sync, threaded replies
+    PublishWorkflowService.ts # Multi-destination, approval, versioning, scheduling
     PremiereService.ts        # UXP API: sequence, import, markers, mappings
   hooks/                      # React custom hooks
     useAuth.ts                # Auth state management + session restore
@@ -110,6 +113,10 @@ docs/                         # Documentation
 - Caption assets: `caption_captionAsset.list/add/setContent/getUrl` for SRT/VTT/DFXP
 - eSearch: `eSearch.searchEntry` with `KalturaESearchCaptionItem` for transcript search
 - WebSocket notifications via `push.getUrl` with HTTP polling fallback
+- Annotations: `annotation_annotation.list/add/update/delete` for timed comments
+- Category assignment: `categoryEntry.add` for multi-destination publishing
+- Moderation: `media.update` with `moderationStatus` field for approval workflow
+- Version replace: `media.updateContent` with `KalturaUploadedFileTokenResource`
 
 ### Premiere UXP API
 
