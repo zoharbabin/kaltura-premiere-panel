@@ -24,6 +24,9 @@ import {
   DEFAULT_PAGE_SIZE,
   SEARCH_DEBOUNCE_MS,
   INFINITE_SCROLL_THRESHOLD_PX,
+  CONTENT_HOLD_TAG,
+  HOLD_REASON_PREFIX,
+  LICENSE_EXPIRY_WARNING_SECONDS,
 } from "../utils/constants";
 import { buildGridThumbnailUrl } from "../utils/thumbnail";
 import { formatDuration, formatDate, formatFileSize, truncate } from "../utils/format";
@@ -31,23 +34,26 @@ import { getUserMessage } from "../utils/errors";
 
 /** Check if an entry is under content hold (governance) */
 function isContentHeld(entry: KalturaMediaEntry): boolean {
-  return Boolean(entry.adminTags && entry.adminTags.includes("content_hold"));
+  return Boolean(entry.adminTags && entry.adminTags.includes(CONTENT_HOLD_TAG));
 }
 
 /** Extract hold reason from adminTags */
 function getHoldReason(entry: KalturaMediaEntry): string | null {
   if (!entry.adminTags) return null;
-  const match = entry.adminTags.match(/hold_reason:([^,]+)/);
-  return match ? match[1] : null;
+  const prefix = HOLD_REASON_PREFIX;
+  const idx = entry.adminTags.indexOf(prefix);
+  if (idx === -1) return null;
+  const afterPrefix = entry.adminTags.slice(idx + prefix.length);
+  const commaIdx = afterPrefix.indexOf(",");
+  return commaIdx === -1 ? afterPrefix : afterPrefix.slice(0, commaIdx);
 }
 
-/** Check if entry has an end date that is expiring soon (within 7 days) or expired */
+/** Check if entry has an end date that is expiring soon or expired */
 function getLicenseStatus(entry: KalturaMediaEntry): "expired" | "expiring" | "active" | null {
   if (!entry.endDate || entry.endDate === 0) return null;
   const now = Math.floor(Date.now() / 1000);
   if (entry.endDate < now) return "expired";
-  const sevenDays = 7 * 24 * 60 * 60;
-  if (entry.endDate - now < sevenDays) return "expiring";
+  if (entry.endDate - now < LICENSE_EXPIRY_WARNING_SECONDS) return "expiring";
   return "active";
 }
 

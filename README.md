@@ -29,7 +29,7 @@ Browse, import, publish, AI-caption, translate, review, and analyze video conten
 
 ## Test Suite
 
-- **387 tests** across **34 suites** — all passing
+- **440 tests** across **37 suites** — all passing
 - Jest + jsdom with React Testing Library
 - CI: Lint, Type Check, Test, Build on every PR
 
