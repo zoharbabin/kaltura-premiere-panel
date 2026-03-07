@@ -1,7 +1,7 @@
 {
   "manifestVersion": 5,
   "id": "com.kaltura.premiere.panel",
-  "name": "Kaltura for Premiere Pro",
+  "name": "Kaltura for Adobe Creative Cloud",
   "version": "0.1.0",
   "main": "index.js",
   "host": [
