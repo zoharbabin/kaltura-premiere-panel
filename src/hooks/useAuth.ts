@@ -7,6 +7,8 @@ import { DEFAULT_SERVICE_URL } from "../utils/constants";
 interface UseAuthReturn {
   authState: AuthState;
   login: (credentials: KalturaLoginCredentials) => Promise<void>;
+  loginWithSso: (serverUrl: string, partnerId: number) => Promise<void>;
+  cancelSso: () => void;
   logout: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
@@ -25,6 +27,7 @@ export function useAuth(client: KalturaClient, authService: AuthService): UseAut
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const restoredRef = useRef(false);
+  const ssoAbortRef = useRef<AbortController | null>(null);
 
   // Attempt session restore on mount
   useEffect(() => {
@@ -99,6 +102,53 @@ export function useAuth(client: KalturaClient, authService: AuthService): UseAut
     [authService, client],
   );
 
+  const loginWithSso = useCallback(
+    async (serverUrl: string, partnerId: number) => {
+      setIsLoading(true);
+      setError(null);
+      setAuthState((prev) => ({
+        ...prev,
+        connectionState: ConnectionState.CONNECTING,
+      }));
+
+      const controller = new AbortController();
+      ssoAbortRef.current = controller;
+
+      try {
+        client.configure({ serviceUrl: serverUrl, partnerId });
+        const session = await authService.loginWithSso(serverUrl, partnerId, controller.signal);
+        setAuthState({
+          isAuthenticated: true,
+          user: session.user,
+          ks: session.ks,
+          partnerId: session.partnerId,
+          serverUrl,
+          connectionState: ConnectionState.CONNECTED,
+        });
+      } catch (err) {
+        setError(getUserMessage(err));
+        setAuthState((prev) => ({
+          ...prev,
+          connectionState: ConnectionState.ERROR,
+        }));
+      } finally {
+        setIsLoading(false);
+        ssoAbortRef.current = null;
+      }
+    },
+    [authService, client],
+  );
+
+  const cancelSso = useCallback(() => {
+    ssoAbortRef.current?.abort();
+    ssoAbortRef.current = null;
+    setIsLoading(false);
+    setAuthState((prev) => ({
+      ...prev,
+      connectionState: ConnectionState.DISCONNECTED,
+    }));
+  }, []);
+
   const logout = useCallback(async () => {
     await authService.logout();
     setAuthState({
@@ -114,5 +164,5 @@ export function useAuth(client: KalturaClient, authService: AuthService): UseAut
 
   const clearError = useCallback(() => setError(null), []);
 
-  return { authState, login, logout, isLoading, error, clearError };
+  return { authState, login, loginWithSso, cancelSso, logout, isLoading, error, clearError };
 }

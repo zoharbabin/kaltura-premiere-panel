@@ -6,6 +6,7 @@ import { DEFAULT_SERVICE_URL, PLUGIN_NAME } from "../utils/constants";
 interface LoginPanelProps {
   onLogin: (credentials: KalturaLoginCredentials) => Promise<void>;
   onSsoLogin?: (serverUrl: string, partnerId: number) => Promise<void>;
+  onCancelSso?: () => void;
   onServerUrlChange?: (url: string) => void;
   isLoading: boolean;
   error: string | null;
@@ -15,6 +16,7 @@ interface LoginPanelProps {
 export const LoginPanel: React.FC<LoginPanelProps> = ({
   onLogin,
   onSsoLogin,
+  onCancelSso,
   onServerUrlChange,
   isLoading,
   error,
@@ -78,7 +80,32 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   const isFormValid = email.length > 0 && password.length > 0 && partnerId.length > 0;
 
   if (isLoading || ssoStatus) {
-    return <LoadingSpinner label={ssoStatus || "Signing in..."} size="large" />;
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          gap: "16px",
+        }}
+      >
+        <LoadingSpinner label={ssoStatus || "Signing in..."} size="large" />
+        {ssoStatus && onCancelSso && (
+          <sp-button
+            variant="secondary"
+            size="s"
+            onClick={() => {
+              onCancelSso();
+              setSsoStatus(null);
+            }}
+          >
+            Cancel
+          </sp-button>
+        )}
+      </div>
+    );
   }
 
   return (
