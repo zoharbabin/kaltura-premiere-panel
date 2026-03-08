@@ -95,6 +95,32 @@ describe("PremiereService", () => {
       );
     });
 
+    it("retries to root when bin import fails", async () => {
+      const mockBin = { name: "Kaltura Assets", type: 2, children: [] };
+      const mockRootItem = {
+        children: [mockBin],
+        createBinAction: jest.fn(),
+      };
+      const importFiles = jest
+        .fn()
+        .mockRejectedValueOnce(new Error("Illegal Parameter type"))
+        .mockResolvedValueOnce(true);
+      const mockProject = {
+        name: "TestProject",
+        getRootItem: jest.fn().mockResolvedValue(mockRootItem),
+        importFiles,
+        executeTransaction: jest.fn(),
+      };
+      pp.Project.getActiveProject.mockResolvedValue(mockProject);
+
+      const result = await service.importFiles(["/path/to/video.mp4"]);
+
+      expect(result).toEqual({ success: true });
+      // First call with bin, then retry with null
+      expect(importFiles).toHaveBeenCalledTimes(2);
+      expect(importFiles).toHaveBeenLastCalledWith(["/path/to/video.mp4"], true, null, false);
+    });
+
     it("returns failure with error message when import throws", async () => {
       const mockRootItem = {
         children: [],
