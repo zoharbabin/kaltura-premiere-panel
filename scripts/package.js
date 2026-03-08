@@ -194,7 +194,12 @@ function generateExchangeMetadata(manifest) {
       `Requires Premiere Pro, After Effects, or Audition ${hosts[0].minVersion} or later.`,
       "Requires an active Kaltura account.",
     ].join("\n"),
-    supportUrl: `https://github.com/${packageJson.repository || "zoharbabin/kaltura-premiere-panel"}/issues`,
+    supportUrl: (() => {
+      const repo = packageJson.repository;
+      if (typeof repo === "string") return `https://github.com/${repo}/issues`;
+      if (repo && repo.url) return repo.url.replace(/\.git$/, "") + "/issues";
+      return "https://github.com/zoharbabin/kaltura-premiere-panel/issues";
+    })(),
     privacyPolicyUrl: "https://corp.kaltura.com/privacy-policy/",
     compatibility: hosts.map((h) => ({
       host: h.app,

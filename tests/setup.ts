@@ -19,6 +19,11 @@ jest.mock(
   { virtual: true },
 );
 
+// Note: aftereffects and audition modules are NOT mocked globally.
+// The host services use try/catch around require() to detect availability,
+// so the modules being absent in tests correctly simulates "unavailable".
+// Tests that need these modules should mock them locally.
+
 jest.mock(
   "premierepro",
   () => ({

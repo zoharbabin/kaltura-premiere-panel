@@ -21,6 +21,7 @@ export interface MetadataField {
 }
 
 export interface MetadataValues {
+  metadataId?: number;
   profileId: number;
   values: Record<string, string>;
   xmlData?: string;
@@ -149,11 +150,12 @@ export class MetadataService {
       });
 
       if (response.objects && response.objects.length > 0) {
-        const xmlData = response.objects[0].xml;
+        const obj = response.objects[0];
         return {
+          metadataId: obj.id,
           profileId,
-          values: this.parseMetadataXml(xmlData),
-          xmlData,
+          values: this.parseMetadataXml(obj.xml),
+          xmlData: obj.xml,
         };
       }
       return null;
@@ -178,7 +180,7 @@ export class MetadataService {
         service: "metadata_metadata",
         action: "update",
         params: {
-          id: (existing as unknown as { id: number }).id,
+          id: existing.metadataId,
           xmlData,
         },
       });

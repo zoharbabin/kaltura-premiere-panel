@@ -36,7 +36,7 @@ Alternatively, push a version tag (e.g. `git tag v1.1.0 && git push --tags`) to 
 2. Navigate to **Packages** > **Admin Packages**
 3. Click **Create a Package**
 4. Select **Managed Package**
-5. Choose target apps (Premiere Pro)
+5. Choose target apps (Premiere Pro, After Effects, and/or Audition)
 6. Upload the `.ccx` file under **Plugins**
 7. Assign the package to user groups or deploy globally
 
