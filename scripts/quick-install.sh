@@ -3,7 +3,7 @@
 # Kaltura for Adobe Creative Cloud — One-Click Installer (macOS)
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/zoharbabin/kaltura-premiere-panel/main/scripts/quick-install.sh | bash
+#   gh release download --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
 #
 # This script:
 #   1. Detects the latest release from GitHub
@@ -15,7 +15,6 @@
 set -euo pipefail
 
 REPO="zoharbabin/kaltura-premiere-panel"
-API_URL="https://api.github.com/repos/${REPO}/releases/latest"
 TMPDIR_BASE="${TMPDIR:-/tmp}"
 INSTALL_DIR="${TMPDIR_BASE}/kaltura-premiere-install-$$"
 
@@ -29,51 +28,52 @@ echo "  Kaltura for Adobe Creative Cloud — Quick Installer"
 echo "  ==================================================="
 echo ""
 
-# Step 1: Get latest release info
-echo "  Fetching latest release..."
-RELEASE_JSON=$(curl -fsSL "$API_URL")
-
-TAG=$(echo "$RELEASE_JSON" | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-VERSION="${TAG#v}"
-
-if [ -z "$VERSION" ]; then
-    echo "  ERROR: Could not determine latest release version."
+# Verify gh CLI is available
+if ! command -v gh &>/dev/null; then
+    echo "  ERROR: GitHub CLI (gh) is required but not installed."
+    echo "  Install it from: https://cli.github.com/"
     exit 1
 fi
 
+# Verify gh is authenticated
+if ! gh auth status &>/dev/null 2>&1; then
+    echo "  ERROR: GitHub CLI is not authenticated."
+    echo "  Run: gh auth login"
+    exit 1
+fi
+
+# Step 1: Get latest release tag
+echo "  Fetching latest release..."
+TAG=$(gh release view --repo "$REPO" --json tagName --jq '.tagName' 2>/dev/null)
+
+if [ -z "$TAG" ]; then
+    echo "  ERROR: Could not determine latest release."
+    echo "  Check: https://github.com/${REPO}/releases"
+    exit 1
+fi
+
+VERSION="${TAG#v}"
 echo "  Latest version: ${VERSION}"
 echo ""
 
 # Step 2: Determine which .ccx to download (prefer premierepro)
 HOST_APP="${KALTURA_HOST_APP:-premierepro}"
-CCX_NAME="kaltura-panel-${VERSION}-${HOST_APP}.ccx"
-INSTALLER_NAME="install-mac.sh"
+CCX_PATTERN="kaltura-panel-${VERSION}-${HOST_APP}.ccx"
 
-# Build download URLs from release assets
-DOWNLOAD_BASE="https://github.com/${REPO}/releases/download/${TAG}"
-CCX_URL="${DOWNLOAD_BASE}/${CCX_NAME}"
-INSTALLER_URL="${DOWNLOAD_BASE}/${INSTALLER_NAME}"
-
-# Step 3: Download files
+# Step 3: Download release assets
 mkdir -p "$INSTALL_DIR"
 
-echo "  Downloading ${CCX_NAME}..."
-if ! curl -fsSL -o "${INSTALL_DIR}/${CCX_NAME}" "$CCX_URL"; then
-    echo "  ERROR: Failed to download ${CCX_NAME}"
-    echo "  Check available assets at: https://github.com/${REPO}/releases/tag/${TAG}"
+echo "  Downloading ${CCX_PATTERN} and install-mac.sh..."
+if ! gh release download "$TAG" --repo "$REPO" --pattern "$CCX_PATTERN" --pattern "install-mac.sh" --dir "$INSTALL_DIR"; then
+    echo "  ERROR: Failed to download release assets."
+    echo "  Check available assets: gh release view --repo ${REPO}"
     exit 1
 fi
 
-echo "  Downloading ${INSTALLER_NAME}..."
-if ! curl -fsSL -o "${INSTALL_DIR}/${INSTALLER_NAME}" "$INSTALLER_URL"; then
-    echo "  ERROR: Failed to download ${INSTALLER_NAME}"
-    exit 1
-fi
-
-chmod +x "${INSTALL_DIR}/${INSTALLER_NAME}"
+chmod +x "${INSTALL_DIR}/install-mac.sh"
 
 # Step 4: Run the installer
 echo ""
 echo "  Running installer..."
 echo ""
-"${INSTALL_DIR}/${INSTALLER_NAME}" "${INSTALL_DIR}/${CCX_NAME}"
+"${INSTALL_DIR}/install-mac.sh" "${INSTALL_DIR}/${CCX_PATTERN}"

@@ -70,19 +70,22 @@ jobs:
           cat >> release/RELEASE_NOTES.md <<EOF
           ### Option A — One-Click Install (recommended)
 
-          **macOS** — open Terminal and paste:
+          Requires [GitHub CLI](https://cli.github.com/) (\`gh\`). Open Terminal (macOS) or PowerShell (Windows) and paste:
+
+          **macOS:**
           \`\`\`bash
-          curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/quick-install.sh | bash
+          gh release download --repo ${REPO} --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
           \`\`\`
 
-          **Windows** — open PowerShell as Administrator and paste:
+          **Windows (PowerShell as Administrator):**
           \`\`\`powershell
-          irm https://raw.githubusercontent.com/${REPO}/main/scripts/quick-install.ps1 | iex
+          gh release download --repo ${REPO} --pattern 'quick-install.ps1' --dir \$env:TEMP; & "\$env:TEMP\\quick-install.ps1"
           \`\`\`
 
           > To install for After Effects or Audition instead of Premiere Pro, set \`KALTURA_HOST_APP\` first:
           > \`\`\`bash
-          > KALTURA_HOST_APP=aftereffects curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/quick-install.sh | bash
+          > export KALTURA_HOST_APP=aftereffects
+          > gh release download --repo ${REPO} --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
           > \`\`\`
 
           ### Option B — Manual Download
@@ -152,4 +155,6 @@ jobs:
             release/*.ccx
             release/install-mac.sh
             release/install-win.bat
+            release/quick-install.sh
+            release/quick-install.ps1
           fail_on_unmatched_files: true
