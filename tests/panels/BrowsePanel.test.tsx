@@ -344,8 +344,8 @@ describe("BrowsePanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Video One")).toBeTruthy();
     });
-    // The checkmark \u2713 is JSX text content (renders as literal string)
-    const checkmarks = screen.getAllByText(/\\u2713/);
+    // The checkmark \u2713 is JSX text content (renders as literal character)
+    const checkmarks = screen.getAllByText(/\u2713/);
     expect(checkmarks.length).toBeGreaterThanOrEqual(1);
   });
 
