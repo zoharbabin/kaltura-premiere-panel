@@ -74,6 +74,11 @@ if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
     echo "  2. Go to Window > UXP Plugins > Kaltura"
     echo "  3. Sign in with your Kaltura account"
     echo ""
+elif echo "$UPIA_OUTPUT" | grep -qi "status = -204"; then
+    echo "  The plugin is already installed (v1.0.2)."
+    echo "  To reinstall, first remove it via Creative Cloud Desktop > Manage Plugins,"
+    echo "  then run this installer again."
+    echo ""
 elif echo "$UPIA_OUTPUT" | grep -qi "Failed to install"; then
     echo "  Installation FAILED."
     echo ""
