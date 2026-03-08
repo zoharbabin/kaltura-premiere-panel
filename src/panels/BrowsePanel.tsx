@@ -801,6 +801,11 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
             {importError}
           </div>
         )}
+        {isImported && (
+          <div className="alert-info" style={{ margin: 0 }}>
+            {"\u2713"} Previously imported to Project panel. Click to re-import.
+          </div>
+        )}
         <div className="detail-actions-row">
           {onDelete && (
             <sp-action-button quiet size="s" onClick={onDelete} title="Delete entry">
@@ -810,16 +815,11 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
           <sp-button variant="secondary" size="s" onClick={onEdit} style={{ flex: 1 }}>
             Edit Metadata
           </sp-button>
-          <sp-button
-            variant="accent"
-            onClick={onImport}
-            disabled={isImported || undefined}
-            style={{ flex: 1 }}
-          >
-            {isImported
-              ? "Already Imported"
-              : isContentHeld(entry)
-                ? "Import Blocked (Hold)"
+          <sp-button variant="accent" onClick={onImport} style={{ flex: 1 }}>
+            {isContentHeld(entry)
+              ? "Import Blocked (Hold)"
+              : isImported
+                ? "Re-import to Project"
                 : "Import to Project"}
           </sp-button>
         </div>
