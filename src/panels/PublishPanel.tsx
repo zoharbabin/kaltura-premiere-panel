@@ -79,7 +79,10 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     metadataService
       .listCategories()
       .then(setCategories)
-      .catch(() => setCategories([]));
+      .catch((err) => {
+        log.debug("Failed to load categories", err);
+        setCategories([]);
+      });
   }, [metadataService]);
 
   // Load access control profiles
@@ -92,7 +95,10 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         const defaultProfile = profiles.find((p) => p.isDefault);
         if (defaultProfile) setSelectedAccessControlId(defaultProfile.id);
       })
-      .catch(() => setAccessControlProfiles([]));
+      .catch((err) => {
+        log.debug("Failed to load access control profiles", err);
+        setAccessControlProfiles([]);
+      });
   }, [auditService]);
 
   // Pre-fill title from active sequence
@@ -212,7 +218,8 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       uxp.shell.openExternal(url);
-    } catch {
+    } catch (err) {
+      log.debug("uxp.shell.openExternal unavailable, falling back to window.open", err);
       window.open(url, "_blank");
     }
   }, [publishedEntry, mediaService]);

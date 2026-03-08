@@ -105,7 +105,7 @@ docs/                         # Documentation
 - Jest + jsdom for unit tests; `tests/` mirrors `src/` directory structure
 - Mock `premierepro` and `uxp` modules globally in `tests/setup.ts` (`aftereffects` and `audition` are NOT mocked — host services test unavailable state)
 - Mock `fetch` globally — never hit live API in CI
-- 506 tests across 45 suites — all passing
+- 495 tests across 44 suites — all passing
 - Panel tests use duck-typed service mocks and React Testing Library
 - Use `renderHook` + `act` for hook tests; `jest.useFakeTimers()` for debounce tests
 - Coverage thresholds enforced: statements 72%, branches 58%, functions 68%, lines 73%
@@ -128,7 +128,7 @@ docs/                         # Documentation
 
 ## Service Wiring (App.tsx)
 
-19 services instantiated in `App.tsx` via `useMemo` (including host service via factory):
+18 services instantiated in `App.tsx` via `useMemo` (including host service via factory):
 
 - `KalturaClient` → base HTTP client
 - `AuthService`, `MediaService`, `UploadService`, `MetadataService` → core CRUD

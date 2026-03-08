@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide covers deploying the Kaltura for Premiere Pro plugin in enterprise environments via Adobe Admin Console and UPIA command-line tools.
+This guide covers deploying the Kaltura for Adobe Creative Cloud plugin in enterprise environments via Adobe Admin Console and UPIA command-line tools.
 
 ## Prerequisites
 
@@ -18,14 +18,17 @@ Build and prepare the plugin package:
 npm run package
 ```
 
-This runs the build, validates the manifest, copies icons, and generates Exchange metadata. The resulting `dist/` directory is ready for `.ccx` packaging via UXP Developer Tool.
+This runs the build, validates the manifest, copies icons, and generates Exchange metadata.
 
-To create the `.ccx` file:
+To create per-host `.ccx` files:
 
-1. Open **UXP Developer Tool**
-2. Select **Package Plugin**
-3. Choose the `dist/` directory
-4. Save the `.ccx` file
+```bash
+node scripts/build-ccx.js
+```
+
+This outputs one `.ccx` per host app (Premiere Pro, After Effects, Audition) into the `release/` directory, each with a single-host manifest.
+
+Alternatively, push a version tag (e.g. `git tag v1.1.0 && git push --tags`) to trigger the automated [Release workflow](./../.github/workflows/release.yml) which builds and publishes `.ccx` files as GitHub Release assets.
 
 ## Adobe Admin Console Deployment
 
@@ -41,15 +44,29 @@ To create the `.ccx` file:
 
 For IT automation and scripting:
 
-```bash
-# Install the plugin
-upia install --path "kaltura-premiere-panel.ccx" --targets "premierepro"
+**macOS:**
 
-# Verify installation
-upia list --targets "premierepro"
+```bash
+UPIA="/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/macOS/UnifiedPluginInstallerAgent"
+
+# Install
+"$UPIA" --install "/path/to/kaltura-panel-1.0.0-premierepro.ccx"
+
+# List installed plugins
+"$UPIA" --list
 
 # Uninstall
-upia uninstall --id "com.kaltura.premiere.panel" --targets "premierepro"
+"$UPIA" --uninstall "com.kaltura.premiere.panel"
+```
+
+**Windows:**
+
+```cmd
+set UPIA="C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe"
+
+%UPIA% /install "C:\path\to\kaltura-panel-1.0.0-premierepro.ccx"
+%UPIA% /list
+%UPIA% /uninstall "com.kaltura.premiere.panel"
 ```
 
 ## Pre-Configuration
@@ -60,8 +77,8 @@ Enterprise admins can pre-configure the plugin by placing a configuration file b
 
 | Platform | Path                                                                                                          |
 | -------- | ------------------------------------------------------------------------------------------------------------- |
-| macOS    | `~/Library/Application Support/Adobe/UXP/PluginsStorage/PHSP/Internal/com.kaltura.premiere.panel/config.json` |
-| Windows  | `%APPDATA%\Adobe\UXP\PluginsStorage\PHSP\Internal\com.kaltura.premiere.panel\config.json`                     |
+| macOS    | `~/Library/Application Support/Adobe/UXP/PluginsStorage/PPRO/Internal/com.kaltura.premiere.panel/config.json` |
+| Windows  | `%APPDATA%\Adobe\UXP\PluginsStorage\PPRO\Internal\com.kaltura.premiere.panel\config.json`                     |
 
 ### Configuration Options
 
@@ -105,7 +122,7 @@ Ensure these domains are allowlisted in corporate firewalls and proxy servers.
 
 - Verify Premiere Pro version >= 25.2.0
 - Check UXP Developer Tool for error logs
-- Ensure `.ccx` was properly signed
+- Re-download or rebuild the `.ccx` file (no signing required for UXP plugins)
 
 ### Authentication failures
 
