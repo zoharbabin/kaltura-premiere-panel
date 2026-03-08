@@ -86,7 +86,33 @@ describe("PremiereService", () => {
       const result = await service.importFiles(["/path/to/video.mp4"]);
 
       expect(result).toEqual({ success: true });
+      // Without file entries, falls back to string paths
       expect(mockProject.importFiles).toHaveBeenCalledWith(["/path/to/video.mp4"], undefined);
+    });
+
+    it("uses UXP File Entry objects when provided", async () => {
+      const mockRootItem = {
+        children: [],
+        createBinAction: jest.fn().mockResolvedValue({
+          execute: jest.fn().mockResolvedValue(undefined),
+        }),
+      };
+      const mockProject = {
+        name: "TestProject",
+        getRootItem: jest.fn().mockResolvedValue(mockRootItem),
+        importFiles: jest.fn().mockResolvedValue(undefined),
+        executeTransaction: jest.fn().mockImplementation(async (fn: () => Promise<void>) => {
+          await fn();
+        }),
+      };
+      pp.Project.getActiveProject.mockResolvedValue(mockProject);
+
+      const fakeEntry = { nativePath: "/tmp/video.mp4", isFile: true };
+      const result = await service.importFiles(["/tmp/video.mp4"], [fakeEntry]);
+
+      expect(result).toEqual({ success: true });
+      // Should pass Entry objects, not string paths
+      expect(mockProject.importFiles).toHaveBeenCalledWith([fakeEntry], undefined);
     });
 
     it("returns failure with error message when import throws", async () => {
