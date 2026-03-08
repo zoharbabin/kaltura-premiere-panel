@@ -102,7 +102,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   return (
     <div className="login-container">
       <div className="login-brand">
-        <div className="login-logo">K</div>
+        <img src="icons/kaltura-sun-color.svg" alt="Kaltura" className="login-logo-img" />
         <sp-heading size="M">{PLUGIN_NAME}</sp-heading>
         <div className="login-divider" />
       </div>

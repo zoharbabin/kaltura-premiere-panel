@@ -579,23 +579,9 @@ a:hover {
   margin-bottom: var(--panel-spacing-sm);
 }
 
-.login-logo {
-  width: 52px;
-  height: 52px;
-  border-radius: var(--panel-radius-lg);
-  background: linear-gradient(
-    135deg,
-    var(--spectrum-global-color-blue-500),
-    var(--spectrum-global-color-blue-700)
-  );
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--spectrum-global-color-static-white, #fff);
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -1px;
+.login-logo-img {
+  width: 56px;
+  height: 56px;
 }
 
 .login-form {
