@@ -84,12 +84,31 @@ if %ERRORLEVEL% equ 0 (
 )
 findstr /i "status = -204" "%TMPOUT%" >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    echo   The plugin is already installed ^(v1.0.2^).
-    echo   To reinstall, first remove it via Creative Cloud Desktop ^> Manage Plugins,
-    echo   then run this installer again.
+    echo   Previous installation detected. Removing and reinstalling...
     echo.
-    del "%TMPOUT%" >nul 2>&1
-    goto :done
+    "%UPIA_BIN%" /remove "Kaltura for Adobe Creative Cloud" 2>&1
+    echo.
+    echo   Reinstalling...
+    echo.
+    "%UPIA_BIN%" /install "%CCX_FILE%" > "%TMPOUT%" 2>&1
+    type "%TMPOUT%"
+    echo.
+    findstr /i "Installation Successful" "%TMPOUT%" >nul 2>&1
+    if !ERRORLEVEL! equ 0 (
+        echo   SUCCESS! The plugin has been reinstalled.
+        echo.
+        echo   Next steps:
+        echo   1. Open ^(or restart^) Premiere Pro, After Effects, or Audition
+        echo   2. Go to Window ^> UXP Plugins ^> Kaltura
+        echo   3. Sign in with your Kaltura account
+        echo.
+        del "%TMPOUT%" >nul 2>&1
+        goto :done
+    ) else (
+        echo   Reinstallation failed. Please restart Creative Cloud Desktop and try again.
+        del "%TMPOUT%" >nul 2>&1
+        goto :done
+    )
 )
     echo   Installation FAILED.
     echo.

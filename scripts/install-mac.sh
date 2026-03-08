@@ -8,6 +8,7 @@ set -euo pipefail
 
 UPIA_DIR="/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS"
 UPIA_BIN="$UPIA_DIR/UnifiedPluginInstallerAgent"
+PLUGIN_NAME="Kaltura for Adobe Creative Cloud"
 
 echo ""
 echo "  Kaltura for Adobe Creative Cloud — Installer"
@@ -57,15 +58,20 @@ if [ ! -f "$UPIA_BIN" ]; then
     exit 1
 fi
 
+# Helper: run UPIA install and capture output
+do_install() {
+    UPIA_OUTPUT=$("$UPIA_BIN" --install "$CCX_FILE" 2>&1)
+    echo "$UPIA_OUTPUT"
+}
+
 echo "  Installing via Adobe UPIA..."
 echo ""
 
-# Run UPIA install — capture output to detect failures
-# (UPIA returns exit code 0 even on failure, so we check the output text)
-UPIA_OUTPUT=$("$UPIA_BIN" --install "$CCX_FILE" 2>&1)
+UPIA_OUTPUT=$(do_install)
 echo "$UPIA_OUTPUT"
-
 echo ""
+
+# Check result — UPIA always returns exit code 0, so we parse stdout
 if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
     echo "  SUCCESS! The plugin has been installed."
     echo ""
@@ -75,10 +81,31 @@ if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
     echo "  3. Sign in with your Kaltura account"
     echo ""
 elif echo "$UPIA_OUTPUT" | grep -qi "status = -204"; then
-    echo "  The plugin is already installed (v1.0.2)."
-    echo "  To reinstall, first remove it via Creative Cloud Desktop > Manage Plugins,"
-    echo "  then run this installer again."
+    # -204 = already registered in UPIA database (even if removed via CC UI)
+    # Fix: remove via UPIA first, then reinstall
+    echo "  Previous installation detected. Removing and reinstalling..."
     echo ""
+    REMOVE_OUTPUT=$("$UPIA_BIN" --remove "$PLUGIN_NAME" 2>&1)
+    echo "$REMOVE_OUTPUT"
+    echo ""
+
+    # Now reinstall
+    UPIA_OUTPUT=$(do_install)
+    echo "$UPIA_OUTPUT"
+    echo ""
+
+    if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
+        echo "  SUCCESS! The plugin has been reinstalled."
+        echo ""
+        echo "  Next steps:"
+        echo "  1. Open (or restart) Premiere Pro, After Effects, or Audition"
+        echo "  2. Go to Window > UXP Plugins > Kaltura"
+        echo "  3. Sign in with your Kaltura account"
+        echo ""
+    else
+        echo "  Reinstallation failed. Please restart Creative Cloud Desktop and try again."
+        exit 1
+    fi
 elif echo "$UPIA_OUTPUT" | grep -qi "Failed to install"; then
     echo "  Installation FAILED."
     echo ""
