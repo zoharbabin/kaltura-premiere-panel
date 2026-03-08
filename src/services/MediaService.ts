@@ -159,21 +159,44 @@ export class MediaService {
 
   /**
    * Get download URL for a specific flavor asset.
-   * Uses Kaltura's playManifest endpoint with format=download, which is the
-   * standard mechanism for downloading media files. Requires both entryId
-   * and flavorId to resolve correctly.
+   * Uses flavorAsset.getUrl API which returns a direct CDN URL with no
+   * redirects — more reliable than playManifest which returns 302 redirects
+   * that UXP's fetch may not follow correctly.
+   * Falls back to playManifest URL construction if the API call fails.
    */
-  getFlavorDownloadUrl(entryId: string, flavorId: string): string {
+  async getFlavorDownloadUrl(entryId: string, flavorId: string): Promise<string> {
+    try {
+      const response = await this.client.request<{ objectType?: string } & Record<string, unknown>>(
+        {
+          service: "flavorAsset",
+          action: "getUrl",
+          params: { id: flavorId },
+        },
+      );
+
+      // getUrl returns a plain string in JSON, which our client parses.
+      // The response may be a raw string or wrapped object depending on format.
+      const url = typeof response === "string" ? response : String(response);
+      if (url && url.startsWith("http")) {
+        log.info("Got direct CDN URL from getUrl API", { flavorId, url: url.substring(0, 80) });
+        return url;
+      }
+    } catch (err) {
+      log.warn("flavorAsset.getUrl failed, falling back to playManifest", { flavorId, err });
+    }
+
+    // Fallback: construct playManifest URL
     const serviceUrl = this.client.getServiceUrl();
     const ks = this.client.getKs();
     const partnerId = this.client.getPartnerId();
-    return (
+    const fallbackUrl =
       `${serviceUrl}/p/${partnerId}/sp/${partnerId}00/playManifest` +
       `/entryId/${entryId}` +
       `/flavorId/${flavorId}` +
       `/format/download/protocol/https` +
-      `/ks/${encodeURIComponent(ks || "")}`
-    );
+      `/ks/${encodeURIComponent(ks || "")}`;
+    log.info("Using playManifest fallback URL", { flavorId });
+    return fallbackUrl;
   }
 
   /** List categories */

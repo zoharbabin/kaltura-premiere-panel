@@ -133,7 +133,7 @@ export class ProxyService {
       resolution: `${proxyFlavor.width}x${proxyFlavor.height}`,
     });
 
-    const downloadUrl = this.mediaService.getFlavorDownloadUrl(entryId, proxyFlavor.id);
+    const downloadUrl = await this.mediaService.getFlavorDownloadUrl(entryId, proxyFlavor.id);
     const fileName = `proxy_${entryId}_${proxyFlavor.id}.${proxyFlavor.fileExt || "mp4"}`;
     const localPath = await this.downloadFile(downloadUrl, fileName, onProgress);
 
@@ -171,7 +171,7 @@ export class ProxyService {
       bitrate: originalFlavor.bitrate,
     });
 
-    const downloadUrl = this.mediaService.getFlavorDownloadUrl(entryId, originalFlavor.id);
+    const downloadUrl = await this.mediaService.getFlavorDownloadUrl(entryId, originalFlavor.id);
 
     // Update the mapping to reflect original quality
     this.hostService.storeMapping(entryId, downloadUrl);
@@ -261,11 +261,15 @@ export class ProxyService {
         merged.set(chunk, offset);
         offset += chunk.length;
       }
-      await file.write(merged.buffer);
+      // CRITICAL: must specify binary format — UXP defaults to utf8 text mode
+      await file.write(merged.buffer, { format: uxp.storage.formats.binary });
+      log.info("Saved proxy temp file", { path: file.nativePath, size: totalLength });
       return file.nativePath;
-    } catch {
-      // Fallback for non-UXP environments (testing)
-      return `/tmp/kaltura-downloads/${fileName}`;
+    } catch (err) {
+      log.error("UXP file save failed", err);
+      throw new Error(
+        `Failed to save proxy file: ${err instanceof Error ? err.message : "UXP storage not available"}`,
+      );
     }
   }
 }

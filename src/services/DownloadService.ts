@@ -141,8 +141,11 @@ export class DownloadService {
     try {
       log.info("Starting download", { entryId: request.entryId, flavorId: request.flavorId });
 
-      const downloadUrl = this.mediaService.getFlavorDownloadUrl(request.entryId, request.flavorId);
-      log.info("Download URL", { url: downloadUrl });
+      const downloadUrl = await this.mediaService.getFlavorDownloadUrl(
+        request.entryId,
+        request.flavorId,
+      );
+      log.info("Download URL", { url: downloadUrl.substring(0, 100) });
       const response = await fetch(downloadUrl, {
         signal: controller.signal,
         redirect: "follow",
@@ -203,7 +206,9 @@ export class DownloadService {
       const importResult = await this.hostService.importFile(tempPath);
 
       if (!importResult.success) {
-        throw new Error(importResult.error || `Import failed for ${tempPath}`);
+        const errDetail = importResult.error || "Unknown error";
+        log.error("Host import rejected file", { tempPath, error: errDetail, size: loaded });
+        throw new Error(`Import into project failed: ${errDetail}`);
       }
 
       const mapping: AssetMapping = {

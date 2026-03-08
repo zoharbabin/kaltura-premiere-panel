@@ -52,14 +52,20 @@ describe("DownloadService", () => {
     hostService.isImported.mockReturnValue(true);
     const existingFlavor = { ...mockFlavor, id: "flavor_existing", entryId: "0_existing" };
 
-    // getFlavorDownloadUrl is now synchronous (constructs serve URL directly).
-    // Only mock the actual file download fetch.
+    // getFlavorDownloadUrl is async (calls flavorAsset.getUrl API).
+    // First fetch: the getUrl API call, second fetch: the actual file download.
     const mockReader = {
       read: jest
         .fn()
         .mockResolvedValueOnce({ done: false, value: new Uint8Array([1, 2, 3]) })
         .mockResolvedValueOnce({ done: true, value: undefined }),
     };
+    // Mock the getUrl API response (returns JSON string)
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve("https://cdn.kaltura.com/download/existing.mp4"),
+    });
+    // Mock the actual download
     mockFetch.mockResolvedValueOnce({
       ok: true,
       headers: { get: (name: string) => (name === "content-length" ? "3" : "video/mp4") },
@@ -70,14 +76,10 @@ describe("DownloadService", () => {
 
     expect(result.entryId).toBe("0_existing");
     expect(result.flavorId).toBe("flavor_existing");
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/playManifest/entryId/0_existing/flavorId/flavor_existing/"),
-      expect.any(Object),
-    );
   });
 
   it("downloads file and creates mapping", async () => {
-    // getFlavorDownloadUrl is now synchronous — only mock the file download
+    // getFlavorDownloadUrl is async — mock API call then file download
     const mockReader = {
       read: jest
         .fn()
@@ -88,6 +90,12 @@ describe("DownloadService", () => {
         .mockResolvedValueOnce({ done: true, value: undefined }),
     };
 
+    // Mock the getUrl API response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve("https://cdn.kaltura.com/download/test.mp4"),
+    });
+    // Mock the actual download
     mockFetch.mockResolvedValueOnce({
       ok: true,
       headers: { get: (name: string) => (name === "content-length" ? "4" : "video/mp4") },
