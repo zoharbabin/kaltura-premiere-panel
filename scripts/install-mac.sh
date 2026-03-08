@@ -76,28 +76,30 @@ run_with_timeout() {
     return 1
 }
 
+# UPIA requires Creative Cloud Desktop (CCD) to be running for IPC.
+# It must NOT be run as root/sudo (causes error -642).
+# A previous hung UPIA blocks new instances (LSMultipleInstancesProhibited).
+
 if [ -f "$UPIA_BIN" ]; then
-    echo "  Installing via Adobe UPIA..."
-    echo ""
+    # Kill any lingering UPIA processes from a previous failed run
+    pkill -f "UnifiedPluginInstallerAgent" 2>/dev/null || true
+    sleep 1
 
-    UPIA_OUTFILE="/tmp/kaltura-upia-$$"
-    run_with_timeout $UPIA_TIMEOUT "$UPIA_OUTFILE" "$UPIA_BIN" --install "$CCX_FILE" || true
-    UPIA_OUTPUT=$(cat "$UPIA_OUTFILE" 2>/dev/null) || true
-    rm -f "$UPIA_OUTFILE"
-    echo "$UPIA_OUTPUT"
-    echo ""
-
-    if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
-        upia_install_success=true
-    elif echo "$UPIA_OUTPUT" | grep -qi "status = -204"; then
-        # -204 can mean already installed OR decompression failure
-        # Try removing first, then reinstalling
-        echo "  Previous installation detected. Removing and reinstalling..."
+    # Check if Creative Cloud Desktop is running (UPIA needs it for IPC)
+    if ! pgrep -qf "Creative Cloud"; then
+        echo "  Note: Creative Cloud Desktop is not running."
+        echo "  UPIA requires it — skipping UPIA, using direct install."
         echo ""
-        run_with_timeout $UPIA_TIMEOUT "$UPIA_OUTFILE" "$UPIA_BIN" --remove "Kaltura for Adobe Creative Cloud" || true
-        rm -f "$UPIA_OUTFILE"
+    # UPIA must not run as root — error -642
+    elif [ "$(id -u)" -eq 0 ]; then
+        echo "  Note: Running as root — UPIA does not work with sudo."
+        echo "  Skipping UPIA, using direct install."
+        echo ""
+    else
+        echo "  Installing via Adobe UPIA..."
         echo ""
 
+        UPIA_OUTFILE="/tmp/kaltura-upia-$$"
         run_with_timeout $UPIA_TIMEOUT "$UPIA_OUTFILE" "$UPIA_BIN" --install "$CCX_FILE" || true
         UPIA_OUTPUT=$(cat "$UPIA_OUTFILE" 2>/dev/null) || true
         rm -f "$UPIA_OUTFILE"
@@ -106,6 +108,24 @@ if [ -f "$UPIA_BIN" ]; then
 
         if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
             upia_install_success=true
+        elif echo "$UPIA_OUTPUT" | grep -qi "status = -204"; then
+            # -204 can mean already installed OR decompression failure
+            # Try removing first, then reinstalling
+            echo "  Previous installation detected. Removing and reinstalling..."
+            echo ""
+            run_with_timeout $UPIA_TIMEOUT "$UPIA_OUTFILE" "$UPIA_BIN" --remove "Kaltura for Adobe Creative Cloud" || true
+            rm -f "$UPIA_OUTFILE"
+            echo ""
+
+            run_with_timeout $UPIA_TIMEOUT "$UPIA_OUTFILE" "$UPIA_BIN" --install "$CCX_FILE" || true
+            UPIA_OUTPUT=$(cat "$UPIA_OUTFILE" 2>/dev/null) || true
+            rm -f "$UPIA_OUTFILE"
+            echo "$UPIA_OUTPUT"
+            echo ""
+
+            if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
+                upia_install_success=true
+            fi
         fi
     fi
 fi
@@ -126,23 +146,31 @@ echo "  UPIA install did not succeed. Using direct file placement..."
 echo ""
 
 TARGET_DIR="$UXP_PLUGINS_DIR/${PLUGIN_ID}"
+UXP_EXTENSIONS_DIR="/Library/Application Support/Adobe/UXP/extensions"
 
 echo "  (You may be prompted for your password to install into the system plugins folder)"
 echo ""
 
-# Remove any previous installation
-for existing in "$UXP_PLUGINS_DIR"/${PLUGIN_ID}*; do
-    if [ -d "$existing" ]; then
-        echo "  Removing previous installation: $(basename "$existing")"
-        rm -rf "$existing" 2>/dev/null || sudo rm -rf "$existing"
-    fi
+# Remove any previous installation (both Plugins/External and extensions dirs)
+for search_dir in "$UXP_PLUGINS_DIR" "$UXP_EXTENSIONS_DIR"; do
+    for existing in "$search_dir"/${PLUGIN_ID}*; do
+        if [ -d "$existing" ]; then
+            echo "  Removing previous installation: $(basename "$existing")"
+            rm -rf "$existing" 2>/dev/null || sudo rm -rf "$existing"
+        fi
+    done
 done
 
 # Extract .ccx (it's a ZIP archive) to the target directory
 echo "  Extracting to: $TARGET_DIR"
 echo ""
-sudo mkdir -p "$TARGET_DIR"
-sudo unzip -o -q "$CCX_FILE" -d "$TARGET_DIR"
+# Try without sudo first (works if dir is user-writable)
+if mkdir -p "$TARGET_DIR" 2>/dev/null; then
+    unzip -o -q "$CCX_FILE" -d "$TARGET_DIR"
+else
+    sudo mkdir -p "$TARGET_DIR"
+    sudo unzip -o -q "$CCX_FILE" -d "$TARGET_DIR"
+fi
 
 # Verify manifest exists in target
 if [ ! -f "$TARGET_DIR/manifest.json" ]; then
