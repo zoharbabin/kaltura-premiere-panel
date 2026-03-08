@@ -74,18 +74,18 @@ jobs:
 
           **macOS:**
           \`\`\`bash
-          gh release download --repo ${REPO} --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
+          gh release download --clobber --repo ${REPO} --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
           \`\`\`
 
           **Windows (PowerShell as Administrator):**
           \`\`\`powershell
-          gh release download --repo ${REPO} --pattern 'quick-install.ps1' --dir \$env:TEMP; & "\$env:TEMP\\quick-install.ps1"
+          gh release download --clobber --repo ${REPO} --pattern 'quick-install.ps1' --dir \$env:TEMP; & "\$env:TEMP\\quick-install.ps1"
           \`\`\`
 
           > To install for After Effects or Audition instead of Premiere Pro, set \`KALTURA_HOST_APP\` first:
           > \`\`\`bash
           > export KALTURA_HOST_APP=aftereffects
-          > gh release download --repo ${REPO} --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
+          > gh release download --clobber --repo ${REPO} --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
           > \`\`\`
 
           ### Option B — Manual Download

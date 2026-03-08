@@ -2,7 +2,7 @@
 # Kaltura for Adobe Creative Cloud — One-Click Installer (Windows)
 #
 # Usage (PowerShell as Administrator):
-#   gh release download --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.ps1' --dir $env:TEMP; & "$env:TEMP\quick-install.ps1"
+#   gh release download --clobber --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.ps1' --dir $env:TEMP; & "$env:TEMP\quick-install.ps1"
 #
 # This script:
 #   1. Detects the latest release from GitHub
