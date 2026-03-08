@@ -28,9 +28,29 @@ Browse, import, publish, AI-caption, translate, review, and analyze video conten
 
 ## Install (End Users)
 
+### One-Click Install (recommended)
+
+Open Terminal (macOS) or PowerShell (Windows) and paste:
+
+**macOS:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zoharbabin/kaltura-premiere-panel/main/scripts/quick-install.sh | bash
+```
+
+**Windows (PowerShell as Administrator):**
+
+```powershell
+irm https://raw.githubusercontent.com/zoharbabin/kaltura-premiere-panel/main/scripts/quick-install.ps1 | iex
+```
+
+This downloads the latest release, runs the installer, and opens the plugin in your Adobe app.
+
+### Manual Install
+
 Go to [**Releases**](../../releases/latest) and download the files for your platform.
 
-### macOS
+#### macOS
 
 1. Download `install-mac.sh` and the `.ccx` for your app (e.g. `kaltura-panel-x.x.x-premierepro.ccx`)
 2. Place both files in the same folder
@@ -40,7 +60,7 @@ Go to [**Releases**](../../releases/latest) and download the files for your plat
    ```
 4. Open Premiere Pro → **Window → UXP Plugins → Kaltura**
 
-### Windows
+#### Windows
 
 1. Download `install-win.bat` and the `.ccx` for your app
 2. Place both files in the same folder
@@ -223,7 +243,8 @@ GitHub Actions runs on every PR and push to `main`:
 
 Adobe UXP is not a full browser. Key limitations to be aware of when contributing:
 
-- **No CSS Grid** — use Flexbox only
+- **No CSS Grid** — use Flexbox only (all layouts use `display: flex`)
+- **No `box-shadow`** — use borders and background colors for depth
 - **No `window` global** — use UXP equivalents
 - **No `@font-face`** — system fonts only
 - **No Node.js APIs** — use `uxp.storage` instead of `fs`/`path`

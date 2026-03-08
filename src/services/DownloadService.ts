@@ -231,24 +231,28 @@ export class DownloadService {
   }
 
   private async saveTempFile(fileName: string, chunks: Uint8Array[]): Promise<string> {
+    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       const fs = uxp.storage.localFileSystem;
       const tempFolder = await fs.getTemporaryFolder();
       const file = await tempFolder.createFile(fileName, { overwrite: true });
-      const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-      const merged = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        merged.set(chunk, offset);
-        offset += chunk.length;
-      }
       await file.write(merged.buffer);
+      log.info("Saved temp file", { path: file.nativePath, size: totalLength });
       return file.nativePath;
-    } catch {
-      // Fallback for non-UXP environments (testing)
-      return `/tmp/kaltura-downloads/${fileName}`;
+    } catch (err) {
+      log.error("UXP file save failed", err);
+      throw new Error(
+        `Failed to save downloaded file: ${err instanceof Error ? err.message : "UXP storage not available"}`,
+      );
     }
   }
 }

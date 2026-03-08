@@ -81,16 +81,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
 
   if (isLoading || ssoStatus) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          gap: "16px",
-        }}
-      >
+      <div className="login-container">
         <LoadingSpinner label={ssoStatus || "Signing in..."} size="large" />
         {ssoStatus && onCancelSso && (
           <sp-button
@@ -109,36 +100,15 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px 16px",
-        gap: "16px",
-        height: "100%",
-      }}
-    >
+    <div className="login-container">
       <sp-heading size="M">{PLUGIN_NAME}</sp-heading>
-      <sp-body
-        size="S"
-        style={{ color: "var(--spectrum-global-color-gray-600)", textAlign: "center" }}
-      >
+      <div className="login-subtitle">
         Sign in to your Kaltura account to browse, import, and publish video content.
-      </sp-body>
+      </div>
 
       {error && <ErrorBanner message={error} onDismiss={onClearError} />}
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-          width: "100%",
-          maxWidth: "300px",
-        }}
-      >
+      <div className="login-form">
         {/* Auth mode toggle */}
         {onSsoLogin && (
           <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>

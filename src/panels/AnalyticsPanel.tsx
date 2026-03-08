@@ -88,9 +88,9 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "8px" }}>
-      <div style={{ marginBottom: "8px" }}>
-        <sp-detail size="S" style={{ color: "var(--spectrum-global-color-gray-600)" }}>
+    <div className="panel-root panel-padding">
+      <div style={{ marginBottom: 8 }}>
+        <sp-detail size="S" className="text-muted">
           {entryName || entryId}
         </sp-detail>
       </div>
@@ -98,28 +98,25 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {/* View tabs */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
-        <sp-action-button
-          quiet={view !== "overview" || undefined}
-          size="s"
+      <div className="sub-tabs" style={{ margin: "0 -8px 8px", padding: "4px 8px" }}>
+        <button
+          className={`sub-tab${view === "overview" ? " sub-tab--active" : ""}`}
           onClick={() => setView("overview")}
         >
           Overview
-        </sp-action-button>
-        <sp-action-button
-          quiet={view !== "moments" || undefined}
-          size="s"
+        </button>
+        <button
+          className={`sub-tab${view === "moments" ? " sub-tab--active" : ""}`}
           onClick={() => setView("moments")}
         >
           Top Moments ({moments.length})
-        </sp-action-button>
-        <sp-action-button
-          quiet={view !== "dropoff" || undefined}
-          size="s"
+        </button>
+        <button
+          className={`sub-tab${view === "dropoff" ? " sub-tab--active" : ""}`}
           onClick={() => setView("dropoff")}
         >
           Drop-off ({dropoffs.length})
-        </sp-action-button>
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
@@ -134,30 +131,23 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
 // --- Sub-components ---
 
 const StatCard: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div
-    style={{
-      padding: "12px",
-      borderRadius: "4px",
-      border: "1px solid var(--spectrum-global-color-gray-300)",
-      textAlign: "center",
-    }}
-  >
-    <div style={{ fontSize: "18px", fontWeight: 700, marginBottom: "4px" }}>{value}</div>
-    <div style={{ fontSize: "10px", color: "var(--spectrum-global-color-gray-600)" }}>{label}</div>
+  <div className="stat-card">
+    <div className="stat-card-value">{value}</div>
+    <div className="stat-card-label">{label}</div>
   </div>
 );
 
 const OverviewView: React.FC<{ stats: ViewerStats }> = ({ stats }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-    <div style={{ display: "flex", gap: "8px" }}>
+  <div className="flex-col gap-8">
+    <div className="stat-grid">
       <StatCard label="Total Plays" value={stats.totalPlays.toLocaleString()} />
       <StatCard label="Unique Viewers" value={stats.uniqueViewers.toLocaleString()} />
     </div>
-    <div style={{ display: "flex", gap: "8px" }}>
+    <div className="stat-grid">
       <StatCard label="Avg Completion" value={`${Math.round(stats.avgCompletionRate)}%`} />
       <StatCard label="Avg View Duration" value={formatDuration(stats.avgViewDuration)} />
     </div>
-    <div style={{ display: "flex", gap: "8px" }}>
+    <div className="stat-grid">
       <StatCard label="Peak Concurrent" value={stats.peakConcurrentViewers.toLocaleString()} />
     </div>
   </div>
@@ -171,33 +161,24 @@ const MomentsView: React.FC<{ moments: TopMoment[] }> = ({ moments }) => {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div className="flex-col gap-6">
       {moments.map((moment, i) => (
-        <div
-          key={i}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "8px",
-            borderRadius: "4px",
-            border: "1px solid var(--spectrum-global-color-gray-300)",
-            fontSize: "12px",
-          }}
-        >
-          <div>
-            <span style={{ fontWeight: 600 }}>
-              {formatDuration(moment.startTime)} - {formatDuration(moment.endTime)}
-            </span>
-            {moment.label && (
-              <span style={{ marginLeft: "8px", color: "var(--spectrum-global-color-gray-600)" }}>
-                {moment.label}
+        <div key={i} className="card-item">
+          <div className="card-item-header">
+            <div>
+              <span style={{ fontWeight: 600 }}>
+                {formatDuration(moment.startTime)} - {formatDuration(moment.endTime)}
               </span>
-            )}
+              {moment.label && (
+                <span className="text-muted" style={{ marginLeft: 8 }}>
+                  {moment.label}
+                </span>
+              )}
+            </div>
+            <span className="text-success" style={{ fontWeight: 600 }}>
+              {moment.replayCount} replays
+            </span>
           </div>
-          <span style={{ color: "var(--spectrum-global-color-green-600)", fontWeight: 600 }}>
-            {moment.replayCount} replays
-          </span>
         </div>
       ))}
     </div>
@@ -212,43 +193,22 @@ const DropOffView: React.FC<{ dropoffs: DropOffPoint[] }> = ({ dropoffs }) => {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div className="flex-col gap-6">
       {dropoffs.map((point, i) => (
-        <div
-          key={i}
-          style={{
-            padding: "8px",
-            borderRadius: "4px",
-            border: "1px solid var(--spectrum-global-color-gray-300)",
-            fontSize: "12px",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+        <div key={i} className="card-item">
+          <div className="card-item-header" style={{ marginBottom: 4 }}>
             <span style={{ fontWeight: 600 }}>{formatDuration(point.timestamp)}</span>
-            <span style={{ color: "var(--spectrum-global-color-red-500)", fontWeight: 600 }}>
+            <span className="text-error" style={{ fontWeight: 600 }}>
               -{Math.round(point.dropOffRate)}% drop
             </span>
           </div>
-          <div style={{ fontSize: "10px", color: "var(--spectrum-global-color-gray-600)" }}>
-            {point.viewersBefore} viewers → {point.viewersAfter} viewers
+          <div className="text-muted" style={{ fontSize: 10 }}>
+            {point.viewersBefore} viewers {"\u2192"} {point.viewersAfter} viewers
           </div>
-          {/* Simple visual bar */}
-          <div
-            style={{
-              marginTop: "4px",
-              height: "4px",
-              borderRadius: "2px",
-              backgroundColor: "var(--spectrum-global-color-gray-200)",
-              position: "relative",
-            }}
-          >
+          <div className="dropoff-bar-track">
             <div
-              style={{
-                height: "100%",
-                borderRadius: "2px",
-                backgroundColor: "var(--spectrum-global-color-red-400)",
-                width: `${Math.min(point.dropOffRate, 100)}%`,
-              }}
+              className="dropoff-bar-fill"
+              style={{ width: `${Math.min(point.dropOffRate, 100)}%` }}
             />
           </div>
         </div>

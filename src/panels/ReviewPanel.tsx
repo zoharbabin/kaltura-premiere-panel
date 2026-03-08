@@ -167,32 +167,19 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ reviewService, entryId
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "8px" }}>
+    <div className="panel-root panel-padding">
       {/* Header */}
-      <div style={{ marginBottom: "8px" }}>
-        <sp-detail size="S" style={{ color: "var(--spectrum-global-color-gray-600)" }}>
+      <div style={{ marginBottom: 8 }}>
+        <sp-detail size="S" className="text-muted">
           {entryName || entryId}
         </sp-detail>
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
-      {syncStatus && (
-        <div
-          style={{
-            padding: "6px 8px",
-            marginBottom: "8px",
-            borderRadius: "4px",
-            fontSize: "11px",
-            backgroundColor: "var(--spectrum-global-color-blue-100)",
-            color: "var(--spectrum-global-color-blue-700)",
-          }}
-        >
-          {syncStatus}
-        </div>
-      )}
+      {syncStatus && <div className="sync-banner">{syncStatus}</div>}
 
       {/* Sync controls */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
+      <div className="flex-row gap-4" style={{ marginBottom: 8 }}>
         <sp-action-button quiet size="s" onClick={handleSyncToMarkers}>
           Pull to Markers
         </sp-action-button>
@@ -202,11 +189,11 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ reviewService, entryId
       </div>
 
       {/* Annotation list */}
-      <div style={{ flex: 1, overflowY: "auto", marginBottom: "8px" }}>
+      <div style={{ flex: 1, overflowY: "auto", marginBottom: 8 }}>
         {rootAnnotations.length === 0 ? (
           <EmptyState title="No comments" description="Add a comment below to start a review." />
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div className="flex-col gap-8">
             {rootAnnotations.map((annotation) => (
               <AnnotationCard
                 key={annotation.id}
@@ -285,40 +272,28 @@ const AnnotationCard: React.FC<{
   onReplySubmit,
   onDelete,
 }) => (
-  <div
-    style={{
-      padding: "8px",
-      borderRadius: "4px",
-      border: "1px solid var(--spectrum-global-color-gray-300)",
-      fontSize: "12px",
-    }}
-  >
+  <div className="card-item">
     {/* Header */}
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "4px",
-      }}
-    >
-      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+    <div className="card-item-header">
+      <div className="flex-row gap-8">
         <span style={{ fontWeight: 600 }}>{annotation.userId || "Anonymous"}</span>
-        <span style={{ color: "var(--spectrum-global-color-gray-500)", fontSize: "10px" }}>
+        <span className="text-muted-light" style={{ fontSize: 10 }}>
           {formatTimestamp(annotation.startTime)}
           {annotation.endTime ? ` - ${formatTimestamp(annotation.endTime)}` : ""}
         </span>
       </div>
-      <span style={{ color: "var(--spectrum-global-color-gray-500)", fontSize: "10px" }}>
+      <span className="text-muted-light" style={{ fontSize: 10 }}>
         {formatDateTime(annotation.createdAt)}
       </span>
     </div>
 
     {/* Text */}
-    <div style={{ marginBottom: "4px" }}>{annotation.text}</div>
+    <div className="card-item-body" style={{ margin: "4px 0" }}>
+      {annotation.text}
+    </div>
 
     {/* Actions */}
-    <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+    <div className="card-item-footer">
       <sp-action-button quiet size="s" onClick={onReplyClick}>
         {isReplying ? "Cancel" : `Reply${replies.length > 0 ? ` (${replies.length})` : ""}`}
       </sp-action-button>
@@ -329,27 +304,12 @@ const AnnotationCard: React.FC<{
 
     {/* Replies */}
     {replies.length > 0 && (
-      <div
-        style={{
-          marginTop: "8px",
-          paddingLeft: "12px",
-          borderLeft: "2px solid var(--spectrum-global-color-gray-200)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "4px",
-        }}
-      >
+      <div className="reply-thread">
         {replies.map((reply) => (
-          <div key={reply.id} style={{ fontSize: "11px" }}>
+          <div key={reply.id} style={{ fontSize: 11 }}>
             <span style={{ fontWeight: 600 }}>{reply.userId || "Anonymous"}</span>
-            <span style={{ marginLeft: "4px" }}>{reply.text}</span>
-            <span
-              style={{
-                marginLeft: "4px",
-                color: "var(--spectrum-global-color-gray-500)",
-                fontSize: "10px",
-              }}
-            >
+            <span style={{ marginLeft: 4 }}>{reply.text}</span>
+            <span className="text-muted-light" style={{ marginLeft: 4, fontSize: 10 }}>
               {formatDateTime(reply.createdAt)}
             </span>
           </div>

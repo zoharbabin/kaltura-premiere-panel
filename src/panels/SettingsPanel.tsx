@@ -177,15 +177,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const offlineStatus = offlineService?.getSyncStatus();
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        overflowY: "auto",
-        padding: "8px",
-      }}
-    >
+    <div className="panel-root panel-padding" style={{ overflowY: "auto" }}>
       {/* Logout confirmation */}
       {showLogoutConfirm && (
         <ConfirmDialog
@@ -202,7 +194,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       <sp-detail size="M" style={{ padding: "8px 0 4px" }}>
         Account
       </sp-detail>
-      <div style={{ padding: "4px 0", fontSize: "12px" }}>
+      <div className="settings-section">
         {userName && (
           <div>
             <strong>User:</strong> {userName}
@@ -231,7 +223,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         Sign Out
       </sp-button>
 
-      <sp-divider size="s" style={{ margin: "16px 0" }} />
+      <sp-divider size="s" className="settings-section-divider" />
 
       {/* Preferences */}
       <sp-detail size="M" style={{ padding: "0 0 8px" }}>
@@ -291,19 +283,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         )}
       </div>
 
-      <sp-divider size="s" style={{ margin: "16px 0" }} />
+      <sp-divider size="s" className="settings-section-divider" />
 
       {/* Cache & Storage */}
       <sp-detail size="M" style={{ padding: "0 0 8px" }}>
         Cache & Storage
       </sp-detail>
-      <div
-        style={{
-          fontSize: "11px",
-          color: "var(--spectrum-global-color-gray-600)",
-          marginBottom: "8px",
-        }}
-      >
+      <div className="text-muted" style={{ fontSize: 11, marginBottom: 8 }}>
         <div>Cache size: {formatFileSize(cacheSize)}</div>
         <div>Imported assets: {mappingCount}</div>
         {offlineStatus && (
@@ -352,7 +338,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         )}
       </div>
 
-      <sp-divider size="s" style={{ margin: "16px 0" }} />
+      <sp-divider size="s" className="settings-section-divider" />
 
       {/* Audit Trail */}
       {auditService && (
@@ -375,75 +361,28 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   Clear Log
                 </sp-button>
               </div>
-              <div
-                style={{
-                  maxHeight: "200px",
-                  overflowY: "auto",
-                  border: "1px solid var(--spectrum-global-color-gray-300)",
-                  borderRadius: "4px",
-                  padding: "4px",
-                }}
-              >
+              <div className="audit-log">
                 {auditEntries.length === 0 ? (
                   <div
-                    style={{
-                      padding: "12px",
-                      textAlign: "center",
-                      fontSize: "11px",
-                      color: "var(--spectrum-global-color-gray-500)",
-                    }}
+                    className="text-muted-light"
+                    style={{ padding: 12, textAlign: "center", fontSize: 11 }}
                   >
                     No audit entries yet
                   </div>
                 ) : (
                   auditEntries.map((entry, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        padding: "4px 6px",
-                        borderBottom:
-                          i < auditEntries.length - 1
-                            ? "1px solid var(--spectrum-global-color-gray-200)"
-                            : "none",
-                        fontSize: "10px",
-                      }}
-                    >
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                        <span
-                          style={{
-                            padding: "1px 4px",
-                            borderRadius: "2px",
-                            backgroundColor: "var(--spectrum-global-color-blue-100)",
-                            color: "var(--spectrum-global-color-blue-700)",
-                            fontWeight: 600,
-                            fontSize: "9px",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {entry.action}
-                        </span>
-                        <span style={{ color: "var(--spectrum-global-color-gray-500)" }}>
-                          {formatTimestamp(entry.timestamp)}
-                        </span>
+                    <div key={i} className="audit-entry">
+                      <div className="flex-row gap-8">
+                        <span className="audit-badge">{entry.action}</span>
+                        <span className="text-muted-light">{formatTimestamp(entry.timestamp)}</span>
                       </div>
                       {entry.entryId && (
-                        <div
-                          style={{
-                            fontFamily: "monospace",
-                            color: "var(--spectrum-global-color-gray-600)",
-                            marginTop: "2px",
-                          }}
-                        >
+                        <div className="text-mono text-muted" style={{ marginTop: 2 }}>
                           {entry.entryId}
                         </div>
                       )}
                       {entry.details && (
-                        <div
-                          style={{
-                            color: "var(--spectrum-global-color-gray-600)",
-                            marginTop: "2px",
-                          }}
-                        >
+                        <div className="text-muted" style={{ marginTop: 2 }}>
                           {entry.details}
                         </div>
                       )}
@@ -454,7 +393,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </div>
           )}
 
-          <sp-divider size="s" style={{ margin: "16px 0" }} />
+          <sp-divider size="s" className="settings-section-divider" />
         </>
       )}
 
@@ -462,7 +401,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       <sp-detail size="M" style={{ padding: "0 0 4px" }}>
         About
       </sp-detail>
-      <div style={{ fontSize: "11px", color: "var(--spectrum-global-color-gray-600)" }}>
+      <div className="text-muted" style={{ fontSize: 11 }}>
         <div>
           <strong>{PLUGIN_NAME}</strong>
         </div>

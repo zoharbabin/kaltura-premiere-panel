@@ -146,10 +146,10 @@ export const CaptionsPanel: React.FC<CaptionsPanelProps> = ({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "8px" }}>
+    <div className="panel-root panel-padding">
       {/* Entry header */}
-      <div style={{ marginBottom: "8px" }}>
-        <sp-detail size="S" style={{ color: "var(--spectrum-global-color-gray-600)" }}>
+      <div style={{ marginBottom: 8 }}>
+        <sp-detail size="S" className="text-muted">
           {entryName || entryId}
         </sp-detail>
       </div>
@@ -158,29 +158,26 @@ export const CaptionsPanel: React.FC<CaptionsPanelProps> = ({
       {orderProgress && <ProgressBar value={-1} label={orderProgress} />}
 
       {/* View tabs */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
-        <sp-action-button
-          quiet={view !== "tracks" || undefined}
-          size="s"
+      <div className="sub-tabs" style={{ margin: "0 -8px 8px", padding: "4px 8px" }}>
+        <button
+          className={`sub-tab${view === "tracks" ? " sub-tab--active" : ""}`}
           onClick={() => setView("tracks")}
         >
           Tracks ({captions.length})
-        </sp-action-button>
-        <sp-action-button
-          quiet={view !== "order" || undefined}
-          size="s"
+        </button>
+        <button
+          className={`sub-tab${view === "order" ? " sub-tab--active" : ""}`}
           onClick={() => setView("order")}
         >
           Order Captions
-        </sp-action-button>
+        </button>
         {captions.length > 0 && (
-          <sp-action-button
-            quiet={view !== "translate" || undefined}
-            size="s"
+          <button
+            className={`sub-tab${view === "translate" ? " sub-tab--active" : ""}`}
             onClick={() => setView("translate")}
           >
             Translate
-          </sp-action-button>
+          </button>
         )}
       </div>
 
@@ -230,33 +227,25 @@ const CaptionTrackList: React.FC<{
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+    <div className="flex-col gap-8">
       {/* Active tasks */}
       {tasks
         .filter((t) => t.status !== KalturaVendorTaskStatus.READY)
         .map((task) => (
-          <div
-            key={task.id}
-            style={{
-              padding: "8px",
-              borderRadius: "4px",
-              border: "1px solid var(--spectrum-global-color-gray-300)",
-              fontSize: "12px",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div key={task.id} className="card-item">
+            <div className="card-item-header">
               <span>
                 {task.targetLanguage
                   ? `Translation: ${task.sourceLanguage} \u2192 ${task.targetLanguage}`
                   : `Captioning: ${task.sourceLanguage}`}
               </span>
               <span
-                style={{
-                  color:
-                    task.status === KalturaVendorTaskStatus.ERROR
-                      ? "var(--spectrum-global-color-red-500)"
-                      : "var(--spectrum-global-color-blue-500)",
-                }}
+                className={task.status === KalturaVendorTaskStatus.ERROR ? "text-error" : undefined}
+                style={
+                  task.status !== KalturaVendorTaskStatus.ERROR
+                    ? { color: "var(--spectrum-global-color-blue-500)" }
+                    : undefined
+                }
               >
                 {captionService.getTaskStatusLabel(task.status)}
               </span>
@@ -266,28 +255,14 @@ const CaptionTrackList: React.FC<{
 
       {/* Caption tracks */}
       {captions.map((caption) => (
-        <div
-          key={caption.id}
-          style={{
-            padding: "8px",
-            borderRadius: "4px",
-            border: "1px solid var(--spectrum-global-color-gray-300)",
-            fontSize: "12px",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div key={caption.id} className="card-item">
+          <div className="card-item-header">
             <div>
               <strong>
                 {caption.language.toUpperCase()} — {caption.label}
               </strong>
               {caption.isDefault && (
-                <span
-                  style={{
-                    marginLeft: "4px",
-                    fontSize: "10px",
-                    color: "var(--spectrum-global-color-green-600)",
-                  }}
-                >
+                <span className="text-success" style={{ marginLeft: 4, fontSize: 10 }}>
                   Default
                 </span>
               )}
@@ -296,8 +271,8 @@ const CaptionTrackList: React.FC<{
               Import
             </sp-action-button>
           </div>
-          <div style={{ color: "var(--spectrum-global-color-gray-600)", marginTop: "2px" }}>
-            {formatCaptionFormat(caption.format)} \u00B7 {formatDate(caption.createdAt)}
+          <div className="text-muted" style={{ marginTop: 2 }}>
+            {formatCaptionFormat(caption.format)} {"\u00B7"} {formatDate(caption.createdAt)}
             {caption.accuracy && ` \u00B7 ${caption.accuracy}% accuracy`}
           </div>
         </div>
@@ -321,7 +296,7 @@ const OrderCaptionsView: React.FC<{
   onCatalogItemChange,
   onOrder,
 }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+  <div className="flex-col gap-12">
     <div>
       <sp-detail size="S">Source Language</sp-detail>
       <sp-picker
@@ -341,28 +316,20 @@ const OrderCaptionsView: React.FC<{
     <div>
       <sp-detail size="S">Service Level</sp-detail>
       {catalogItems.length === 0 ? (
-        <sp-body size="S" style={{ color: "var(--spectrum-global-color-gray-600)" }}>
+        <sp-body size="S" className="text-muted">
           No REACH captioning services available for this account.
         </sp-body>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        <div className="flex-col gap-4">
           {catalogItems.map((item) => (
             <div
               key={item.id}
               onClick={() => onCatalogItemChange(item.id)}
-              style={{
-                padding: "8px",
-                borderRadius: "4px",
-                cursor: "pointer",
-                border:
-                  selectedCatalogItem === item.id
-                    ? "2px solid var(--spectrum-global-color-blue-500)"
-                    : "1px solid var(--spectrum-global-color-gray-300)",
-              }}
+              className={`catalog-card${selectedCatalogItem === item.id ? " catalog-card--selected" : ""}`}
             >
-              <div style={{ fontSize: "12px", fontWeight: 600 }}>{item.name}</div>
-              <div style={{ fontSize: "10px", color: "var(--spectrum-global-color-gray-600)" }}>
-                {item.serviceType === 1 ? "Human" : "Machine"} \u00B7 ~
+              <div style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</div>
+              <div className="text-muted" style={{ fontSize: 10 }}>
+                {item.serviceType === 1 ? "Human" : "Machine"} {"\u00B7"} ~
                 {formatTurnaround(item.turnAroundTime)}
               </div>
             </div>
@@ -397,7 +364,7 @@ const TranslateView: React.FC<{
   onOrder,
   existingLanguages,
 }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+  <div className="flex-col gap-12">
     <div>
       <sp-detail size="S">Source Language</sp-detail>
       <sp-picker
@@ -416,38 +383,19 @@ const TranslateView: React.FC<{
 
     <div>
       <sp-detail size="S">Target Languages ({targetLanguages.size} selected)</sp-detail>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "2px",
-          maxHeight: "300px",
-          overflowY: "auto",
-        }}
-      >
+      <div className="flex-col gap-2" style={{ maxHeight: 300, overflowY: "auto" }}>
         {LANGUAGES.filter((l) => l.code !== sourceLanguage).map((lang) => (
           <div
             key={lang.code}
             onClick={() => onToggleTarget(lang.code)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "6px 8px",
-              cursor: "pointer",
-              borderRadius: "4px",
-              fontSize: "12px",
-              backgroundColor: targetLanguages.has(lang.code)
-                ? "var(--spectrum-global-color-blue-100)"
-                : "transparent",
-            }}
+            className={`selectable-item${targetLanguages.has(lang.code) ? " selectable-item--selected" : ""}`}
           >
-            <span style={{ width: "16px", textAlign: "center" }}>
+            <span style={{ width: 16, textAlign: "center" }}>
               {targetLanguages.has(lang.code) ? "\u2713" : ""}
             </span>
             <span>{lang.name}</span>
             {existingLanguages.has(lang.code) && (
-              <span style={{ fontSize: "10px", color: "var(--spectrum-global-color-gray-500)" }}>
+              <span className="text-muted-light" style={{ fontSize: 10 }}>
                 (exists)
               </span>
             )}

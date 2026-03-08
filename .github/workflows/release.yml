@@ -68,7 +68,24 @@ jobs:
 
           HEADER
           cat >> release/RELEASE_NOTES.md <<EOF
-          ### Option A — Installer Script (recommended)
+          ### Option A — One-Click Install (recommended)
+
+          **macOS** — open Terminal and paste:
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/quick-install.sh | bash
+          \`\`\`
+
+          **Windows** — open PowerShell as Administrator and paste:
+          \`\`\`powershell
+          irm https://raw.githubusercontent.com/${REPO}/main/scripts/quick-install.ps1 | iex
+          \`\`\`
+
+          > To install for After Effects or Audition instead of Premiere Pro, set \`KALTURA_HOST_APP\` first:
+          > \`\`\`bash
+          > KALTURA_HOST_APP=aftereffects curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/quick-install.sh | bash
+          > \`\`\`
+
+          ### Option B — Manual Download
           1. Download **\`install-mac.sh\`** (macOS) or **\`install-win.bat\`** (Windows) below
           2. Download the \`.ccx\` file for your app (e.g. \`kaltura-panel-${VERSION}-premierepro.ccx\`)
           3. Place both files in the same folder
@@ -76,7 +93,7 @@ jobs:
              **Windows:** Double-click \`install-win.bat\`
           5. Open your Adobe app and go to **Window > UXP Plugins > Kaltura**
 
-          ### Option B — UPIA Command Line
+          ### Option C — UPIA Command Line
           \`\`\`bash
           # macOS
           cd "/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS"
@@ -87,7 +104,7 @@ jobs:
           UnifiedPluginInstallerAgent.exe /install C:\\path\\to\\kaltura-panel-${VERSION}-premierepro.ccx
           \`\`\`
 
-          ### Option C — UXP Developer Tool (development)
+          ### Option D — UXP Developer Tool (development)
           1. Install the [UXP Developer Tool](https://developer.adobe.com/premiere-pro/uxp/devtools/)
           2. Download and unzip the \`.ccx\` file (it's a ZIP archive)
           3. Open UXP Developer Tool > **Add Plugin** > select the \`manifest.json\`

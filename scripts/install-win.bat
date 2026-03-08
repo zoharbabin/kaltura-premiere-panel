@@ -10,7 +10,7 @@ setlocal enabledelayedexpansion
 set "UPIA_DIR=C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent"
 set "UPIA_BIN=%UPIA_DIR%\UnifiedPluginInstallerAgent.exe"
 set "PLUGIN_ID=com.kaltura.premiere.panel"
-set "UXP_EXTENSIONS_DIR=C:\Program Files\Common Files\Adobe\UXP\extensions"
+set "UXP_PLUGINS_DIR=C:\Program Files\Common Files\Adobe\UXP\Plugins\External"
 
 echo.
 echo   Kaltura for Adobe Creative Cloud — Installer
@@ -106,30 +106,10 @@ REM --- Method 2: Direct file placement (fallback) ---
 echo   UPIA install did not succeed. Using direct file placement...
 echo.
 
-if not exist "%UXP_EXTENSIONS_DIR%" (
-    echo   ERROR: UXP extensions directory not found at:
-    echo   %UXP_EXTENSIONS_DIR%
-    echo.
-    echo   Please ensure Creative Cloud Desktop is installed.
-    pause
-    exit /b 1
-)
-
-REM Extract version from .ccx filename (e.g. kaltura-panel-1.0.2-premierepro.ccx)
-set "PLUGIN_VERSION="
-for /f "tokens=3 delims=-" %%v in ("%~n1") do set "PLUGIN_VERSION=%%v"
-if "%PLUGIN_VERSION%"=="" (
-    for /f "tokens=3 delims=-" %%v in ("!CCX_FILE!") do set "PLUGIN_VERSION=%%v"
-)
-
-if not "%PLUGIN_VERSION%"=="" (
-    set "TARGET_DIR=%UXP_EXTENSIONS_DIR%\%PLUGIN_ID%-%PLUGIN_VERSION%"
-) else (
-    set "TARGET_DIR=%UXP_EXTENSIONS_DIR%\%PLUGIN_ID%"
-)
+set "TARGET_DIR=%UXP_PLUGINS_DIR%\%PLUGIN_ID%"
 
 REM Remove previous installations
-for /d %%d in ("%UXP_EXTENSIONS_DIR%\%PLUGIN_ID%*") do (
+for /d %%d in ("%UXP_PLUGINS_DIR%\%PLUGIN_ID%*") do (
     echo   Removing previous installation: %%~nxd
     rmdir /s /q "%%d" >nul 2>&1
 )
