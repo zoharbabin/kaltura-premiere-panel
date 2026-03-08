@@ -74,6 +74,7 @@ describe("PremiereService", () => {
         }),
       };
       const mockProject = {
+        name: "TestProject",
         getRootItem: jest.fn().mockResolvedValue(mockRootItem),
         importFiles: jest.fn().mockResolvedValue(undefined),
         executeTransaction: jest.fn().mockImplementation(async (fn: () => Promise<void>) => {
@@ -85,12 +86,23 @@ describe("PremiereService", () => {
       const result = await service.importFiles(["/path/to/video.mp4"]);
 
       expect(result).toEqual({ success: true });
-      expect(mockProject.executeTransaction).toHaveBeenCalled();
+      expect(mockProject.importFiles).toHaveBeenCalledWith(["/path/to/video.mp4"], undefined);
     });
 
     it("returns failure with error message when import throws", async () => {
+      const mockRootItem = {
+        children: [],
+        createBinAction: jest.fn().mockResolvedValue({
+          execute: jest.fn().mockResolvedValue(undefined),
+        }),
+      };
       const mockProject = {
-        executeTransaction: jest.fn().mockRejectedValue(new Error("Disk full")),
+        name: "TestProject",
+        getRootItem: jest.fn().mockResolvedValue(mockRootItem),
+        importFiles: jest.fn().mockRejectedValue(new Error("Disk full")),
+        executeTransaction: jest.fn().mockImplementation(async (fn: () => Promise<void>) => {
+          await fn();
+        }),
       };
       pp.Project.getActiveProject.mockResolvedValue(mockProject);
 
