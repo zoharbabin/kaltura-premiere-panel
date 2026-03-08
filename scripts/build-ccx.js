@@ -17,6 +17,10 @@ const archiver = require("archiver");
 const distDir = path.resolve(__dirname, "../dist");
 const packageJson = require("../package.json");
 
+// Files that should not be shipped in production .ccx packages
+const EXCLUDED_EXTENSIONS = [".d.ts", ".d.ts.map"];
+const EXCLUDED_FILES = new Set(["manifest.json", "exchange-metadata.json", "index.js.LICENSE.txt"]);
+
 const outputDir = (() => {
   const idx = process.argv.indexOf("--output-dir");
   if (idx !== -1 && process.argv[idx + 1]) {
@@ -39,6 +43,14 @@ function readManifest() {
   }
 
   return manifest;
+}
+
+function shouldInclude(file) {
+  if (EXCLUDED_FILES.has(file)) return false;
+  for (const ext of EXCLUDED_EXTENSIONS) {
+    if (file.endsWith(ext)) return false;
+  }
+  return true;
 }
 
 function createCcx(manifest, host) {
@@ -66,18 +78,28 @@ function createCcx(manifest, host) {
       resolve({ filename, size });
     });
 
+    output.on("error", reject);
     archive.on("error", reject);
     archive.pipe(output);
 
-    // Add all dist files except manifest.json (we replace it)
+    // Add production files from dist/ (exclude dev-only artifacts)
     const distFiles = fs.readdirSync(distDir);
     for (const file of distFiles) {
+      if (!shouldInclude(file)) continue;
       const filePath = path.join(distDir, file);
       const stat = fs.statSync(filePath);
-      if (file === "manifest.json") continue;
-      if (file === "exchange-metadata.json") continue;
       if (stat.isDirectory()) {
-        archive.directory(filePath, file);
+        // For directories like icons/, include everything;
+        // for directories like services/, panels/ etc. that only contain .d.ts, skip them
+        const children = fs.readdirSync(filePath);
+        const hasProductionFiles = children.some((c) => shouldInclude(c));
+        if (hasProductionFiles) {
+          // Filter directory contents
+          for (const child of children) {
+            if (!shouldInclude(child)) continue;
+            archive.file(path.join(filePath, child), { name: `${file}/${child}` });
+          }
+        }
       } else {
         archive.file(filePath, { name: file });
       }

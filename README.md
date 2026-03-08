@@ -96,7 +96,7 @@ src/
   App.tsx                       # Auth gate, 18-service initialization, tab router
   panels/                       # 8 tab panels (Login, Browse, Publish, Captions, Review,
                                 #   Analytics, Interactive, Settings)
-  components/                   # 10 shared UI components (FilterBar, ConfirmDialog,
+  components/                   # 9 shared UI components (FilterBar, ConfirmDialog,
                                 #   ErrorBanner, LoadingSpinner, ProgressBar, etc.)
   services/                     # 22 service modules (see Service Layer below)
   hooks/                        # useAuth, useDebounce
