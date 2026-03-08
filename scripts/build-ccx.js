@@ -7,19 +7,25 @@
  * Usage: node scripts/build-ccx.js [--output-dir <dir>]
  *
  * A .ccx file is a ZIP archive that Creative Cloud Desktop recognizes.
- * Users double-click it to install — no signing or developer tools needed.
+ * We use the system `zip` command (not Node.js archiver) because Adobe's
+ * CExtensionUnpackager cannot handle ZIP data descriptors (flag bit 3)
+ * which the `archiver` npm package sets by default.
  */
 
 const fs = require("fs");
 const path = require("path");
-const archiver = require("archiver");
+const { execSync } = require("child_process");
 
 const distDir = path.resolve(__dirname, "../dist");
 const packageJson = require("../package.json");
 
 // Files that should not be shipped in production .ccx packages
 const EXCLUDED_EXTENSIONS = [".d.ts", ".d.ts.map"];
-const EXCLUDED_FILES = new Set(["manifest.json", "exchange-metadata.json", "index.js.LICENSE.txt"]);
+const EXCLUDED_FILES = new Set([
+  "manifest.json",
+  "exchange-metadata.json",
+  "index.js.LICENSE.txt",
+]);
 
 const outputDir = (() => {
   const idx = process.argv.indexOf("--output-dir");
@@ -53,8 +59,9 @@ function shouldInclude(file) {
   return true;
 }
 
-/** Recursively add directory contents to archive, filtering dev-only files */
-function addDirectoryToArchive(archive, dirPath, prefix) {
+/** Collect files to include from dist/, filtering dev-only artifacts */
+function collectFiles(dirPath, prefix) {
+  const result = [];
   const entries = fs.readdirSync(dirPath);
   for (const entry of entries) {
     if (!shouldInclude(entry)) continue;
@@ -62,59 +69,77 @@ function addDirectoryToArchive(archive, dirPath, prefix) {
     const archiveName = prefix ? `${prefix}/${entry}` : entry;
     const stat = fs.statSync(fullPath);
     if (stat.isDirectory()) {
-      addDirectoryToArchive(archive, fullPath, archiveName);
+      result.push(...collectFiles(fullPath, archiveName));
     } else {
-      archive.file(fullPath, { name: archiveName });
+      result.push({ fullPath, archiveName });
     }
   }
+  return result;
 }
 
 function createCcx(manifest, host) {
-  return new Promise((resolve, reject) => {
-    const appName = host.app;
-    const filename = `kaltura-panel-${manifest.version}-${appName}.ccx`;
-    const outputPath = path.join(outputDir, filename);
+  const appName = host.app;
+  const filename = `kaltura-panel-${manifest.version}-${appName}.ccx`;
+  const outputPath = path.join(outputDir, filename);
 
-    // Build a single-host manifest for this .ccx
-    const hostManifest = {
-      ...manifest,
-      host: { app: host.app, minVersion: host.minVersion },
-    };
+  // Build a single-host manifest for this .ccx
+  const hostManifest = {
+    ...manifest,
+    host: { app: host.app, minVersion: host.minVersion },
+  };
 
-    const output = fs.createWriteStream(outputPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
+  // Use a temporary staging directory to assemble the package contents
+  const stagingDir = path.join(outputDir, `.staging-${appName}`);
+  if (fs.existsSync(stagingDir)) {
+    fs.rmSync(stagingDir, { recursive: true });
+  }
+  fs.mkdirSync(stagingDir, { recursive: true });
 
-    output.on("close", () => {
-      const size = archive.pointer();
-      const sizeStr =
-        size > 1024 * 1024
-          ? `${(size / (1024 * 1024)).toFixed(1)} MB`
-          : `${(size / 1024).toFixed(1)} KB`;
-      console.log(`  ${filename} (${sizeStr})`);
-      resolve({ filename, size });
-    });
+  // Copy dist files to staging
+  const files = collectFiles(distDir, "");
+  for (const { fullPath, archiveName } of files) {
+    const dest = path.join(stagingDir, archiveName);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(fullPath, dest);
+  }
 
-    output.on("error", reject);
-    archive.on("error", reject);
-    archive.pipe(output);
+  // Write the single-host manifest (overwrites the multi-host one from dist)
+  fs.writeFileSync(
+    path.join(stagingDir, "manifest.json"),
+    JSON.stringify(hostManifest, null, 2) + "\n",
+  );
 
-    // Add production files from dist/ (exclude dev-only artifacts)
-    addDirectoryToArchive(archive, distDir, "");
+  // Remove any previous .ccx at this path
+  if (fs.existsSync(outputPath)) {
+    fs.unlinkSync(outputPath);
+  }
 
-    // Add the single-host manifest
-    archive.append(JSON.stringify(hostManifest, null, 2) + "\n", {
-      name: "manifest.json",
-    });
-
-    archive.finalize();
+  // Create the ZIP using the system zip command (produces standard ZIP without data descriptors)
+  const absOutputPath = path.resolve(outputPath);
+  execSync(`cd "${stagingDir}" && zip -r -X "${absOutputPath}" .`, {
+    stdio: "pipe",
   });
+
+  // Clean up staging
+  fs.rmSync(stagingDir, { recursive: true });
+
+  const size = fs.statSync(outputPath).size;
+  const sizeStr =
+    size > 1024 * 1024
+      ? `${(size / (1024 * 1024)).toFixed(1)} MB`
+      : `${(size / 1024).toFixed(1)} KB`;
+  console.log(`  ${filename} (${sizeStr})`);
+
+  return { filename, size };
 }
 
 async function main() {
   const manifest = readManifest();
   const hosts = Array.isArray(manifest.host) ? manifest.host : [manifest.host];
 
-  console.log(`\nBuilding .ccx packages for ${manifest.name} v${manifest.version}\n`);
+  console.log(
+    `\nBuilding .ccx packages for ${manifest.name} v${manifest.version}\n`,
+  );
 
   // Verify dist has required files
   const indexPath = path.join(distDir, "index.js");
@@ -129,7 +154,7 @@ async function main() {
   // Build one .ccx per host
   const results = [];
   for (const host of hosts) {
-    const result = await createCcx(manifest, host);
+    const result = createCcx(manifest, host);
     results.push(result);
   }
 
