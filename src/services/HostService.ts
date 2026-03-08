@@ -55,6 +55,9 @@ export interface HostService {
 
   /** Clear all stored mappings */
   clearMappings(): void;
+
+  /** Sync mappings with the current project (no-op for hosts without project concept) */
+  syncWithProject?(): Promise<void>;
 }
 
 /** Detect which host app we're running in */

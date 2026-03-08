@@ -10,6 +10,7 @@ const log = createLogger("PremiereService");
 declare namespace premierepro {
   class Project {
     static getActiveProject(): Promise<Project>;
+    name: string;
     getRootItem(): Promise<FolderItem>;
     getActiveSequence(): Promise<Sequence | null>;
     importFiles(paths: string[], targetBin?: FolderItem): Promise<void>;
@@ -94,9 +95,32 @@ function getPremiere(): typeof premierepro {
  */
 export class PremiereService {
   private mappings: Map<string, AssetMapping> = new Map();
+  private currentProjectName = "";
 
   constructor() {
     this.loadMappings();
+  }
+
+  /**
+   * Sync mappings with the current project name.
+   * When the project changes, mappings are loaded from a project-specific key.
+   */
+  async syncWithProject(): Promise<void> {
+    try {
+      const pp = getPremiere();
+      const project = await pp.Project.getActiveProject();
+      const projectName = project?.name || "";
+      if (projectName && projectName !== this.currentProjectName) {
+        this.currentProjectName = projectName;
+        this.loadMappings();
+        log.info("Synced mappings with project", {
+          project: projectName,
+          count: this.mappings.size,
+        });
+      }
+    } catch {
+      // Not in Premiere (test env), fall back to default key
+    }
   }
 
   /** Check if Premiere Pro API is available */
@@ -153,6 +177,12 @@ export class PremiereService {
 
     try {
       const project = await pp.Project.getActiveProject();
+
+      // Sync mappings with the current project
+      if (project.name && project.name !== this.currentProjectName) {
+        this.currentProjectName = project.name;
+        this.loadMappings();
+      }
 
       await project.executeTransaction(async () => {
         const rootItem = await project.getRootItem();
@@ -274,12 +304,21 @@ export class PremiereService {
     return null;
   }
 
+  private get storageKey(): string {
+    if (this.currentProjectName) {
+      return `${STORAGE_KEY_ASSET_MAPPINGS}_${this.currentProjectName}`;
+    }
+    return STORAGE_KEY_ASSET_MAPPINGS;
+  }
+
   private loadMappings(): void {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY_ASSET_MAPPINGS);
+      const stored = localStorage.getItem(this.storageKey);
       if (stored) {
         const entries = JSON.parse(stored) as [string, AssetMapping][];
         this.mappings = new Map(entries);
+      } else {
+        this.mappings = new Map();
       }
     } catch {
       this.mappings = new Map();
@@ -289,7 +328,7 @@ export class PremiereService {
   private persistMappings(): void {
     try {
       const entries = Array.from(this.mappings.entries());
-      localStorage.setItem(STORAGE_KEY_ASSET_MAPPINGS, JSON.stringify(entries));
+      localStorage.setItem(this.storageKey, JSON.stringify(entries));
     } catch (error) {
       log.error("Failed to persist asset mappings", error);
     }

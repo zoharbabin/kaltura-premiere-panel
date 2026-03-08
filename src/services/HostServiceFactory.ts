@@ -78,6 +78,10 @@ class PremiereHostAdapter implements HostService {
   clearMappings(): void {
     this.premiere.clearMappings();
   }
+
+  async syncWithProject(): Promise<void> {
+    return this.premiere.syncWithProject();
+  }
 }
 
 /**

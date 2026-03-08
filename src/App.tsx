@@ -106,8 +106,10 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     if (authState.isAuthenticated) {
       auditService.logAction("login", undefined, `User: ${authState.user?.email}`);
+      // Sync import mappings with the current project so isImported is accurate
+      hostService.syncWithProject?.();
     }
-  }, [authState.isAuthenticated, authState.user?.email, auditService]);
+  }, [authState.isAuthenticated, authState.user?.email, auditService, hostService]);
 
   // Connect/disconnect notification service with auth state
   React.useEffect(() => {
@@ -147,7 +149,10 @@ export const App: React.FC = () => {
         log.info("Importing entry", { entryId: entry.id, flavorId: flavor.id });
         await downloadService.downloadAndImport(entry.id, flavor);
         auditService.logAction("import", entry.id, `Imported flavor ${flavor.id}`);
-        setImportStatus({ message: `"${entry.name}" imported successfully.`, isError: false });
+        setImportStatus({
+          message: `"${entry.name}" imported to "Kaltura Assets" bin in the Project panel.`,
+          isError: false,
+        });
         setTimeout(() => setImportStatus(null), 4000);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Import failed";
