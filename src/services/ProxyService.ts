@@ -267,8 +267,9 @@ export class ProxyService {
         merged.set(chunk, offset);
         offset += chunk.length;
       }
-      // CRITICAL: must specify binary format — UXP defaults to utf8 text mode
-      await file.write(merged.buffer, { format: uxp.storage.formats.binary });
+      // UXP binary write: pass a standalone ArrayBuffer with exact byte length
+      const buf = merged.buffer.slice(merged.byteOffset, merged.byteOffset + merged.byteLength);
+      await file.write(buf, { format: uxp.storage.formats.binary });
 
       // Resolve the native filesystem path with fallback
       let resolvedPath: string | undefined = file.nativePath;

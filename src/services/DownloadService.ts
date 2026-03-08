@@ -164,50 +164,82 @@ export class DownloadService {
       }
 
       const contentLength = parseInt(response.headers.get("content-length") || "0", 10);
+      log.info("Download response", {
+        contentType,
+        contentLength,
+        hasBody: !!response.body,
+      });
+
+      // Try streaming for progress, fall back to arrayBuffer() for reliability
+      let downloadedData: Uint8Array;
       const reader = response.body?.getReader();
 
-      if (!reader) {
-        throw new NetworkError("Download stream not available");
-      }
+      if (reader) {
+        const chunks: Uint8Array[] = [];
+        let loaded = 0;
 
-      const chunks: Uint8Array[] = [];
-      let loaded = 0;
+        let readDone = false;
+        while (!readDone) {
+          const { done, value } = await reader.read();
+          if (done) {
+            readDone = true;
+            break;
+          }
 
-      let readDone = false;
-      while (!readDone) {
-        const { done, value } = await reader.read();
-        if (done) {
-          readDone = true;
-          break;
+          chunks.push(value);
+          loaded += value.length;
+
+          const elapsed = (Date.now() - active.startTime) / 1000;
+          const speed = elapsed > 0 ? loaded / elapsed : 0;
+          const progressCallback = this.onProgressCallbacks.get(request.entryId);
+          progressCallback?.({
+            entryId: request.entryId,
+            loaded,
+            total: contentLength,
+            percent: contentLength > 0 ? Math.round((loaded / contentLength) * 100) : 0,
+            speed,
+          });
         }
 
-        chunks.push(value);
-        loaded += value.length;
+        if (loaded === 0) {
+          throw new NetworkError("Download returned empty response (0 bytes)");
+        }
 
-        const elapsed = (Date.now() - active.startTime) / 1000;
-        const speed = elapsed > 0 ? loaded / elapsed : 0;
-        const progressCallback = this.onProgressCallbacks.get(request.entryId);
-        progressCallback?.({
-          entryId: request.entryId,
-          loaded,
-          total: contentLength,
-          percent: contentLength > 0 ? Math.round((loaded / contentLength) * 100) : 0,
-          speed,
-        });
+        // Merge chunks into a single Uint8Array
+        downloadedData = new Uint8Array(loaded);
+        let offset = 0;
+        for (const chunk of chunks) {
+          downloadedData.set(chunk, offset);
+          offset += chunk.length;
+        }
+      } else {
+        // Fallback: read entire response as ArrayBuffer (no progress)
+        log.warn("No stream reader, using arrayBuffer() fallback");
+        const buf = await response.arrayBuffer();
+        downloadedData = new Uint8Array(buf);
+        if (downloadedData.length === 0) {
+          throw new NetworkError("Download returned empty response (0 bytes)");
+        }
       }
 
-      if (loaded === 0) {
-        throw new NetworkError("Download returned empty response (0 bytes)");
+      // Verify the first bytes look like a valid media container (MP4/MOV: ftyp box)
+      if (downloadedData.length >= 8) {
+        const magic = String.fromCharCode(...downloadedData.slice(4, 8));
+        log.info("File header magic", { magic, first16: Array.from(downloadedData.slice(0, 16)) });
       }
 
       // Save file and import into host app
-      const tempPath = await this.saveTempFile(request.fileName, chunks);
-      log.info("File saved, importing into project", { tempPath, size: loaded });
+      const tempPath = await this.saveTempFile(request.fileName, downloadedData);
+      log.info("File saved, importing into project", { tempPath, size: downloadedData.length });
       const importResult = await this.hostService.importFile(tempPath);
 
       if (!importResult.success) {
         const errDetail = importResult.error || "Unknown error";
-        log.error("Host import rejected file", { tempPath, error: errDetail, size: loaded });
+        log.error("Host import rejected file", {
+          tempPath,
+          error: errDetail,
+          size: downloadedData.length,
+        });
         throw new Error(`Import into project failed: ${errDetail}`);
       }
 
@@ -220,7 +252,10 @@ export class DownloadService {
       };
 
       this.hostService.storeMapping(request.entryId, tempPath);
-      log.info("Download and import complete", { entryId: request.entryId, size: loaded });
+      log.info("Download and import complete", {
+        entryId: request.entryId,
+        size: downloadedData.length,
+      });
 
       return mapping;
     } finally {
@@ -241,15 +276,7 @@ export class DownloadService {
     }
   }
 
-  private async saveTempFile(fileName: string, chunks: Uint8Array[]): Promise<string> {
-    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-    const merged = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      merged.set(chunk, offset);
-      offset += chunk.length;
-    }
-
+  private async saveTempFile(fileName: string, data: Uint8Array): Promise<string> {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
@@ -263,9 +290,10 @@ export class DownloadService {
         folder = await fs.getTemporaryFolder();
       }
       const file = await folder.createFile(fileName, { overwrite: true });
-      // CRITICAL: must specify binary format — UXP defaults to utf8 text mode
-      // which corrupts video data and causes Premiere import to fail
-      await file.write(merged.buffer, { format: uxp.storage.formats.binary });
+      // UXP binary write: pass a standalone ArrayBuffer with exact byte length.
+      // Using .slice() ensures no extra padding from the typed array's backing buffer.
+      const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+      await file.write(buf, { format: uxp.storage.formats.binary });
 
       // Resolve the native filesystem path — nativePath may be undefined in some
       // UXP versions, so fall back to constructing it from the folder's path.
@@ -289,7 +317,7 @@ export class DownloadService {
         nativePath: file.nativePath,
         nativePathType: typeof file.nativePath,
         folderNativePath: folder.nativePath,
-        size: totalLength,
+        size: data.byteLength,
       });
       return resolvedPath;
     } catch (err) {
