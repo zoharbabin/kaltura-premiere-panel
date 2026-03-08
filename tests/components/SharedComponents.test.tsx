@@ -8,6 +8,7 @@ import { ProgressBar } from "../../src/components/ProgressBar";
 import { StatusBar } from "../../src/components/StatusBar";
 import { ConfirmDialog } from "../../src/components/ConfirmDialog";
 import { ConnectionState } from "../../src/types";
+import { PLUGIN_VERSION } from "../../src/utils/constants";
 
 // ---------- LoadingSpinner ----------
 
@@ -188,7 +189,7 @@ describe("StatusBar", () => {
 
   it("renders the plugin version", () => {
     render(<StatusBar connectionState={ConnectionState.CONNECTED} />);
-    expect(screen.getByText("v1.0.0")).toBeInTheDocument();
+    expect(screen.getByText(`v${PLUGIN_VERSION}`)).toBeInTheDocument();
   });
 });
 

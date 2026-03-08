@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.1
+
+### Fixed
+
+- Fixed metadata update failures when saving custom metadata on existing entries
+- Fixed stale closure in publish workflow that could use outdated access control settings
+- Fixed unhandled promise rejections when double-clicking assets during network issues
+- Fixed .ccx packages to exclude development-only files (.d.ts, source maps)
+- Fixed .ccx packaging to correctly include nested directory structures
+- Fixed release notes formatting in automated GitHub Releases
+- Improved documentation accuracy across README, enterprise guide, and changelog
+
+### Changed
+
+- Added `repository`, `license`, and `engines` fields to package.json
+- Documented test mock strategy for After Effects and Audition host modules
+
 ## 1.0.0 - 2025-01-15
 
 ### Added
