@@ -173,10 +173,11 @@ export class PremiereService {
   /** Import files into the project under a "Kaltura Assets" bin */
   async importFiles(filePaths: string[]): Promise<ImportResult> {
     const pp = getPremiere();
-    log.info("Importing files to project", { count: filePaths.length });
+    log.info("Importing files to project", { paths: filePaths });
 
     try {
       const project = await pp.Project.getActiveProject();
+      log.info("Active project", { name: project.name });
 
       // Sync mappings with the current project
       if (project.name && project.name !== this.currentProjectName) {
@@ -184,18 +185,30 @@ export class PremiereService {
         this.loadMappings();
       }
 
-      await project.executeTransaction(async () => {
-        const rootItem = await project.getRootItem();
-        let bin = this.findBinByName(rootItem, KALTURA_BIN_NAME);
+      // Step 1: Ensure the "Kaltura Assets" bin exists
+      const rootItem = await project.getRootItem();
+      let bin = this.findBinByName(rootItem, KALTURA_BIN_NAME);
 
-        if (!bin) {
-          const createAction = await rootItem.createBinAction(KALTURA_BIN_NAME);
-          await createAction.execute();
-          bin = this.findBinByName(rootItem, KALTURA_BIN_NAME);
+      if (!bin) {
+        log.info("Creating Kaltura Assets bin");
+        try {
+          await project.executeTransaction(async () => {
+            const createAction = await rootItem.createBinAction(KALTURA_BIN_NAME);
+            await createAction.execute();
+          }, "Kaltura: Create Bin");
+        } catch (binErr) {
+          log.error("Bin creation failed, importing to root", binErr);
         }
+        // Re-fetch root to get updated children
+        const updatedRoot = await project.getRootItem();
+        bin = this.findBinByName(updatedRoot, KALTURA_BIN_NAME);
+        log.info("Bin lookup after create", { found: !!bin });
+      }
 
-        await project.importFiles(filePaths, bin ?? undefined);
-      }, "Kaltura: Import Assets");
+      // Step 2: Import files (separate transaction)
+      log.info("Calling project.importFiles", { target: bin ? KALTURA_BIN_NAME : "root" });
+      await project.importFiles(filePaths, bin ?? undefined);
+      log.info("project.importFiles completed");
 
       return { success: true };
     } catch (error) {

@@ -126,9 +126,8 @@ a:hover {
 
 .tab-bar {
   display: flex;
-  border-bottom: 1px solid var(--spectrum-global-color-gray-300);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0 var(--panel-spacing-xs);
-  background: var(--spectrum-global-color-gray-100);
   overflow-x: auto;
   flex-shrink: 0;
 }
@@ -140,7 +139,7 @@ a:hover {
 .tab-btn {
   padding: 10px 14px 8px;
   border-bottom: 2px solid transparent;
-  color: var(--spectrum-global-color-gray-600);
+  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
   font-size: 12px;
   font-weight: 500;
@@ -152,13 +151,13 @@ a:hover {
 }
 
 .tab-btn:hover {
-  color: var(--spectrum-global-color-gray-900);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .tab-btn--active,
 .tab-btn--active:hover {
-  border-bottom-color: var(--spectrum-global-color-blue-500);
-  color: var(--spectrum-global-color-gray-900);
+  border-bottom-color: #2680eb;
+  color: #fff;
   font-weight: 700;
 }
 
@@ -389,19 +388,23 @@ a:hover {
 
 /* ---- Detail view ---- */
 
+/*
+ * IMPORTANT: UXP dark theme renders Spectrum gray tokens as LIGHT colors.
+ * All detail-view styling uses explicit rgba() values for correct dark theme.
+ */
+
 .detail-header {
   padding: 6px var(--panel-spacing-md);
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--spectrum-global-color-gray-300);
-  background: var(--spectrum-global-color-gray-75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
 
 .detail-back-btn {
   font-size: 12px;
   font-weight: 500;
-  color: var(--spectrum-global-color-gray-700);
+  color: rgba(255, 255, 255, 0.6);
   padding: 4px 8px;
   border-radius: var(--panel-radius-sm);
   transition:
@@ -410,8 +413,8 @@ a:hover {
 }
 
 .detail-back-btn:hover {
-  color: var(--spectrum-global-color-gray-900);
-  background: var(--spectrum-global-color-gray-200);
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .detail-scroll {
@@ -438,7 +441,7 @@ a:hover {
   left: 0;
   right: 0;
   padding: 24px 16px 12px;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, transparent 100%);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
 }
 
 .detail-hero-title {
@@ -450,17 +453,15 @@ a:hover {
 
 .detail-hero-subtitle {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.65);
   margin-top: 2px;
 }
 
-/* Section cards */
+/* Section dividers — NO card backgrounds, just top borders for separation */
 .detail-section {
   margin-top: var(--panel-spacing-md);
-  padding: var(--panel-spacing-sm) var(--panel-spacing-md);
-  border: 1px solid var(--spectrum-global-color-gray-300);
-  border-radius: var(--panel-radius-md);
-  background: var(--spectrum-global-color-gray-75);
+  padding: var(--panel-spacing-sm) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .detail-section-title {
@@ -468,11 +469,11 @@ a:hover {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--spectrum-global-color-gray-600);
+  color: rgba(255, 255, 255, 0.4);
   margin-bottom: var(--panel-spacing-sm);
 }
 
-/* Field rows inside section cards */
+/* Field rows */
 .detail-fields-grid {
   display: flex;
   flex-direction: column;
@@ -491,12 +492,12 @@ a:hover {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  color: var(--spectrum-global-color-gray-500);
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .detail-field-value {
   font-size: 12px;
-  color: var(--spectrum-global-color-gray-800);
+  color: rgba(255, 255, 255, 0.85);
   line-height: 1.4;
   word-break: break-word;
 }
@@ -507,8 +508,7 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: var(--panel-spacing-sm);
-  border-top: 1px solid var(--spectrum-global-color-gray-300);
-  background: var(--spectrum-global-color-gray-75);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
 
@@ -517,7 +517,7 @@ a:hover {
   gap: var(--panel-spacing-sm);
 }
 
-/* Custom detail buttons (avoids UXP button styling issues) */
+/* Custom detail buttons — explicit dark-theme colors */
 .detail-btn {
   flex: 1;
   padding: 8px 12px;
@@ -531,26 +531,26 @@ a:hover {
 }
 
 .detail-btn--primary {
-  background: var(--spectrum-global-color-blue-500);
+  background: #2680eb;
   color: #fff;
 }
 
 .detail-btn--primary:hover {
-  background: var(--spectrum-global-color-blue-600);
+  background: #1b6ed4;
 }
 
 .detail-btn--secondary {
-  background: var(--spectrum-global-color-gray-300);
-  color: var(--spectrum-global-color-gray-900);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .detail-btn--secondary:hover {
-  background: var(--spectrum-global-color-gray-400);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .detail-btn--disabled {
-  background: var(--spectrum-global-color-gray-300);
-  color: var(--spectrum-global-color-gray-500);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.3);
   cursor: not-allowed;
 }
 
@@ -561,7 +561,7 @@ a:hover {
   align-items: center;
   justify-content: center;
   border-radius: var(--panel-radius-sm);
-  color: var(--spectrum-global-color-gray-600);
+  color: rgba(255, 255, 255, 0.5);
   font-size: 14px;
   flex-shrink: 0;
   transition:
@@ -570,8 +570,8 @@ a:hover {
 }
 
 .detail-delete-btn:hover {
-  background: var(--spectrum-global-color-red-100);
-  color: var(--spectrum-global-color-red-600);
+  background: rgba(255, 80, 80, 0.15);
+  color: #ff5050;
 }
 
 /* ---- Search & filter area ---- */
@@ -624,9 +624,9 @@ a:hover {
 .alert-info {
   padding: 7px var(--panel-spacing-sm);
   font-size: 11px;
-  background-color: var(--spectrum-global-color-blue-100);
-  color: var(--spectrum-global-color-blue-700);
-  border: 1px solid var(--spectrum-global-color-blue-400);
+  background-color: rgba(38, 128, 235, 0.12);
+  color: #6bb3f7;
+  border: 1px solid rgba(38, 128, 235, 0.3);
   border-radius: var(--panel-radius-sm);
   display: flex;
   justify-content: space-between;
@@ -638,9 +638,9 @@ a:hover {
 .alert-error {
   padding: 7px var(--panel-spacing-sm);
   font-size: 11px;
-  background-color: var(--spectrum-global-color-red-100);
-  color: var(--spectrum-global-color-red-700);
-  border: 1px solid var(--spectrum-global-color-red-400);
+  background-color: rgba(235, 55, 55, 0.12);
+  color: #f76b6b;
+  border: 1px solid rgba(235, 55, 55, 0.3);
   border-radius: var(--panel-radius-sm);
   display: flex;
   gap: var(--panel-spacing-sm);
@@ -652,9 +652,9 @@ a:hover {
 .alert-warning {
   padding: 7px var(--panel-spacing-sm);
   font-size: 11px;
-  background-color: var(--spectrum-global-color-yellow-100);
-  color: var(--spectrum-global-color-yellow-900);
-  border: 1px solid var(--spectrum-global-color-yellow-400);
+  background-color: rgba(230, 180, 30, 0.12);
+  color: #e6c84a;
+  border: 1px solid rgba(230, 180, 30, 0.3);
   border-radius: var(--panel-radius-sm);
   display: flex;
   gap: var(--panel-spacing-sm);
@@ -666,9 +666,9 @@ a:hover {
 .alert-success {
   padding: 7px var(--panel-spacing-sm);
   font-size: 11px;
-  background-color: var(--spectrum-global-color-green-100);
-  color: var(--spectrum-global-color-green-700);
-  border: 1px solid var(--spectrum-global-color-green-400);
+  background-color: rgba(45, 180, 80, 0.12);
+  color: #5bc975;
+  border: 1px solid rgba(45, 180, 80, 0.3);
   border-radius: var(--panel-radius-sm);
   display: flex;
   justify-content: space-between;
@@ -938,7 +938,7 @@ a:hover {
   gap: var(--panel-spacing-sm);
   padding: 5px 0;
   font-size: 11px;
-  border-bottom: 1px solid var(--spectrum-global-color-gray-200);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .quality-item:last-child {
@@ -947,12 +947,12 @@ a:hover {
 
 .quality-resolution {
   font-weight: 600;
-  color: var(--spectrum-global-color-gray-900);
+  color: rgba(255, 255, 255, 0.9);
   min-width: 75px;
 }
 
 .quality-meta {
-  color: var(--spectrum-global-color-gray-600);
+  color: rgba(255, 255, 255, 0.5);
   flex: 1;
 }
 
@@ -963,8 +963,8 @@ a:hover {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  background: var(--spectrum-global-color-blue-100);
-  color: var(--spectrum-global-color-blue-700);
+  background: rgba(38, 128, 235, 0.2);
+  color: #6bb3f7;
 }
 
 .caption-item {
@@ -973,7 +973,7 @@ a:hover {
   gap: var(--panel-spacing-sm);
   padding: 5px 0;
   font-size: 11px;
-  border-bottom: 1px solid var(--spectrum-global-color-gray-200);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .caption-item:last-child {
@@ -982,13 +982,13 @@ a:hover {
 
 .caption-lang {
   font-weight: 600;
-  color: var(--spectrum-global-color-gray-900);
+  color: rgba(255, 255, 255, 0.9);
   text-transform: uppercase;
   min-width: 30px;
 }
 
 .caption-label {
-  color: var(--spectrum-global-color-gray-700);
+  color: rgba(255, 255, 255, 0.6);
   flex: 1;
 }
 
