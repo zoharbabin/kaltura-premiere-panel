@@ -2,13 +2,15 @@
 # ============================================================================
 # Kaltura for Adobe Creative Cloud — macOS Installer
 # Installs the UXP plugin via Adobe's UPIA (Unified Plugin Installer Agent)
+# Falls back to direct file placement if UPIA fails
 # ============================================================================
 
 set -euo pipefail
 
 UPIA_DIR="/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS"
 UPIA_BIN="$UPIA_DIR/UnifiedPluginInstallerAgent"
-PLUGIN_NAME="Kaltura for Adobe Creative Cloud"
+PLUGIN_ID="com.kaltura.premiere.panel"
+UXP_EXTENSIONS_DIR="/Library/Application Support/Adobe/UXP/extensions"
 
 echo ""
 echo "  Kaltura for Adobe Creative Cloud — Installer"
@@ -46,33 +48,51 @@ fi
 echo "  Plugin:  $(basename "$CCX_FILE")"
 echo ""
 
-# Check UPIA exists
-if [ ! -f "$UPIA_BIN" ]; then
-    echo "  ERROR: Adobe Creative Cloud Desktop is not installed,"
-    echo "  or UPIA was not found at the expected location."
-    echo ""
-    echo "  Please install Creative Cloud Desktop from:"
-    echo "  https://creativecloud.adobe.com/apps/download/creative-cloud"
-    echo ""
-    echo "  Then re-run this installer."
-    exit 1
+# Extract version from the .ccx manifest
+PLUGIN_VERSION=""
+if command -v python3 &>/dev/null; then
+    PLUGIN_VERSION=$(python3 -c "
+import zipfile, json, sys
+try:
+    zf = zipfile.ZipFile(sys.argv[1])
+    m = json.loads(zf.read('manifest.json'))
+    print(m.get('version', ''))
+except: pass
+" "$CCX_FILE" 2>/dev/null) || true
 fi
 
-# Helper: run UPIA install and capture output
-do_install() {
-    UPIA_OUTPUT=$("$UPIA_BIN" --install "$CCX_FILE" 2>&1)
+# --- Method 1: Try UPIA first ---
+upia_install_success=false
+
+if [ -f "$UPIA_BIN" ]; then
+    echo "  Installing via Adobe UPIA..."
+    echo ""
+
+    UPIA_OUTPUT=$("$UPIA_BIN" --install "$CCX_FILE" 2>&1) || true
     echo "$UPIA_OUTPUT"
-}
+    echo ""
 
-echo "  Installing via Adobe UPIA..."
-echo ""
+    if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
+        upia_install_success=true
+    elif echo "$UPIA_OUTPUT" | grep -qi "status = -204"; then
+        # -204 can mean already installed OR decompression failure
+        # Try removing first, then reinstalling
+        echo "  Previous installation detected. Removing and reinstalling..."
+        echo ""
+        "$UPIA_BIN" --remove "Kaltura for Adobe Creative Cloud" 2>&1 || true
+        echo ""
 
-UPIA_OUTPUT=$(do_install)
-echo "$UPIA_OUTPUT"
-echo ""
+        UPIA_OUTPUT=$("$UPIA_BIN" --install "$CCX_FILE" 2>&1) || true
+        echo "$UPIA_OUTPUT"
+        echo ""
 
-# Check result — UPIA always returns exit code 0, so we parse stdout
-if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
+        if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
+            upia_install_success=true
+        fi
+    fi
+fi
+
+if [ "$upia_install_success" = true ]; then
     echo "  SUCCESS! The plugin has been installed."
     echo ""
     echo "  Next steps:"
@@ -80,46 +100,58 @@ if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
     echo "  2. Go to Window > UXP Plugins > Kaltura"
     echo "  3. Sign in with your Kaltura account"
     echo ""
-elif echo "$UPIA_OUTPUT" | grep -qi "status = -204"; then
-    # -204 = already registered in UPIA database (even if removed via CC UI)
-    # Fix: remove via UPIA first, then reinstall
-    echo "  Previous installation detected. Removing and reinstalling..."
-    echo ""
-    REMOVE_OUTPUT=$("$UPIA_BIN" --remove "$PLUGIN_NAME" 2>&1)
-    echo "$REMOVE_OUTPUT"
-    echo ""
+    exit 0
+fi
 
-    # Now reinstall
-    UPIA_OUTPUT=$(do_install)
-    echo "$UPIA_OUTPUT"
-    echo ""
+# --- Method 2: Direct file placement (fallback) ---
+echo "  UPIA install did not succeed. Using direct file placement..."
+echo ""
 
-    if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
-        echo "  SUCCESS! The plugin has been reinstalled."
-        echo ""
-        echo "  Next steps:"
-        echo "  1. Open (or restart) Premiere Pro, After Effects, or Audition"
-        echo "  2. Go to Window > UXP Plugins > Kaltura"
-        echo "  3. Sign in with your Kaltura account"
-        echo ""
-    else
-        echo "  Reinstallation failed. Please restart Creative Cloud Desktop and try again."
-        exit 1
+if [ ! -d "$UXP_EXTENSIONS_DIR" ]; then
+    echo "  ERROR: UXP extensions directory not found at:"
+    echo "  $UXP_EXTENSIONS_DIR"
+    echo ""
+    echo "  Please ensure Creative Cloud Desktop is installed."
+    exit 1
+fi
+
+# Determine target directory
+if [ -n "$PLUGIN_VERSION" ]; then
+    TARGET_DIR="$UXP_EXTENSIONS_DIR/${PLUGIN_ID}-${PLUGIN_VERSION}"
+else
+    TARGET_DIR="$UXP_EXTENSIONS_DIR/${PLUGIN_ID}"
+fi
+
+# Remove any previous installation in UXP extensions
+for existing in "$UXP_EXTENSIONS_DIR"/${PLUGIN_ID}*; do
+    if [ -d "$existing" ]; then
+        echo "  Removing previous installation: $(basename "$existing")"
+        rm -rf "$existing" 2>/dev/null || sudo rm -rf "$existing"
     fi
-elif echo "$UPIA_OUTPUT" | grep -qi "Failed to install"; then
-    echo "  Installation FAILED."
+done
+
+# Extract .ccx (it's a ZIP archive) to the target directory
+echo "  Extracting to: $TARGET_DIR"
+echo ""
+echo "  (You may be prompted for your password to install into the system plugins folder)"
+echo ""
+mkdir -p "$TARGET_DIR" 2>/dev/null || sudo mkdir -p "$TARGET_DIR"
+unzip -o -q "$CCX_FILE" -d "$TARGET_DIR" 2>/dev/null || sudo unzip -o -q "$CCX_FILE" -d "$TARGET_DIR"
+
+# Verify manifest exists in target
+if [ -f "$TARGET_DIR/manifest.json" ]; then
     echo ""
-    echo "  Troubleshooting:"
-    echo "  - Make sure Creative Cloud Desktop is running and up to date"
-    echo "  - Make sure you are signed into Creative Cloud"
-    echo "  - Make sure Premiere Pro, After Effects, or Audition is installed"
-    echo "  - Try restarting Creative Cloud Desktop and running this again"
+    echo "  SUCCESS! The plugin has been installed."
     echo ""
-    echo "  Alternative: install manually via UXP Developer Tool:"
+    echo "  Next steps:"
+    echo "  1. Open (or restart) Premiere Pro, After Effects, or Audition"
+    echo "  2. Go to Window > UXP Plugins > Kaltura"
+    echo "  3. Sign in with your Kaltura account"
+    echo ""
+else
+    echo ""
+    echo "  ERROR: Installation may have failed — manifest.json not found."
+    echo "  Please try the UXP Developer Tool method instead:"
     echo "  https://github.com/zoharbabin/kaltura-premiere-panel#install-end-users"
     exit 1
-else
-    echo "  Install completed (could not confirm status)."
-    echo "  Please check Window > UXP Plugins > Kaltura in your Adobe app."
-    echo ""
 fi
