@@ -30,21 +30,23 @@ Browse, import, publish, AI-caption, translate, review, and analyze video conten
 
 ### One-Click Install (recommended)
 
-Open Terminal (macOS) or PowerShell (Windows) and paste:
+Requires [GitHub CLI](https://cli.github.com/) (`gh`). Open Terminal (macOS) or PowerShell (Windows) and paste:
 
 **macOS:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zoharbabin/kaltura-premiere-panel/main/scripts/quick-install.sh | bash
+gh release download --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
 ```
 
 **Windows (PowerShell as Administrator):**
 
 ```powershell
-irm https://raw.githubusercontent.com/zoharbabin/kaltura-premiere-panel/main/scripts/quick-install.ps1 | iex
+gh release download --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.ps1' --dir $env:TEMP; & "$env:TEMP\quick-install.ps1"
 ```
 
 This downloads the latest release, runs the installer, and opens the plugin in your Adobe app.
+
+> **For After Effects or Audition:** set `KALTURA_HOST_APP=aftereffects` (or `audition`) before running.
 
 ### Manual Install
 

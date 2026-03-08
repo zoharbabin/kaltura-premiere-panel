@@ -160,7 +160,7 @@ async function main() {
 
   // Copy installer scripts into the release folder
   const scriptsDir = path.resolve(__dirname);
-  for (const installer of ["install-mac.sh", "install-win.bat"]) {
+  for (const installer of ["install-mac.sh", "install-win.bat", "quick-install.sh", "quick-install.ps1"]) {
     const src = path.join(scriptsDir, installer);
     if (fs.existsSync(src)) {
       fs.copyFileSync(src, path.join(outputDir, installer));
