@@ -2,7 +2,15 @@
 module.exports = {
   testEnvironment: "jsdom",
   transform: {
-    "^.+\\.tsx?$": "ts-jest",
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        tsconfig: {
+          rootDir: ".",
+          outDir: "./dist",
+        },
+      },
+    ],
   },
   moduleNameMapper: {
     "^@services/(.*)$": "<rootDir>/src/services/$1",
