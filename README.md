@@ -26,7 +26,16 @@ Browse, import, publish, AI-caption, translate, review, and analyze video conten
 - A **Kaltura** account with API access ([sign up](https://developer.kaltura.com/))
 - [UXP Developer Tool](https://developer.adobe.com/premiere-pro/uxp/devtools/) (for loading during development)
 
-## Quick Start
+## Install (End Users)
+
+1. Go to [**Releases**](../../releases/latest) and download the `.ccx` file for your Adobe app (e.g. `kaltura-panel-x.x.x-premierepro.ccx`)
+2. **Double-click** the downloaded file
+3. Creative Cloud Desktop will open — click **Install**
+4. Open Premiere Pro → **Window → UXP Plugins → Kaltura**
+
+That's it. No developer tools, terminal, or signing required.
+
+## Development Setup
 
 ```bash
 # Install dependencies
@@ -156,10 +165,13 @@ npm run test:coverage     # Run with coverage report
 ## Packaging & Distribution
 
 ```bash
-npm run package
+npm run package              # Validate build + generate Exchange metadata
+node scripts/build-ccx.js   # Build per-host .ccx files into release/
 ```
 
-This validates the build output, syncs the manifest version, verifies icons, reports bundle size, generates Adobe Exchange listing metadata, and creates a `.ccx` package.
+`npm run package` validates the build, syncs the manifest version, verifies icons, and generates Exchange metadata. `build-ccx.js` then creates one `.ccx` per host app (Premiere Pro, After Effects, Audition), each with a single-host manifest as Adobe requires for production distribution.
+
+**Automated releases:** Push a version tag (e.g. `git tag v1.0.0 && git push --tags`) and the [Release workflow](.github/workflows/release.yml) runs CI, builds all `.ccx` files, and publishes a GitHub Release with install instructions and downloadable assets.
 
 ### Distribution Options
 
