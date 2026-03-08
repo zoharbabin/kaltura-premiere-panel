@@ -93,7 +93,7 @@ The `HostServiceFactory` auto-detects the running host at startup and returns th
 plugin/manifest.json            # UXP Manifest v5 — hosts, permissions, entrypoints
 src/
   index.tsx                     # UXP entrypoints.setup() + React root render
-  App.tsx                       # Auth gate, 19-service initialization, tab router
+  App.tsx                       # Auth gate, 18-service initialization, tab router
   panels/                       # 8 tab panels (Login, Browse, Publish, Captions, Review,
                                 #   Analytics, Interactive, Settings)
   components/                   # 10 shared UI components (FilterBar, ConfirmDialog,
@@ -109,7 +109,7 @@ docs/                           # Enterprise deployment guide, research document
 
 ### Service Layer
 
-19 services are instantiated in `App.tsx` via `useMemo`, organized by domain:
+18 services are instantiated in `App.tsx` via `useMemo`, organized by domain:
 
 | Service                  | Purpose                                                                                             |
 | ------------------------ | --------------------------------------------------------------------------------------------------- |
@@ -150,7 +150,7 @@ Enterprise admins can pre-configure the plugin with a JSON config file — see t
 
 ## Testing
 
-**506 tests** across **45 suites** — all passing.
+**495 tests** across **44 suites** — all passing.
 
 ```bash
 npm test                  # Run all tests
@@ -159,7 +159,7 @@ npm run test:coverage     # Run with coverage report
 
 - **Framework:** Jest + jsdom + React Testing Library
 - **Coverage thresholds** (enforced in CI): statements 72%, branches 58%, functions 68%, lines 73%
-- **Test structure** mirrors `src/`: panels (8), components (11), services (19), hooks (2), utils (4), integration (1)
+- **Test structure** mirrors `src/`: panels (8), components (10), services (19), hooks (2), utils (4), integration (1)
 - **Mocking:** UXP and host app modules mocked globally in `tests/setup.ts`; `fetch` mocked globally — no live API calls in CI
 
 ## Packaging & Distribution

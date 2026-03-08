@@ -8,7 +8,7 @@ const log = createLogger("ProxyService");
 
 const MIN_PROXY_HEIGHT = 720;
 
-/** Minimal host interface needed by ProxyService */
+/** Minimal host interface — only the methods ProxyService actually uses */
 interface ProxyHostService {
   importFile(filePath: string): Promise<ImportResult>;
   storeMapping(entryId: string, localPath: string): void;
