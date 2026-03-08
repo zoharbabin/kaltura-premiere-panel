@@ -10,6 +10,13 @@ set -euo pipefail
 # Ensure we're in a valid directory (avoids getcwd errors if cwd was deleted)
 cd /tmp 2>/dev/null || cd /
 
+SKIP_UPIA=false
+for arg in "$@"; do
+    case "$arg" in
+        --skip-upia) SKIP_UPIA=true ;;
+    esac
+done
+
 UPIA_DIR="/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS"
 UPIA_BIN="$UPIA_DIR/UnifiedPluginInstallerAgent"
 PLUGIN_ID="com.kaltura.premiere.panel"
@@ -24,9 +31,16 @@ echo ""
 CCX_FILE=""
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Check if a .ccx was passed as argument
-if [ $# -ge 1 ] && [ -f "$1" ]; then
-    CCX_FILE="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+# Check if a .ccx was passed as argument (skip flag args)
+CCX_ARG=""
+for arg in "$@"; do
+    case "$arg" in
+        --*) ;; # skip flags
+        *) CCX_ARG="$arg"; break ;;
+    esac
+done
+if [ -n "$CCX_ARG" ] && [ -f "$CCX_ARG" ]; then
+    CCX_FILE="$(cd "$(dirname "$CCX_ARG")" && pwd)/$(basename "$CCX_ARG")"
 else
     # Look for .ccx files next to this script — prefer premierepro
     for pattern in "$SCRIPT_DIR"/*premierepro*.ccx "$SCRIPT_DIR"/*.ccx; do
@@ -51,9 +65,14 @@ fi
 echo "  Plugin:  $(basename "$CCX_FILE")"
 echo ""
 
-# --- Method 1: Try UPIA first ---
+# --- Method 1: Try UPIA first (unless --skip-upia) ---
 upia_install_success=false
 UPIA_TIMEOUT=15
+
+if [ "$SKIP_UPIA" = true ]; then
+    echo "  Skipping UPIA (--skip-upia). Using direct file placement..."
+    echo ""
+fi
 
 # Run a command with a timeout (macOS doesn't have `timeout` by default)
 run_with_timeout() {
@@ -83,7 +102,7 @@ run_with_timeout() {
 # It must NOT be run as root/sudo (causes error -642).
 # A previous hung UPIA blocks new instances (LSMultipleInstancesProhibited).
 
-if [ -f "$UPIA_BIN" ]; then
+if [ "$SKIP_UPIA" = false ] && [ -f "$UPIA_BIN" ]; then
     # Kill any lingering UPIA processes from a previous failed run
     pkill -f "UnifiedPluginInstallerAgent" 2>/dev/null || true
     sleep 1
