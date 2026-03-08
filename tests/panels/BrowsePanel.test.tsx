@@ -239,7 +239,7 @@ describe("BrowsePanel", () => {
 
   // --- Import behavior ---
 
-  it("shows 'Already Imported' when entry is already imported", async () => {
+  it("shows 'Re-import to Project' when entry is already imported", async () => {
     const isImported = jest.fn().mockReturnValue(true);
     render(<BrowsePanel {...defaultProps} isImported={isImported} />);
     await waitFor(() => {
@@ -251,7 +251,7 @@ describe("BrowsePanel", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Already Imported")).toBeTruthy();
+      expect(screen.getByText("Re-import to Project")).toBeTruthy();
     });
   });
 
