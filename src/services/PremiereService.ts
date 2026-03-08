@@ -13,17 +13,23 @@ declare namespace premierepro {
     name: string;
     getRootItem(): Promise<FolderItem>;
     getActiveSequence(): Promise<Sequence | null>;
-    importFiles(paths: string[], targetBin?: FolderItem): Promise<void>;
+    importFiles(
+      paths: string[],
+      suppressUI?: boolean,
+      targetBin?: ProjectItem,
+      asNumberedStills?: boolean,
+    ): Promise<boolean>;
     executeTransaction(fn: () => Promise<void>, name: string): Promise<void>;
-  }
-  class FolderItem {
-    name: string;
-    children: ProjectItem[];
-    createBinAction(name: string): Promise<Action>;
   }
   interface ProjectItem {
     name: string;
     type: number;
+  }
+  class FolderItem implements ProjectItem {
+    name: string;
+    type: number;
+    children: ProjectItem[];
+    createBinAction(name: string): Promise<Action>;
   }
   class Sequence {
     name: string;
@@ -170,12 +176,10 @@ export class PremiereService {
     };
   }
 
-  /** Import files into the project under a "Kaltura Assets" bin.
-   *  fileEntries are UXP File Entry objects — Premiere's importFiles() requires
-   *  Entry objects, not string paths ("Illegal Parameter type" error otherwise). */
-  async importFiles(filePaths: string[], fileEntries?: unknown[]): Promise<ImportResult> {
+  /** Import files into the project under a "Kaltura Assets" bin. */
+  async importFiles(filePaths: string[]): Promise<ImportResult> {
     const pp = getPremiere();
-    log.info("Importing files to project", { paths: filePaths, hasEntries: !!fileEntries });
+    log.info("Importing files to project", { paths: filePaths });
 
     try {
       const project = await pp.Project.getActiveProject();
@@ -208,15 +212,20 @@ export class PremiereService {
       }
 
       // Step 2: Import files (separate transaction)
-      // Premiere UXP API requires Entry objects, not string paths.
-      // Use fileEntries when available, fall back to string paths as last resort.
-      const importItems = fileEntries && fileEntries.length > 0 ? fileEntries : filePaths;
+      // Official UXP API signature (from Adobe samples):
+      //   project.importFiles(filePaths: string[], suppressUI?: boolean,
+      //                       targetBin?: ProjectItem, asNumberedStills?: boolean)
+      // NOTE: filePaths must be native path strings, NOT UXP Entry objects.
+      // The second param is suppressUI (boolean), NOT the target bin.
       log.info("Calling project.importFiles", {
         target: bin ? KALTURA_BIN_NAME : "root",
-        usingEntries: importItems === fileEntries,
-        count: importItems.length,
+        count: filePaths.length,
       });
-      await project.importFiles(importItems as string[], bin ?? undefined);
+      await project.importFiles(
+        filePaths,
+        true, // suppressUI
+        bin ?? undefined, // targetBin (3rd param, NOT 2nd)
+      );
       log.info("project.importFiles completed");
 
       return { success: true };
