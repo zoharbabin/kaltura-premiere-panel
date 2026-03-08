@@ -251,7 +251,9 @@ export class DownloadService {
       const fs = uxp.storage.localFileSystem;
       const tempFolder = await fs.getTemporaryFolder();
       const file = await tempFolder.createFile(fileName, { overwrite: true });
-      await file.write(merged.buffer);
+      // CRITICAL: must specify binary format — UXP defaults to utf8 text mode
+      // which corrupts video data and causes Premiere import to fail
+      await file.write(merged.buffer, { format: uxp.storage.formats.binary });
       log.info("Saved temp file", { path: file.nativePath, size: totalLength });
       return file.nativePath;
     } catch (err) {
