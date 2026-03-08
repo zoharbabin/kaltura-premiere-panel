@@ -5,6 +5,9 @@
 # Usage:
 #   gh release download --clobber --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
 #
+# Options:
+#   --skip-upia   Skip Adobe UPIA and go straight to direct file placement
+#
 # This script:
 #   1. Detects the latest release from GitHub
 #   2. Downloads the .ccx and install-mac.sh to a temp directory
@@ -13,6 +16,13 @@
 # ============================================================================
 
 set -euo pipefail
+
+SKIP_UPIA=""
+for arg in "$@"; do
+    case "$arg" in
+        --skip-upia) SKIP_UPIA="--skip-upia" ;;
+    esac
+done
 
 # Ensure we're in a valid directory (avoids getcwd errors if cwd was deleted)
 cd /tmp
@@ -79,4 +89,4 @@ chmod +x "${INSTALL_DIR}/install-mac.sh"
 echo ""
 echo "  Running installer..."
 echo ""
-(cd /tmp && "${INSTALL_DIR}/install-mac.sh" "${INSTALL_DIR}/${CCX_PATTERN}")
+(cd /tmp && "${INSTALL_DIR}/install-mac.sh" $SKIP_UPIA "${INSTALL_DIR}/${CCX_PATTERN}")
