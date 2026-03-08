@@ -133,6 +133,16 @@ async function main() {
     results.push(result);
   }
 
+  // Copy installer scripts into the release folder
+  const scriptsDir = path.resolve(__dirname);
+  for (const installer of ["install-mac.sh", "install-win.bat"]) {
+    const src = path.join(scriptsDir, installer);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, path.join(outputDir, installer));
+      console.log(`  Copied ${installer} to ${outputDir}/`);
+    }
+  }
+
   console.log(`\nDone. ${results.length} .ccx file(s) written to ${outputDir}/`);
 
   // Write a manifest of produced files for CI consumption

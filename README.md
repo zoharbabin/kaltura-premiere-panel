@@ -28,12 +28,26 @@ Browse, import, publish, AI-caption, translate, review, and analyze video conten
 
 ## Install (End Users)
 
-1. Go to [**Releases**](../../releases/latest) and download the `.ccx` file for your Adobe app (e.g. `kaltura-panel-x.x.x-premierepro.ccx`)
-2. **Double-click** the downloaded file
-3. Creative Cloud Desktop will open — click **Install**
+Go to [**Releases**](../../releases/latest) and download the files for your platform.
+
+### macOS
+
+1. Download `install-mac.sh` and the `.ccx` for your app (e.g. `kaltura-panel-x.x.x-premierepro.ccx`)
+2. Place both files in the same folder
+3. Open **Terminal**, `cd` to that folder, and run:
+   ```bash
+   chmod +x install-mac.sh && ./install-mac.sh
+   ```
 4. Open Premiere Pro → **Window → UXP Plugins → Kaltura**
 
-That's it. No developer tools, terminal, or signing required.
+### Windows
+
+1. Download `install-win.bat` and the `.ccx` for your app
+2. Place both files in the same folder
+3. **Double-click** `install-win.bat`
+4. Open Premiere Pro → **Window → UXP Plugins → Kaltura**
+
+> **Why not double-click the `.ccx`?** Adobe's Creative Cloud Desktop only recognizes `.ccx` double-click install for Photoshop. For Premiere Pro, After Effects, and Audition, the installer scripts use Adobe's UPIA (Unified Plugin Installer Agent) to install the plugin correctly.
 
 ## Development Setup
 
@@ -175,14 +189,14 @@ node scripts/build-ccx.js   # Build per-host .ccx files into release/
 
 ### Distribution Options
 
-| Method                  | Use Case                                                                  |
-| ----------------------- | ------------------------------------------------------------------------- |
-| **UXP Developer Tool**  | Development: load `dist/manifest.json` directly                           |
-| **`.ccx` package**      | End users: double-click to install via Creative Cloud Desktop             |
-| **Adobe Admin Console** | Enterprise: deploy via managed packages to user groups                    |
-| **UPIA CLI**            | IT automation: `upia install --path "plugin.ccx" --targets "premierepro"` |
+| Method                  | Use Case                                                                   |
+| ----------------------- | -------------------------------------------------------------------------- |
+| **Installer scripts**   | End users: `install-mac.sh` / `install-win.bat` (uses UPIA under the hood) |
+| **UPIA CLI**            | IT automation: `UnifiedPluginInstallerAgent --install plugin.ccx`          |
+| **UXP Developer Tool**  | Development: load `dist/manifest.json` directly                            |
+| **Adobe Admin Console** | Enterprise: deploy via managed packages to user groups                     |
 
-A `.ccx` file is a ZIP archive recognized by Creative Cloud Desktop — no digital signatures required (unlike legacy `.zxp`).
+A `.ccx` file is a ZIP archive — no digital signatures required (unlike legacy `.zxp`). Note: `.ccx` double-click install only works for Photoshop; for Premiere Pro, After Effects, and Audition, use the installer scripts or UPIA.
 
 See the [Enterprise Deployment Guide](./docs/enterprise-deployment.md) for Admin Console, UPIA, and pre-configuration details.
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2
+
+### Fixed
+
+- Fixed plugin installation for Premiere Pro, After Effects, and Audition: `.ccx` double-click install only works for Photoshop — replaced with installer scripts that use Adobe's UPIA
+- Added `install-mac.sh` and `install-win.bat` installer scripts included in every release
+- Updated README, release notes, and enterprise guide with correct install instructions
+
 ## 1.0.1
 
 ### Fixed

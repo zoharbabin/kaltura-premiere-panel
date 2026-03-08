@@ -62,31 +62,56 @@ jobs:
       - name: Generate release notes
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          cat > release/RELEASE_NOTES.md <<EOF
-          ## Install the Plugin
+          REPO="${{ github.repository }}"
+          cat > release/RELEASE_NOTES.md <<'HEADER'
+          ## How to Install
 
-          ### Premiere Pro users
-          1. Download **\`kaltura-panel-${VERSION}-premierepro.ccx\`** below
-          2. Double-click the downloaded file
-          3. Creative Cloud Desktop will open — click **Install**
-          4. Open Premiere Pro → **Window → UXP Plugins → Kaltura**
+          HEADER
+          cat >> release/RELEASE_NOTES.md <<EOF
+          ### Option A — Installer Script (recommended)
+          1. Download **\`install-mac.sh\`** (macOS) or **\`install-win.bat\`** (Windows) below
+          2. Download the \`.ccx\` file for your app (e.g. \`kaltura-panel-${VERSION}-premierepro.ccx\`)
+          3. Place both files in the same folder
+          4. **macOS:** Open Terminal, run \`chmod +x install-mac.sh && ./install-mac.sh\`
+             **Windows:** Double-click \`install-win.bat\`
+          5. Open your Adobe app and go to **Window > UXP Plugins > Kaltura**
 
-          ### After Effects users
-          Download \`kaltura-panel-${VERSION}-aftereffects.ccx\` and follow the same steps.
+          ### Option B — UPIA Command Line
+          \`\`\`bash
+          # macOS
+          cd "/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS"
+          ./UnifiedPluginInstallerAgent --install /path/to/kaltura-panel-${VERSION}-premierepro.ccx
 
-          ### Audition users
-          Download \`kaltura-panel-${VERSION}-audition.ccx\` and follow the same steps.
+          # Windows
+          cd "C:\\Program Files\\Common Files\\Adobe\\Adobe Desktop Common\\RemoteComponents\\UPI\\UnifiedPluginInstallerAgent"
+          UnifiedPluginInstallerAgent.exe /install C:\\path\\to\\kaltura-panel-${VERSION}-premierepro.ccx
+          \`\`\`
+
+          ### Option C — UXP Developer Tool (development)
+          1. Install the [UXP Developer Tool](https://developer.adobe.com/premiere-pro/uxp/devtools/)
+          2. Download and unzip the \`.ccx\` file (it's a ZIP archive)
+          3. Open UXP Developer Tool > **Add Plugin** > select the \`manifest.json\`
+          4. Click **Load** to sideload the plugin
+
+          ### Available Downloads
+          | File | Host App |
+          |------|----------|
+          | \`kaltura-panel-${VERSION}-premierepro.ccx\` | Premiere Pro |
+          | \`kaltura-panel-${VERSION}-aftereffects.ccx\` | After Effects |
+          | \`kaltura-panel-${VERSION}-audition.ccx\` | Audition |
+          | \`install-mac.sh\` | macOS installer script |
+          | \`install-win.bat\` | Windows installer script |
 
           ### Requirements
           - Adobe Premiere Pro, After Effects, or Audition **v25.2+**
+          - Creative Cloud Desktop (for UPIA installer)
           - A [Kaltura](https://corp.kaltura.com/) account with API access
 
+          > **Note:** The \`.ccx\` double-click install only works for Photoshop plugins.
+          > For Premiere Pro, After Effects, and Audition, use the installer script or UPIA command above.
+
           ### Enterprise / IT deployment
-          Use the UPIA command-line tool to deploy silently:
-          \`\`\`
-          UnifiedPluginInstallerAgent --install kaltura-panel-${VERSION}-premierepro.ccx
-          \`\`\`
-          Or deploy via **Adobe Admin Console** managed packages. See the [Enterprise Deployment Guide](https://github.com/${{ github.repository }}/blob/main/docs/enterprise-deployment.md).
+          See the [Enterprise Deployment Guide](https://github.com/${REPO}/blob/main/docs/enterprise-deployment.md).
 
           ---
           EOF
@@ -98,7 +123,6 @@ jobs:
           if [ -f CHANGELOG.md ]; then
             echo "### Changelog" >> release/RELEASE_NOTES.md
             echo "" >> release/RELEASE_NOTES.md
-            # Extract section between this version header and the next version header
             awk '/^## '"${VERSION}"'/{found=1; next} /^## [0-9]/{found=0} found' CHANGELOG.md >> release/RELEASE_NOTES.md
           fi
 
@@ -107,5 +131,8 @@ jobs:
         with:
           name: "Kaltura for Adobe Creative Cloud v${{ steps.version.outputs.version }}"
           body_path: release/RELEASE_NOTES.md
-          files: release/*.ccx
+          files: |
+            release/*.ccx
+            release/install-mac.sh
+            release/install-win.bat
           fail_on_unmatched_files: true
