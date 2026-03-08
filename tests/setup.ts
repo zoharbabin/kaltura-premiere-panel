@@ -13,7 +13,16 @@ jest.mock(
         setItem: jest.fn().mockResolvedValue(undefined),
         removeItem: jest.fn().mockResolvedValue(undefined),
       },
-      localFileSystem: {},
+      localFileSystem: {
+        getTemporaryFolder: jest.fn().mockResolvedValue({
+          createFile: jest.fn().mockImplementation((fileName: string) =>
+            Promise.resolve({
+              write: jest.fn().mockResolvedValue(undefined),
+              nativePath: `/tmp/kaltura-download/${fileName}`,
+            }),
+          ),
+        }),
+      },
     },
   }),
   { virtual: true },

@@ -41,8 +41,8 @@ describe("StatusBar", () => {
 
   it("renders status indicator dot", () => {
     const { container } = render(<StatusBar connectionState={ConnectionState.CONNECTED} />);
-    // The dot is an 8x8 rounded div
-    const dot = container.querySelector('div[style*="border-radius: 50%"]') as HTMLElement;
+    // The dot uses the .status-dot CSS class
+    const dot = container.querySelector(".status-dot") as HTMLElement;
     expect(dot).toBeTruthy();
   });
 });
