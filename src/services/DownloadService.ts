@@ -141,7 +141,7 @@ export class DownloadService {
     try {
       log.info("Starting download", { entryId: request.entryId, flavorId: request.flavorId });
 
-      const downloadUrl = this.mediaService.getFlavorDownloadUrl(request.flavorId);
+      const downloadUrl = this.mediaService.getFlavorDownloadUrl(request.entryId, request.flavorId);
       log.info("Download URL", { url: downloadUrl });
       const response = await fetch(downloadUrl, {
         signal: controller.signal,

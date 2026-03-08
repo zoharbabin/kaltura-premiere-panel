@@ -138,7 +138,7 @@ describe("ProxyService", () => {
       mockRequest.mockResolvedValue({
         objects: [makeFlavor({ id: "flv_orig", isOriginal: true, bitrate: 8000 })],
       });
-      (mediaService.getFlavorDownloadUrl as jest.Mock).mockResolvedValue(
+      (mediaService.getFlavorDownloadUrl as jest.Mock).mockReturnValue(
         "https://cdn.kaltura.com/original.mp4",
       );
 
