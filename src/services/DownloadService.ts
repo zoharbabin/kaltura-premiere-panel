@@ -69,17 +69,6 @@ export class DownloadService {
     flavor: KalturaFlavorAsset,
     onProgress?: (progress: DownloadProgress) => void,
   ): Promise<AssetMapping> {
-    if (this.hostService.isImported(entryId)) {
-      log.info("Asset already imported, skipping", { entryId });
-      return {
-        entryId,
-        flavorId: flavor.id,
-        localPath: "",
-        importDate: Date.now(),
-        isProxy: false,
-      };
-    }
-
     const fileName = `${entryId}_${flavor.id}.${flavor.fileExt || "mp4"}`;
     const request: DownloadRequest = { entryId, flavorId: flavor.id, fileName };
 
