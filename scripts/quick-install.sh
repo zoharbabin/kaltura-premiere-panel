@@ -3,7 +3,7 @@
 # Kaltura for Adobe Creative Cloud — One-Click Installer (macOS)
 #
 # Usage:
-#   gh release download --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
+#   gh release download --clobber --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
 #
 # This script:
 #   1. Detects the latest release from GitHub
