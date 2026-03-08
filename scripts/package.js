@@ -28,7 +28,7 @@ const validateOnly = process.argv.includes("--validate-only");
 function verifyBuild() {
   console.log("Verifying build...\n");
 
-  const requiredFiles = ["index.js", "manifest.json"];
+  const requiredFiles = ["index.js", "index.html", "styles.css", "manifest.json"];
   const missing = [];
 
   for (const file of requiredFiles) {

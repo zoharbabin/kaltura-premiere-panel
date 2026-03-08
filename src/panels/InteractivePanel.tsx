@@ -173,53 +173,37 @@ export const InteractivePanel: React.FC<InteractivePanelProps> = ({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "8px" }}>
+    <div className="panel-root panel-padding">
       {/* Header */}
-      <div style={{ marginBottom: "8px" }}>
-        <sp-detail size="s" style={{ color: "var(--spectrum-global-color-gray-600)" }}>
+      <div style={{ marginBottom: 8 }}>
+        <sp-detail size="s" className="text-muted">
           {entryName || entryId}
         </sp-detail>
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
-      {syncStatus && (
-        <div
-          style={{
-            padding: "6px 8px",
-            marginBottom: "8px",
-            borderRadius: "4px",
-            fontSize: "11px",
-            backgroundColor: "var(--spectrum-global-color-blue-100)",
-            color: "var(--spectrum-global-color-blue-700)",
-          }}
-        >
-          {syncStatus}
-        </div>
-      )}
+      {syncStatus && <div className="sync-banner">{syncStatus}</div>}
 
       {/* View tabs */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
-        <sp-action-button
-          quiet={view !== "chapters" || undefined}
-          size="s"
+      <div className="sub-tabs" style={{ margin: "0 -8px 8px", padding: "4px 8px" }}>
+        <button
+          className={`sub-tab${view === "chapters" ? " sub-tab--active" : ""}`}
           onClick={() => setView("chapters")}
         >
           Chapters ({chapters.length})
-        </sp-action-button>
-        <sp-action-button
-          quiet={view !== "cuepoints" || undefined}
-          size="s"
+        </button>
+        <button
+          className={`sub-tab${view === "cuepoints" ? " sub-tab--active" : ""}`}
           onClick={() => setView("cuepoints")}
         >
           Cue Points ({cuePoints.length})
-        </sp-action-button>
-        <sp-action-button
-          quiet={view !== "sync" || undefined}
-          size="s"
+        </button>
+        <button
+          className={`sub-tab${view === "sync" ? " sub-tab--active" : ""}`}
           onClick={() => setView("sync")}
         >
           Sync
-        </sp-action-button>
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
@@ -252,28 +236,19 @@ const ChaptersView: React.FC<{
   onTimeChange: (value: string) => void;
   onAdd: () => void;
 }> = ({ chapters, newTitle, newTime, onTitleChange, onTimeChange, onAdd }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+  <div className="flex-col gap-8">
     {chapters.length === 0 ? (
       <EmptyState title="No chapters" description="Add a chapter below to get started." />
     ) : (
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      <div className="flex-col gap-6">
         {chapters.map((ch) => (
           <div
             key={ch.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "8px",
-              borderRadius: "4px",
-              border: "1px solid var(--spectrum-global-color-gray-300)",
-              fontSize: "12px",
-            }}
+            className="card-item flex-row"
+            style={{ justifyContent: "space-between" }}
           >
             <span style={{ fontWeight: 600 }}>{ch.label || "Untitled"}</span>
-            <span style={{ color: "var(--spectrum-global-color-gray-600)" }}>
-              {formatDuration(ch.startTime)}
-            </span>
+            <span className="text-muted">{formatDuration(ch.startTime)}</span>
           </div>
         ))}
       </div>
@@ -281,16 +256,11 @@ const ChaptersView: React.FC<{
 
     {/* Add chapter form */}
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "4px",
-        borderTop: "1px solid var(--spectrum-global-color-gray-300)",
-        paddingTop: "8px",
-      }}
+      className="flex-col gap-4"
+      style={{ borderTop: "1px solid var(--spectrum-global-color-gray-300)", paddingTop: 8 }}
     >
       <sp-heading size="s">Add Chapter</sp-heading>
-      <div style={{ display: "flex", gap: "4px" }}>
+      <div className="flex-row gap-4">
         <sp-textfield
           size="s"
           placeholder="Chapter title"
@@ -303,7 +273,7 @@ const ChaptersView: React.FC<{
           placeholder="Time (e.g. 1:30)"
           value={newTime}
           onInput={(e: Event) => onTimeChange((e.target as HTMLInputElement).value)}
-          style={{ width: "80px" }}
+          style={{ width: 80 }}
         />
       </div>
       <sp-button
@@ -328,35 +298,22 @@ const CuePointsView: React.FC<{
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+    <div className="flex-col gap-6">
       {cuePoints.map((cp) => (
         <div
           key={cp.id}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "8px",
-            borderRadius: "4px",
-            border: "1px solid var(--spectrum-global-color-gray-300)",
-            fontSize: "12px",
-          }}
+          className="card-item"
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div className="flex-col gap-2">
+            <div className="flex-row gap-8">
               <span
-                style={{
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  color: "var(--spectrum-global-color-gray-500)",
-                }}
+                className="text-muted-light"
+                style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" }}
               >
                 {cp.type}
               </span>
-              <span style={{ color: "var(--spectrum-global-color-gray-600)" }}>
-                {formatDuration(cp.startTime)}
-              </span>
+              <span className="text-muted">{formatDuration(cp.startTime)}</span>
             </div>
             {cp.label && <span style={{ fontWeight: 600 }}>{cp.label}</span>}
           </div>
@@ -370,20 +327,9 @@ const CuePointsView: React.FC<{
 };
 
 const SyncView: React.FC<{ onSync: () => void }> = ({ onSync }) => (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: "12px",
-      padding: "24px 8px",
-    }}
-  >
+  <div className="login-container" style={{ padding: "24px 8px" }}>
     <sp-heading size="s">Sync Markers to Chapters</sp-heading>
-    <sp-detail
-      size="s"
-      style={{ color: "var(--spectrum-global-color-gray-600)", textAlign: "center" }}
-    >
+    <sp-detail size="s" className="text-muted" style={{ textAlign: "center" }}>
       Convert timeline markers from your Premiere Pro sequence into Kaltura chapters for this entry.
     </sp-detail>
     <sp-button size="m" variant="accent" onClick={onSync}>

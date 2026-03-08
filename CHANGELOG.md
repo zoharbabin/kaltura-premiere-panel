@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.1.0
+
+### Changed
+
+- Complete UI overhaul: migrated all inline styles to CSS classes using Adobe Spectrum design tokens
+- External stylesheet (`plugin/styles.css`) loaded via `<link>` for automatic Premiere Pro theme adaptation
+- Added comprehensive CSS class system: layout helpers, sub-tab pills, card items, stat cards, badges, alerts, selectable items, catalog cards, text helpers, and flex/gap utilities
+- All colors use `var(--spectrum-global-color-*)` tokens — zero hardcoded hex values in components
+- Fixed CSS specificity: all `--active`/`--selected` modifiers have compound `:hover` rules to prevent regressions
+- Fixed layout shift on catalog card selection (unified 2px border)
+- Added `.badge-inline` class for inline-flow badges in list views
+- FilterBar component uses `.filter-bar` CSS class instead of inline styles
+- Plugin entry point changed from `index.js` to `index.html` in manifest
+- Webpack CopyPlugin now copies `styles.css` to dist; `scripts/package.js` validates its presence
+- Added one-click curl-based install command for macOS and Windows
+
+### Fixed
+
+- Dead ternary in BrowsePanel license status (both branches returned same class)
+- Empty `className=""` on non-error caption task status (now uses `undefined`)
+- Redundant inline `marginTop` on `.section-info` elements (CSS already provides it)
+- Installer scripts updated: correct UXP plugin directory paths for direct file placement
+
 ## 1.0.2
 
 ### Fixed

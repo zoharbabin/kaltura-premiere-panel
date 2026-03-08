@@ -7,19 +7,8 @@ interface ErrorBannerProps {
 }
 
 export const ErrorBanner: React.FC<ErrorBannerProps> = ({ message, onDismiss, onRetry }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      padding: "8px 12px",
-      backgroundColor: "var(--spectrum-global-color-red-400)",
-      borderRadius: "4px",
-      margin: "8px",
-    }}
-  >
-    <sp-icon-alert size="s" />
-    <sp-body size="S" style={{ flex: 1, color: "white" }}>
+  <div className="alert-error">
+    <sp-body size="S" style={{ flex: 1 }}>
       {message}
     </sp-body>
     {onRetry && (
@@ -28,9 +17,9 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({ message, onDismiss, on
       </sp-action-button>
     )}
     {onDismiss && (
-      <sp-action-button size="s" quiet onClick={onDismiss}>
-        ✕
-      </sp-action-button>
+      <button className="alert-dismiss" onClick={onDismiss}>
+        {"\u2715"}
+      </button>
     )}
   </div>
 );

@@ -229,39 +229,17 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   // Success view
   if (phase === "complete" && publishedEntry) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          padding: "32px 16px",
-          gap: "16px",
-        }}
-      >
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: "50%",
-            backgroundColor: "var(--spectrum-global-color-green-500)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontSize: "24px",
-          }}
-        >
-          \u2713
-        </div>
+      <div className="login-container">
+        <div className="success-circle">{"\u2713"}</div>
         <sp-heading size="S">{publishMode === "new" ? "Published!" : "Updated!"}</sp-heading>
         <sp-body size="S" style={{ textAlign: "center" }}>
           &quot;{publishedEntry.name}&quot; has been{" "}
           {publishMode === "new" ? "created in" : "updated on"} Kaltura.
         </sp-body>
-        <sp-detail size="S" style={{ color: "var(--spectrum-global-color-gray-600)" }}>
+        <sp-detail size="S" className="text-muted">
           Entry ID: {publishedEntry.id}
         </sp-detail>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div className="flex-row gap-8">
           <sp-button variant="secondary" onClick={handleViewInKaltura}>
             View in Kaltura
           </sp-button>
@@ -276,15 +254,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   // Progress view
   if (phase !== "form" && phase !== "error") {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          padding: "32px 16px",
-          gap: "16px",
-        }}
-      >
+      <div className="login-container">
         <sp-heading size="S">Publishing...</sp-heading>
         <ProgressBar value={progress.progress} label={progress.message || progress.phase} />
       </div>
@@ -293,22 +263,14 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
 
   // Form view
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", padding: "8px" }}>
+    <div className="panel-root panel-padding">
       <sp-heading size="XS" style={{ padding: "8px 0" }}>
         Publish to Kaltura
       </sp-heading>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-          flex: 1,
-          overflowY: "auto",
-        }}
-      >
+      <div className="flex-col gap-12" style={{ flex: 1, overflowY: "auto" }}>
         {/* Publish mode */}
         <div>
           <sp-detail size="S">Publish Mode</sp-detail>
@@ -446,13 +408,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
                 </sp-menu-item>
               ))}
             </sp-picker>
-            <div
-              style={{
-                fontSize: "10px",
-                color: "var(--spectrum-global-color-gray-600)",
-                marginTop: "4px",
-              }}
-            >
+            <div className="text-muted" style={{ fontSize: 10, marginTop: 4 }}>
               Controls who can view the published content
             </div>
           </div>

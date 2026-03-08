@@ -50,6 +50,9 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>("browse");
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [selectedEntryName, setSelectedEntryName] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<{ message: string; isError: boolean } | null>(
+    null,
+  );
 
   // Initialize services (memoized)
   const client = useMemo(
@@ -139,12 +142,17 @@ export const App: React.FC = () => {
   const handleImportEntry = useCallback(
     async (entry: KalturaMediaEntry, flavor: KalturaFlavorAsset) => {
       if (!authState.partnerId) return;
+      setImportStatus({ message: `Downloading "${entry.name}"...`, isError: false });
       try {
         log.info("Importing entry", { entryId: entry.id, flavorId: flavor.id });
         await downloadService.downloadAndImport(entry.id, flavor);
         auditService.logAction("import", entry.id, `Imported flavor ${flavor.id}`);
+        setImportStatus({ message: `"${entry.name}" imported successfully.`, isError: false });
+        setTimeout(() => setImportStatus(null), 4000);
       } catch (err) {
+        const message = err instanceof Error ? err.message : "Import failed";
         log.error("Import failed", err);
+        setImportStatus({ message: `Import failed: ${message}`, isError: true });
       }
     },
     [authState.partnerId, downloadService, auditService],
@@ -163,7 +171,7 @@ export const App: React.FC = () => {
 
   if (!authState.isAuthenticated) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div className="panel-root">
         <div style={{ flex: 1 }}>
           <LoginPanel
             onLogin={login}
@@ -181,15 +189,9 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="panel-root">
       {/* Tab bar */}
-      <div
-        style={{
-          display: "flex",
-          borderBottom: "1px solid var(--spectrum-global-color-gray-300)",
-          padding: "0 4px",
-        }}
-      >
+      <div className="tab-bar">
         <TabButton id="browse" label="Browse" active={activeTab} onClick={setActiveTab} />
         <TabButton id="publish" label="Publish" active={activeTab} onClick={setActiveTab} />
         {hostAppInfo.supportsVideo && (
@@ -211,7 +213,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflow: "hidden" }}>
+      <div className="tab-content">
         {activeTab === "browse" && authState.partnerId && (
           <BrowsePanel
             mediaService={mediaService}
@@ -285,6 +287,20 @@ export const App: React.FC = () => {
         </Suspense>
       </div>
 
+      {/* Import status */}
+      {importStatus && (
+        <div
+          className={`import-banner ${importStatus.isError ? "import-banner--error" : "import-banner--success"}`}
+        >
+          <span>{importStatus.message}</span>
+          {importStatus.isError && (
+            <button className="alert-dismiss" onClick={() => setImportStatus(null)}>
+              {"\u2715"}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Status bar */}
       <StatusBar connectionState={authState.connectionState} />
     </div>
@@ -303,20 +319,7 @@ interface TabButtonProps {
 const TabButton: React.FC<TabButtonProps> = ({ id, label, active, onClick }) => (
   <button
     onClick={() => onClick(id)}
-    style={{
-      padding: "8px 12px",
-      border: "none",
-      borderBottom:
-        active === id ? "2px solid var(--spectrum-global-color-blue-500)" : "2px solid transparent",
-      background: "transparent",
-      color:
-        active === id
-          ? "var(--spectrum-global-color-gray-900)"
-          : "var(--spectrum-global-color-gray-600)",
-      cursor: "pointer",
-      fontSize: "12px",
-      fontWeight: active === id ? 600 : 400,
-    }}
+    className={`tab-btn${active === id ? " tab-btn--active" : ""}`}
   >
     {label}
   </button>

@@ -268,11 +268,22 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
     setShowQualityPicker(false);
     setSelectedFlavor(null);
     setIsEditing(false);
+    setImportError(null);
   }, []);
 
+  const [importError, setImportError] = useState<string | null>(null);
+
   const handleImportClick = useCallback(() => {
-    if (!selectedEntry || selectedEntry.flavors.length === 0) return;
-    if (isContentHeld(selectedEntry.entry)) return;
+    setImportError(null);
+    if (!selectedEntry) return;
+    if (isContentHeld(selectedEntry.entry)) {
+      setImportError("This entry is under content hold and cannot be imported.");
+      return;
+    }
+    if (selectedEntry.flavors.length === 0) {
+      setImportError("No downloadable renditions available for this entry.");
+      return;
+    }
     if (selectedEntry.flavors.length === 1) {
       onImportEntry(selectedEntry.entry, selectedEntry.flavors[0]);
       return;
@@ -337,6 +348,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
             : undefined
         }
         isImported={isImported(selectedEntry.entry.id)}
+        importError={importError}
         showQualityPicker={showQualityPicker}
         selectedFlavor={selectedFlavor}
         onFlavorSelect={setSelectedFlavor}
@@ -348,9 +360,9 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="panel-root">
       {/* Search bar */}
-      <div style={{ padding: "8px", display: "flex", gap: "8px", alignItems: "center" }}>
+      <div className="search-bar">
         <sp-search
           placeholder={searchService ? "Search assets & transcripts..." : "Search assets..."}
           value={searchText}
@@ -377,13 +389,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
 
       {/* Result count */}
       {!isLoading && (
-        <div
-          style={{
-            padding: "4px 8px",
-            fontSize: "11px",
-            color: "var(--spectrum-global-color-gray-600)",
-          }}
-        >
+        <div className="result-count">
           {totalCount > 0
             ? `Showing ${entries.length} of ${totalCount} results`
             : searchText || activeFilterCount > 0
@@ -394,17 +400,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
 
       {/* Offline mode banner */}
       {isOffline && (
-        <div
-          style={{
-            padding: "6px 8px",
-            backgroundColor: "var(--spectrum-global-color-yellow-100)",
-            borderBottom: "1px solid var(--spectrum-global-color-yellow-400)",
-            fontSize: "11px",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
+        <div className="offline-banner">
           <span style={{ fontSize: "14px" }}>{"\u26A0"}</span>
           <span>
             <strong>Offline Mode</strong> — Showing {entries.length} cached assets.
@@ -422,11 +418,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       {error && <ErrorBanner message={error} onRetry={() => loadEntries(1)} />}
 
       {/* Content */}
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        style={{ flex: 1, overflowY: "auto", padding: "4px" }}
-      >
+      <div ref={scrollRef} onScroll={handleScroll} className="panel-scroll">
         {isLoading ? (
           <LoadingSpinner label="Loading assets..." />
         ) : entries.length === 0 ? (
@@ -439,14 +431,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
             }
           />
         ) : viewMode === "grid" ? (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "8px",
-              justifyContent: "flex-start",
-            }}
-          >
+          <div className="thumb-grid">
             {entries.map((entry) => (
               <ThumbnailCard
                 key={entry.id}
@@ -471,7 +456,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
             ))}
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <div className="flex-col gap-2">
             {entries.map((entry) => (
               <ListRow
                 key={entry.id}
@@ -520,142 +505,36 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
   onClick,
   onDoubleClick,
 }) => (
-  <div
-    onClick={onClick}
-    onDoubleClick={onDoubleClick}
-    style={{
-      width: "calc(33.33% - 6px)",
-      minWidth: "90px",
-      cursor: "pointer",
-      borderRadius: "4px",
-      overflow: "hidden",
-      position: "relative",
-      border: "1px solid var(--spectrum-global-color-gray-300)",
-    }}
-    title={entry.name}
-  >
-    <div style={{ position: "relative", paddingBottom: "60%" }}>
-      <img
-        src={buildGridThumbnailUrl(partnerId, entry.id)}
-        alt={entry.name}
-        loading="lazy"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-        }}
-      />
-      {/* Duration badge */}
-      {entry.duration > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 4,
-            right: 4,
-            backgroundColor: "rgba(0,0,0,0.75)",
-            color: "white",
-            padding: "1px 4px",
-            borderRadius: "2px",
-            fontSize: "10px",
-          }}
-        >
-          {formatDuration(entry.duration)}
-        </div>
-      )}
-      {/* Content hold badge */}
+  <div onClick={onClick} onDoubleClick={onDoubleClick} className="thumb-card" title={entry.name}>
+    <div className="thumb-card-img-wrap">
+      <img src={buildGridThumbnailUrl(partnerId, entry.id)} alt={entry.name} loading="lazy" />
+      {entry.duration > 0 && <div className="badge-duration">{formatDuration(entry.duration)}</div>}
       {isContentHeld(entry) && (
-        <div
-          style={{
-            position: "absolute",
-            top: 4,
-            left: 4,
-            backgroundColor: "var(--spectrum-global-color-red-500)",
-            color: "white",
-            padding: "1px 5px",
-            borderRadius: "2px",
-            fontSize: "9px",
-            fontWeight: "bold",
-            letterSpacing: "0.5px",
-          }}
-          title={getHoldReason(entry) ?? "Content held"}
-        >
+        <div className="badge-overlay badge-hold" title={getHoldReason(entry) ?? "Content held"}>
           HOLD
         </div>
       )}
-      {/* License expiry badge */}
       {getLicenseStatus(entry) === "expired" && (
         <div
-          style={{
-            position: "absolute",
-            top: isContentHeld(entry) ? 20 : 4,
-            left: 4,
-            backgroundColor: "var(--spectrum-global-color-orange-500)",
-            color: "white",
-            padding: "1px 5px",
-            borderRadius: "2px",
-            fontSize: "9px",
-            fontWeight: "bold",
-          }}
+          className="badge-overlay badge-expired"
+          style={isContentHeld(entry) ? { top: 20 } : undefined}
         >
           EXPIRED
         </div>
       )}
       {getLicenseStatus(entry) === "expiring" && (
         <div
-          style={{
-            position: "absolute",
-            top: isContentHeld(entry) ? 20 : 4,
-            left: 4,
-            backgroundColor: "var(--spectrum-global-color-yellow-600)",
-            color: "white",
-            padding: "1px 5px",
-            borderRadius: "2px",
-            fontSize: "9px",
-            fontWeight: "bold",
-          }}
+          className="badge-overlay badge-expiring"
+          style={isContentHeld(entry) ? { top: 20 } : undefined}
           title={`Expires: ${formatDate(entry.endDate!)}`}
         >
           EXPIRING
         </div>
       )}
-      {/* Imported indicator */}
-      {imported && (
-        <div
-          style={{
-            position: "absolute",
-            top: 4,
-            right: 4,
-            backgroundColor: "var(--spectrum-global-color-green-500)",
-            color: "white",
-            borderRadius: "50%",
-            width: 16,
-            height: 16,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "10px",
-          }}
-        >
-          \u2713
-        </div>
-      )}
+      {imported && <div className="badge-imported">{"\u2713"}</div>}
     </div>
-    <div style={{ padding: "4px 6px" }}>
-      <div
-        style={{
-          fontSize: "11px",
-          lineHeight: "14px",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          color: isContentHeld(entry) ? "var(--spectrum-global-color-red-600)" : undefined,
-        }}
-      >
-        {truncate(entry.name, 30)}
-      </div>
+    <div className={`thumb-card-label${isContentHeld(entry) ? " text-error" : ""}`}>
+      {truncate(entry.name, 30)}
     </div>
   </div>
 );
@@ -675,67 +554,33 @@ const ListRow: React.FC<ListRowProps> = ({
   onClick,
   onDoubleClick,
 }) => (
-  <div
-    onClick={onClick}
-    onDoubleClick={onDoubleClick}
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      padding: "4px 8px",
-      cursor: "pointer",
-      borderRadius: "4px",
-      border: "1px solid transparent",
-    }}
-  >
+  <div onClick={onClick} onDoubleClick={onDoubleClick} className="list-row">
     <img
       src={buildGridThumbnailUrl(partnerId, entry.id)}
       alt=""
       loading="lazy"
-      style={{ width: 80, height: 45, objectFit: "cover", borderRadius: "2px" }}
+      className="list-row-thumb"
     />
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div
-        style={{
-          fontSize: "12px",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          color: isContentHeld(entry) ? "var(--spectrum-global-color-red-600)" : undefined,
-        }}
-      >
-        {isContentHeld(entry) && (
-          <span
-            style={{
-              backgroundColor: "var(--spectrum-global-color-red-500)",
-              color: "white",
-              padding: "0 4px",
-              borderRadius: "2px",
-              fontSize: "9px",
-              fontWeight: "bold",
-              marginRight: "4px",
-            }}
-          >
-            HOLD
-          </span>
-        )}
-        {imported && "\u2713 "}
+    <div className="list-row-info">
+      <div className={`list-row-name ellipsis${isContentHeld(entry) ? " text-error" : ""}`}>
+        {isContentHeld(entry) && <span className="badge-inline badge-hold">HOLD</span>}
+        {imported && "\u2713\u0020"}
         {entry.name}
       </div>
-      <div style={{ fontSize: "10px", color: "var(--spectrum-global-color-gray-600)" }}>
-        {formatDuration(entry.duration)} \u00B7 {formatDate(entry.createdAt)}
+      <div className="list-row-meta">
+        {formatDuration(entry.duration)} {"\u00B7"} {formatDate(entry.createdAt)}
         {isContentHeld(entry) && (
-          <span style={{ color: "var(--spectrum-global-color-red-500)", marginLeft: "4px" }}>
+          <span className="text-error" style={{ marginLeft: 4 }}>
             {getHoldReason(entry) ? `Hold: ${getHoldReason(entry)}` : "Content held"}
           </span>
         )}
         {getLicenseStatus(entry) === "expired" && (
-          <span style={{ color: "var(--spectrum-global-color-orange-600)", marginLeft: "4px" }}>
+          <span style={{ color: "var(--spectrum-global-color-orange-600)", marginLeft: 4 }}>
             License expired
           </span>
         )}
         {getLicenseStatus(entry) === "expiring" && (
-          <span style={{ color: "var(--spectrum-global-color-yellow-700)", marginLeft: "4px" }}>
+          <span style={{ color: "var(--spectrum-global-color-yellow-700)", marginLeft: 4 }}>
             Expiring: {formatDate(entry.endDate!)}
           </span>
         )}
@@ -752,6 +597,7 @@ interface AssetDetailProps {
   onEdit: () => void;
   onDelete?: () => void;
   isImported: boolean;
+  importError: string | null;
   showQualityPicker: boolean;
   selectedFlavor: KalturaFlavorAsset | null;
   onFlavorSelect: (flavor: KalturaFlavorAsset) => void;
@@ -768,6 +614,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
   onEdit,
   onDelete,
   isImported,
+  importError,
   showQualityPicker,
   selectedFlavor,
   onFlavorSelect,
@@ -794,24 +641,21 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
   }, [auditService, entry.accessControlId, entry.id]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "8px" }}>
-      <div style={{ padding: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+    <div className="panel-root">
+      <div className="detail-header">
         <sp-action-button quiet size="s" onClick={onBack}>
-          \u2190 Back
+          {"\u2190"} Back
         </sp-action-button>
-        <sp-heading
-          size="XS"
-          style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-        >
+        <sp-heading size="XS" className="flex-1 ellipsis">
           {entry.name}
         </sp-heading>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 8px" }}>
+      <div className="detail-scroll">
         <img
           src={buildGridThumbnailUrl(partnerId, entry.id)}
           alt={entry.name}
-          style={{ width: "100%", borderRadius: "4px", marginBottom: "12px" }}
+          className="detail-thumb"
         />
 
         {/* Quality picker overlay */}
@@ -826,15 +670,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         )}
 
         <sp-detail size="M">Details</sp-detail>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "4px",
-            padding: "8px 0",
-            fontSize: "12px",
-          }}
-        >
+        <div className="detail-meta">
           <div>
             <strong>Duration:</strong> {formatDuration(entry.duration)}
           </div>
@@ -857,8 +693,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
             </div>
           )}
           <div>
-            <strong>Entry ID:</strong>{" "}
-            <span style={{ fontFamily: "monospace", fontSize: "11px" }}>{entry.id}</span>
+            <strong>Entry ID:</strong> <span className="text-mono">{entry.id}</span>
           </div>
           {entry.userId && (
             <div>
@@ -866,20 +701,9 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
             </div>
           )}
           {isContentHeld(entry) && (
-            <div
-              style={{
-                marginTop: "8px",
-                padding: "8px",
-                backgroundColor: "var(--spectrum-global-color-red-100)",
-                border: "1px solid var(--spectrum-global-color-red-400)",
-                borderRadius: "4px",
-                fontSize: "12px",
-              }}
-            >
-              <strong style={{ color: "var(--spectrum-global-color-red-700)" }}>
-                Content Hold
-              </strong>
-              <div style={{ marginTop: "4px", color: "var(--spectrum-global-color-red-600)" }}>
+            <div className="section-info section-info-error">
+              <strong>Content Hold</strong>
+              <div style={{ marginTop: 4 }}>
                 {getHoldReason(entry)
                   ? `Reason: ${getHoldReason(entry)}`
                   : "This entry is under content hold and cannot be imported."}
@@ -888,35 +712,14 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
           )}
           {(getLicenseStatus(entry) === "expired" || getLicenseStatus(entry) === "expiring") && (
             <div
-              style={{
-                marginTop: "8px",
-                padding: "8px",
-                backgroundColor:
-                  getLicenseStatus(entry) === "expired"
-                    ? "var(--spectrum-global-color-orange-100)"
-                    : "var(--spectrum-global-color-yellow-100)",
-                border: `1px solid ${
-                  getLicenseStatus(entry) === "expired"
-                    ? "var(--spectrum-global-color-orange-400)"
-                    : "var(--spectrum-global-color-yellow-400)"
-                }`,
-                borderRadius: "4px",
-                fontSize: "12px",
-              }}
+              className={`section-info ${getLicenseStatus(entry) === "expired" ? "section-info-error" : "section-info-warning"}`}
             >
-              <strong
-                style={{
-                  color:
-                    getLicenseStatus(entry) === "expired"
-                      ? "var(--spectrum-global-color-orange-700)"
-                      : "var(--spectrum-global-color-yellow-700)",
-                }}
-              >
+              <strong>
                 {getLicenseStatus(entry) === "expired"
                   ? "License Expired"
                   : "License Expiring Soon"}
               </strong>
-              <div style={{ marginTop: "4px" }}>
+              <div style={{ marginTop: 4 }}>
                 {getLicenseStatus(entry) === "expired"
                   ? `This content's license expired on ${formatDate(entry.endDate!)}.`
                   : `This content's license expires on ${formatDate(entry.endDate!)}. Review usage rights before importing.`}
@@ -929,12 +732,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         {accessControl && (
           <>
             <sp-detail size="M">Access Control</sp-detail>
-            <div
-              style={{
-                padding: "8px 0",
-                fontSize: "12px",
-              }}
-            >
+            <div className="detail-meta">
               <div>
                 <strong>Profile:</strong> {accessControl.name}
               </div>
@@ -956,27 +754,9 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         {drmPolicies.length > 0 && drmPolicies[0].provider !== "none" && (
           <>
             <sp-detail size="M">DRM Protection</sp-detail>
-            <div
-              style={{
-                padding: "8px 0",
-                fontSize: "12px",
-                display: "flex",
-                gap: "6px",
-                flexWrap: "wrap",
-              }}
-            >
+            <div style={{ padding: "8px 0", display: "flex", gap: 6, flexWrap: "wrap" }}>
               {drmPolicies.map((drm, i) => (
-                <span
-                  key={i}
-                  style={{
-                    padding: "2px 8px",
-                    borderRadius: "3px",
-                    backgroundColor: "var(--spectrum-global-color-blue-100)",
-                    color: "var(--spectrum-global-color-blue-700)",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                  }}
-                >
+                <span key={i} className="badge-drm">
                   {drm.provider.toUpperCase()}
                 </span>
               ))}
@@ -987,11 +767,12 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         {flavors.length > 0 && (
           <>
             <sp-detail size="M">Available Qualities ({flavors.length})</sp-detail>
-            <div style={{ padding: "8px 0", fontSize: "11px" }}>
+            <div style={{ padding: "8px 0" }}>
               {flavors.map((f) => (
-                <div key={f.id} style={{ padding: "2px 0" }}>
-                  {f.width}\u00D7{f.height} \u00B7 {f.fileExt} \u00B7{" "}
-                  {formatFileSize(f.size * 1024)}
+                <div key={f.id} className="quality-item">
+                  {f.width}
+                  {"\u00D7"}
+                  {f.height} {"\u00B7"} {f.fileExt} {"\u00B7"} {formatFileSize(f.size * 1024)}
                   {f.isOriginal && " (Original)"}
                   {f.isWeb && " (Web)"}
                 </div>
@@ -1003,10 +784,10 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         {captions.length > 0 && (
           <>
             <sp-detail size="M">Caption Tracks ({captions.length})</sp-detail>
-            <div style={{ padding: "8px 0", fontSize: "11px" }}>
+            <div style={{ padding: "8px 0" }}>
               {captions.map((c) => (
-                <div key={c.id} style={{ padding: "2px 0" }}>
-                  {c.language} \u00B7 {c.label} {c.isDefault && "(Default)"}
+                <div key={c.id} className="caption-item">
+                  {c.language} {"\u00B7"} {c.label} {c.isDefault && "(Default)"}
                 </div>
               ))}
             </div>
@@ -1014,27 +795,34 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         )}
       </div>
 
-      <div style={{ padding: "8px", display: "flex", gap: "8px" }}>
-        {onDelete && (
-          <sp-action-button quiet size="s" onClick={onDelete} title="Delete entry">
-            \u2716
-          </sp-action-button>
+      <div className="detail-actions">
+        {importError && (
+          <div className="alert-error" style={{ margin: 0 }}>
+            {importError}
+          </div>
         )}
-        <sp-button variant="secondary" size="s" onClick={onEdit} style={{ flex: 1 }}>
-          Edit Metadata
-        </sp-button>
-        <sp-button
-          variant="accent"
-          onClick={onImport}
-          disabled={isImported || isContentHeld(entry) || flavors.length === 0 || undefined}
-          style={{ flex: 1 }}
-        >
-          {isImported
-            ? "Already Imported"
-            : isContentHeld(entry)
-              ? "Import Blocked (Hold)"
-              : "Import to Project"}
-        </sp-button>
+        <div className="detail-actions-row">
+          {onDelete && (
+            <sp-action-button quiet size="s" onClick={onDelete} title="Delete entry">
+              {"\u2716"}
+            </sp-action-button>
+          )}
+          <sp-button variant="secondary" size="s" onClick={onEdit} style={{ flex: 1 }}>
+            Edit Metadata
+          </sp-button>
+          <sp-button
+            variant="accent"
+            onClick={onImport}
+            disabled={isImported || undefined}
+            style={{ flex: 1 }}
+          >
+            {isImported
+              ? "Already Imported"
+              : isContentHeld(entry)
+                ? "Import Blocked (Hold)"
+                : "Import to Project"}
+          </sp-button>
+        </div>
       </div>
     </div>
   );

@@ -43,7 +43,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   }, [onFiltersChange]);
 
   return (
-    <div style={{ borderBottom: "1px solid var(--spectrum-global-color-gray-300)" }}>
+    <div className="filter-bar">
       <div style={{ display: "flex", alignItems: "center", padding: "4px 8px", gap: "8px" }}>
         <sp-action-button quiet size="s" onClick={() => setExpanded(!expanded)}>
           Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
