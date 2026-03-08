@@ -298,7 +298,7 @@ describe("BrowsePanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Content Hold")).toBeTruthy();
       expect(screen.getByText(/legal_review/)).toBeTruthy();
-      expect(screen.getByText("Import Blocked (Hold)")).toBeTruthy();
+      expect(screen.getByText("Import Blocked")).toBeTruthy();
     });
   });
 
@@ -413,7 +413,7 @@ describe("BrowsePanel", () => {
     await waitFor(() => {
       expect(screen.getByText(/Available Qualities \(2\)/)).toBeTruthy();
       expect(screen.getByText(/1920/)).toBeTruthy();
-      expect(screen.getByText(/\(Original\)/)).toBeTruthy();
+      expect(screen.getByText("Original")).toBeTruthy();
     });
   });
 
@@ -448,8 +448,9 @@ describe("BrowsePanel", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Caption Tracks \(1\)/)).toBeTruthy();
-      expect(screen.getByText(/en .+ English/)).toBeTruthy();
-      expect(screen.getByText(/\(Default\)/)).toBeTruthy();
+      expect(screen.getByText("en")).toBeTruthy();
+      expect(screen.getByText("English")).toBeTruthy();
+      expect(screen.getByText("Default")).toBeTruthy();
     });
   });
 

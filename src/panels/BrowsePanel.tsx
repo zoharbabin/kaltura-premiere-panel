@@ -32,6 +32,11 @@ import { buildGridThumbnailUrl } from "../utils/thumbnail";
 import { formatDuration, formatDate, formatFileSize, truncate } from "../utils/format";
 import { getUserMessage } from "../utils/errors";
 
+/** Check if a flavor asset is ready and usable for import */
+function isFlavorReady(f: KalturaFlavorAsset): boolean {
+  return f.status === 2 && !(f.width === 0 && f.height === 0 && f.size === 0);
+}
+
 /** Check if an entry is under content hold (governance) */
 function isContentHeld(entry: KalturaMediaEntry): boolean {
   return Boolean(entry.adminTags && entry.adminTags.includes(CONTENT_HOLD_TAG));
@@ -280,20 +285,21 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       setImportError("This entry is under content hold and cannot be imported.");
       return;
     }
-    if (selectedEntry.flavors.length === 0) {
-      setImportError("No downloadable renditions available for this entry.");
+    const readyFlavors = selectedEntry.flavors.filter(isFlavorReady);
+    if (readyFlavors.length === 0) {
+      setImportError("No ready renditions available for this entry.");
       return;
     }
-    if (selectedEntry.flavors.length === 1) {
-      onImportEntry(selectedEntry.entry, selectedEntry.flavors[0]);
+    if (readyFlavors.length === 1) {
+      onImportEntry(selectedEntry.entry, readyFlavors[0]);
       return;
     }
     // Pre-select the smallest web flavor as default
-    const webFlavors = selectedEntry.flavors.filter((f) => f.isWeb);
+    const webFlavors = readyFlavors.filter((f) => f.isWeb);
     const defaultFlavor =
       webFlavors.length > 0
         ? webFlavors.reduce((a, b) => ((a.height || 0) < (b.height || 0) ? a : b))
-        : selectedEntry.flavors[0];
+        : readyFlavors[0];
     setSelectedFlavor(defaultFlavor);
     setShowQualityPicker(true);
   }, [selectedEntry, onImportEntry]);
@@ -444,9 +450,10 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                   mediaService
                     .getEntryDetails(entry.id)
                     .then((details) => {
-                      const webFlavor = details.flavors.find((f) => f.isWeb);
+                      const ready = details.flavors.filter(isFlavorReady);
+                      const webFlavor = ready.find((f) => f.isWeb);
                       if (webFlavor) onImportEntry(entry, webFlavor);
-                      else if (details.flavors.length > 0) onImportEntry(entry, details.flavors[0]);
+                      else if (ready.length > 0) onImportEntry(entry, ready[0]);
                     })
                     .catch(() => {
                       /* detail fetch failed — ignore double-click */
@@ -469,9 +476,10 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                   mediaService
                     .getEntryDetails(entry.id)
                     .then((details) => {
-                      const webFlavor = details.flavors.find((f) => f.isWeb);
+                      const ready = details.flavors.filter(isFlavorReady);
+                      const webFlavor = ready.find((f) => f.isWeb);
                       if (webFlavor) onImportEntry(entry, webFlavor);
-                      else if (details.flavors.length > 0) onImportEntry(entry, details.flavors[0]);
+                      else if (ready.length > 0) onImportEntry(entry, ready[0]);
                     })
                     .catch(() => {
                       /* detail fetch failed — ignore double-click */
@@ -623,6 +631,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
   auditService,
 }) => {
   const { entry, flavors, captions } = details;
+  const readyFlavors = flavors.filter(isFlavorReady);
 
   const [accessControl, setAccessControl] = useState<{
     name: string;
@@ -642,26 +651,33 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
 
   return (
     <div className="panel-root">
+      {/* Back button bar */}
       <div className="detail-header">
-        <sp-action-button quiet size="s" onClick={onBack}>
+        <button className="detail-back-btn" onClick={onBack}>
           {"\u2190"} Back
-        </sp-action-button>
-        <sp-heading size="XS" className="flex-1 ellipsis">
-          {entry.name}
-        </sp-heading>
+        </button>
       </div>
 
       <div className="detail-scroll">
-        <img
-          src={buildGridThumbnailUrl(partnerId, entry.id)}
-          alt={entry.name}
-          className="detail-thumb"
-        />
+        {/* Thumbnail with title overlay */}
+        <div className="detail-hero">
+          <img
+            src={buildGridThumbnailUrl(partnerId, entry.id)}
+            alt={entry.name}
+            className="detail-hero-img"
+          />
+          <div className="detail-hero-overlay">
+            <div className="detail-hero-title">{entry.name}</div>
+            <div className="detail-hero-subtitle">
+              {formatDuration(entry.duration)} {"\u00B7"} {formatDate(entry.createdAt)}
+            </div>
+          </div>
+        </div>
 
         {/* Quality picker overlay */}
         {showQualityPicker && (
           <QualityPicker
-            flavors={flavors}
+            flavors={readyFlavors}
             selectedFlavorId={selectedFlavor?.id ?? null}
             onSelect={onFlavorSelect}
             onCancel={onQualityCancel}
@@ -669,160 +685,168 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
           />
         )}
 
-        <sp-detail size="M">Details</sp-detail>
-        <div className="detail-meta">
-          <div>
-            <strong>Duration:</strong> {formatDuration(entry.duration)}
+        {/* Governance warnings */}
+        {isContentHeld(entry) && (
+          <div className="section-info section-info-error">
+            <strong>Content Hold</strong>
+            <div style={{ marginTop: 4 }}>
+              {getHoldReason(entry)
+                ? `Reason: ${getHoldReason(entry)}`
+                : "This entry is under content hold and cannot be imported."}
+            </div>
           </div>
-          <div>
-            <strong>Created:</strong> {formatDate(entry.createdAt)}
+        )}
+        {(getLicenseStatus(entry) === "expired" || getLicenseStatus(entry) === "expiring") && (
+          <div
+            className={`section-info ${getLicenseStatus(entry) === "expired" ? "section-info-error" : "section-info-warning"}`}
+          >
+            <strong>
+              {getLicenseStatus(entry) === "expired" ? "License Expired" : "License Expiring Soon"}
+            </strong>
+            <div style={{ marginTop: 4 }}>
+              {getLicenseStatus(entry) === "expired"
+                ? `This content's license expired on ${formatDate(entry.endDate!)}.`
+                : `This content's license expires on ${formatDate(entry.endDate!)}. Review usage rights before importing.`}
+            </div>
           </div>
+        )}
+
+        {/* Details card */}
+        <div className="detail-section">
+          <div className="detail-section-title">Details</div>
           {entry.description && (
-            <div>
-              <strong>Description:</strong> {entry.description}
+            <div className="detail-field">
+              <span className="detail-field-value">{entry.description}</span>
             </div>
           )}
-          {entry.tags && (
-            <div>
-              <strong>Tags:</strong> {entry.tags}
+          <div className="detail-fields-grid">
+            {entry.tags && (
+              <div className="detail-field">
+                <span className="detail-field-label">Tags</span>
+                <span className="detail-field-value">{entry.tags}</span>
+              </div>
+            )}
+            {entry.categories && (
+              <div className="detail-field">
+                <span className="detail-field-label">Categories</span>
+                <span className="detail-field-value">{entry.categories}</span>
+              </div>
+            )}
+            <div className="detail-field">
+              <span className="detail-field-label">Entry ID</span>
+              <span className="detail-field-value text-mono">{entry.id}</span>
             </div>
-          )}
-          {entry.categories && (
-            <div>
-              <strong>Categories:</strong> {entry.categories}
-            </div>
-          )}
-          <div>
-            <strong>Entry ID:</strong> <span className="text-mono">{entry.id}</span>
+            {entry.userId && (
+              <div className="detail-field">
+                <span className="detail-field-label">Owner</span>
+                <span className="detail-field-value">{entry.userId}</span>
+              </div>
+            )}
           </div>
-          {entry.userId && (
-            <div>
-              <strong>Owner:</strong> {entry.userId}
-            </div>
-          )}
-          {isContentHeld(entry) && (
-            <div className="section-info section-info-error">
-              <strong>Content Hold</strong>
-              <div style={{ marginTop: 4 }}>
-                {getHoldReason(entry)
-                  ? `Reason: ${getHoldReason(entry)}`
-                  : "This entry is under content hold and cannot be imported."}
-              </div>
-            </div>
-          )}
-          {(getLicenseStatus(entry) === "expired" || getLicenseStatus(entry) === "expiring") && (
-            <div
-              className={`section-info ${getLicenseStatus(entry) === "expired" ? "section-info-error" : "section-info-warning"}`}
-            >
-              <strong>
-                {getLicenseStatus(entry) === "expired"
-                  ? "License Expired"
-                  : "License Expiring Soon"}
-              </strong>
-              <div style={{ marginTop: 4 }}>
-                {getLicenseStatus(entry) === "expired"
-                  ? `This content's license expired on ${formatDate(entry.endDate!)}.`
-                  : `This content's license expires on ${formatDate(entry.endDate!)}. Review usage rights before importing.`}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Access control preview */}
+        {/* Access control card */}
         {accessControl && (
-          <>
-            <sp-detail size="M">Access Control</sp-detail>
-            <div className="detail-meta">
-              <div>
-                <strong>Profile:</strong> {accessControl.name}
-              </div>
-              {accessControl.restrictions.length > 0 && (
-                <div style={{ marginTop: "4px" }}>
-                  <strong>Restrictions:</strong>
-                  <ul style={{ margin: "4px 0 0 16px", padding: 0, fontSize: "11px" }}>
-                    {accessControl.restrictions.map((r, i) => (
-                      <li key={i}>{r.description}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+          <div className="detail-section">
+            <div className="detail-section-title">Access Control</div>
+            <div className="detail-field">
+              <span className="detail-field-label">Profile</span>
+              <span className="detail-field-value">{accessControl.name}</span>
             </div>
-          </>
+            {accessControl.restrictions.length > 0 &&
+              accessControl.restrictions.map((r, i) => (
+                <div key={i} className="detail-field">
+                  <span className="detail-field-label">{r.type}</span>
+                  <span className="detail-field-value">{r.description}</span>
+                </div>
+              ))}
+          </div>
         )}
 
         {/* DRM policy indicators */}
         {drmPolicies.length > 0 && drmPolicies[0].provider !== "none" && (
-          <>
-            <sp-detail size="M">DRM Protection</sp-detail>
-            <div style={{ padding: "8px 0", display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <div className="detail-section">
+            <div className="detail-section-title">DRM Protection</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {drmPolicies.map((drm, i) => (
                 <span key={i} className="badge-drm">
                   {drm.provider.toUpperCase()}
                 </span>
               ))}
             </div>
-          </>
+          </div>
         )}
 
-        {flavors.length > 0 && (
-          <>
-            <sp-detail size="M">Available Qualities ({flavors.length})</sp-detail>
-            <div style={{ padding: "8px 0" }}>
-              {flavors.map((f) => (
-                <div key={f.id} className="quality-item">
+        {/* Available qualities card */}
+        {readyFlavors.length > 0 && (
+          <div className="detail-section">
+            <div className="detail-section-title">Available Qualities ({readyFlavors.length})</div>
+            {readyFlavors.map((f) => (
+              <div key={f.id} className="quality-item">
+                <span className="quality-resolution">
                   {f.width}
                   {"\u00D7"}
-                  {f.height} {"\u00B7"} {f.fileExt} {"\u00B7"} {formatFileSize(f.size * 1024)}
-                  {f.isOriginal && " (Original)"}
-                  {f.isWeb && " (Web)"}
-                </div>
-              ))}
-            </div>
-          </>
+                  {f.height}
+                </span>
+                <span className="quality-meta">
+                  {f.fileExt} {"\u00B7"} {formatFileSize(f.size * 1024)}
+                </span>
+                {(f.isOriginal || f.isWeb) && (
+                  <span className="quality-badge">{f.isOriginal ? "Original" : "Web"}</span>
+                )}
+              </div>
+            ))}
+          </div>
         )}
 
+        {/* Caption tracks card */}
         {captions.length > 0 && (
-          <>
-            <sp-detail size="M">Caption Tracks ({captions.length})</sp-detail>
-            <div style={{ padding: "8px 0" }}>
-              {captions.map((c) => (
-                <div key={c.id} className="caption-item">
-                  {c.language} {"\u00B7"} {c.label} {c.isDefault && "(Default)"}
-                </div>
-              ))}
-            </div>
-          </>
+          <div className="detail-section">
+            <div className="detail-section-title">Caption Tracks ({captions.length})</div>
+            {captions.map((c) => (
+              <div key={c.id} className="caption-item">
+                <span className="caption-lang">{c.language}</span>
+                <span className="caption-label">{c.label}</span>
+                {c.isDefault && <span className="quality-badge">Default</span>}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
+      {/* Action bar */}
       <div className="detail-actions">
         {importError && (
           <div className="alert-error" style={{ margin: 0 }}>
             {importError}
           </div>
         )}
-        {isImported && (
+        {isImported && !importError && (
           <div className="alert-info" style={{ margin: 0 }}>
-            {"\u2713"} Previously imported. Look for it in the <strong>Kaltura Assets</strong> bin
-            in the Project panel.
+            {"\u2713"} Previously imported. Look in <strong>Kaltura Assets</strong> bin in the
+            Project panel.
           </div>
         )}
         <div className="detail-actions-row">
           {onDelete && (
-            <sp-action-button quiet size="s" onClick={onDelete} title="Delete entry">
+            <button className="detail-delete-btn" onClick={onDelete} title="Delete entry">
               {"\u2716"}
-            </sp-action-button>
+            </button>
           )}
-          <sp-button variant="secondary" size="s" onClick={onEdit} style={{ flex: 1 }}>
+          <button className="detail-btn detail-btn--secondary" onClick={onEdit}>
             Edit Metadata
-          </sp-button>
-          <sp-button variant="accent" onClick={onImport} style={{ flex: 1 }}>
+          </button>
+          <button
+            className={`detail-btn ${isContentHeld(entry) ? "detail-btn--disabled" : "detail-btn--primary"}`}
+            onClick={onImport}
+            disabled={isContentHeld(entry) || undefined}
+          >
             {isContentHeld(entry)
-              ? "Import Blocked (Hold)"
+              ? "Import Blocked"
               : isImported
                 ? "Re-import to Project"
                 : "Import to Project"}
-          </sp-button>
+          </button>
         </div>
       </div>
     </div>
