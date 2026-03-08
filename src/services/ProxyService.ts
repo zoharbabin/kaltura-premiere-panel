@@ -247,12 +247,38 @@ export class ProxyService {
     return this.saveTempFile(fileName, chunks);
   }
 
+  private async writeBinary(
+    file: { write: (data: unknown, opts?: unknown) => Promise<void> },
+    data: Uint8Array,
+    formats: { binary: unknown },
+  ): Promise<void> {
+    const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    try {
+      await file.write(buf, { format: formats.binary });
+      return;
+    } catch {
+      /* fall through */
+    }
+    try {
+      await file.write(data, { format: formats.binary });
+      return;
+    } catch {
+      /* fall through */
+    }
+    try {
+      await file.write(buf);
+      return;
+    } catch {
+      /* fall through */
+    }
+    await file.write(data);
+  }
+
   private async saveTempFile(fileName: string, chunks: Uint8Array[]): Promise<string> {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       const fs = uxp.storage.localFileSystem;
-      // Use getDataFolder (plugin persistent storage) — more reliable nativePath
       let folder;
       try {
         folder = await fs.getDataFolder();
@@ -267,11 +293,8 @@ export class ProxyService {
         merged.set(chunk, offset);
         offset += chunk.length;
       }
-      // UXP binary write: pass a standalone ArrayBuffer with exact byte length
-      const buf = merged.buffer.slice(merged.byteOffset, merged.byteOffset + merged.byteLength);
-      await file.write(buf, { format: uxp.storage.formats.binary });
+      await this.writeBinary(file, merged, uxp.storage.formats);
 
-      // Resolve the native filesystem path with fallback
       let resolvedPath: string | undefined = file.nativePath;
       if (!resolvedPath || typeof resolvedPath !== "string") {
         const folderPath = folder.nativePath;

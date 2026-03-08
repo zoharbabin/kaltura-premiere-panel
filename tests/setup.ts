@@ -20,21 +20,45 @@ jest.mock(
       localFileSystem: {
         getDataFolder: jest.fn().mockResolvedValue({
           nativePath: "/tmp/kaltura-data",
-          createFile: jest.fn().mockImplementation((fileName: string) =>
-            Promise.resolve({
-              write: jest.fn().mockResolvedValue(undefined),
+          createFile: jest.fn().mockImplementation((fileName: string) => {
+            let storedData: ArrayBuffer | null = null;
+            return Promise.resolve({
+              write: jest.fn().mockImplementation((data: unknown) => {
+                if (data instanceof ArrayBuffer) storedData = data;
+                else if (data instanceof Uint8Array)
+                  storedData = (data.buffer as ArrayBuffer).slice(
+                    data.byteOffset,
+                    data.byteOffset + data.byteLength,
+                  );
+                return Promise.resolve(undefined);
+              }),
+              read: jest
+                .fn()
+                .mockImplementation(() => Promise.resolve(storedData ?? new ArrayBuffer(0))),
               nativePath: `/tmp/kaltura-data/${fileName}`,
-            }),
-          ),
+            });
+          }),
         }),
         getTemporaryFolder: jest.fn().mockResolvedValue({
           nativePath: "/tmp/kaltura-download",
-          createFile: jest.fn().mockImplementation((fileName: string) =>
-            Promise.resolve({
-              write: jest.fn().mockResolvedValue(undefined),
+          createFile: jest.fn().mockImplementation((fileName: string) => {
+            let storedData: ArrayBuffer | null = null;
+            return Promise.resolve({
+              write: jest.fn().mockImplementation((data: unknown) => {
+                if (data instanceof ArrayBuffer) storedData = data;
+                else if (data instanceof Uint8Array)
+                  storedData = (data.buffer as ArrayBuffer).slice(
+                    data.byteOffset,
+                    data.byteOffset + data.byteLength,
+                  );
+                return Promise.resolve(undefined);
+              }),
+              read: jest
+                .fn()
+                .mockImplementation(() => Promise.resolve(storedData ?? new ArrayBuffer(0))),
               nativePath: `/tmp/kaltura-download/${fileName}`,
-            }),
-          ),
+            });
+          }),
         }),
       },
     },
