@@ -322,10 +322,15 @@ interface TabButtonProps {
 }
 
 const TabButton: React.FC<TabButtonProps> = ({ id, label, active, onClick }) => (
-  <button
+  <div
+    role="button"
+    tabIndex={0}
     onClick={() => onClick(id)}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" || e.key === " ") onClick(id);
+    }}
     className={`tab-btn${active === id ? " tab-btn--active" : ""}`}
   >
     {label}
-  </button>
+  </div>
 );
