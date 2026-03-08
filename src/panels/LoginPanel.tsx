@@ -153,10 +153,12 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
         <sp-textfield
           placeholder="Partner ID"
           value={partnerId}
-          onInput={(e: Event) => setPartnerId((e.target as HTMLInputElement).value)}
+          onInput={(e: Event) => {
+            const val = (e.target as HTMLInputElement).value.replace(/\D/g, "");
+            setPartnerId(val);
+          }}
           onKeyDown={handleKeyDown}
           style={{ width: "100%" }}
-          type="number"
         />
 
         {authMode === "email" ? (
