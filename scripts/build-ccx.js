@@ -1,0 +1,135 @@
+/**
+ * Build .ccx packages for distribution.
+ *
+ * Produces one .ccx per host app (premierepro, aftereffects, audition),
+ * each with a single-host manifest as Adobe recommends for production.
+ *
+ * Usage: node scripts/build-ccx.js [--output-dir <dir>]
+ *
+ * A .ccx file is a ZIP archive that Creative Cloud Desktop recognizes.
+ * Users double-click it to install — no signing or developer tools needed.
+ */
+
+const fs = require("fs");
+const path = require("path");
+const archiver = require("archiver");
+
+const distDir = path.resolve(__dirname, "../dist");
+const packageJson = require("../package.json");
+
+const outputDir = (() => {
+  const idx = process.argv.indexOf("--output-dir");
+  if (idx !== -1 && process.argv[idx + 1]) {
+    return path.resolve(process.argv[idx + 1]);
+  }
+  return path.resolve(__dirname, "../release");
+})();
+
+function readManifest() {
+  const manifestPath = path.join(distDir, "manifest.json");
+  if (!fs.existsSync(manifestPath)) {
+    console.error("dist/manifest.json not found. Run 'npm run build' first.");
+    process.exit(1);
+  }
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+
+  // Ensure version matches package.json
+  if (manifest.version !== packageJson.version) {
+    manifest.version = packageJson.version;
+  }
+
+  return manifest;
+}
+
+function createCcx(manifest, host) {
+  return new Promise((resolve, reject) => {
+    const appName = host.app;
+    const filename = `kaltura-panel-${manifest.version}-${appName}.ccx`;
+    const outputPath = path.join(outputDir, filename);
+
+    // Build a single-host manifest for this .ccx
+    const hostManifest = {
+      ...manifest,
+      host: { app: host.app, minVersion: host.minVersion },
+    };
+
+    const output = fs.createWriteStream(outputPath);
+    const archive = archiver("zip", { zlib: { level: 9 } });
+
+    output.on("close", () => {
+      const size = archive.pointer();
+      const sizeStr =
+        size > 1024 * 1024
+          ? `${(size / (1024 * 1024)).toFixed(1)} MB`
+          : `${(size / 1024).toFixed(1)} KB`;
+      console.log(`  ${filename} (${sizeStr})`);
+      resolve({ filename, size });
+    });
+
+    archive.on("error", reject);
+    archive.pipe(output);
+
+    // Add all dist files except manifest.json (we replace it)
+    const distFiles = fs.readdirSync(distDir);
+    for (const file of distFiles) {
+      const filePath = path.join(distDir, file);
+      const stat = fs.statSync(filePath);
+      if (file === "manifest.json") continue;
+      if (file === "exchange-metadata.json") continue;
+      if (stat.isDirectory()) {
+        archive.directory(filePath, file);
+      } else {
+        archive.file(filePath, { name: file });
+      }
+    }
+
+    // Add the single-host manifest
+    archive.append(JSON.stringify(hostManifest, null, 2) + "\n", {
+      name: "manifest.json",
+    });
+
+    archive.finalize();
+  });
+}
+
+async function main() {
+  const manifest = readManifest();
+  const hosts = Array.isArray(manifest.host) ? manifest.host : [manifest.host];
+
+  console.log(`\nBuilding .ccx packages for ${manifest.name} v${manifest.version}\n`);
+
+  // Verify dist has required files
+  const indexPath = path.join(distDir, "index.js");
+  if (!fs.existsSync(indexPath)) {
+    console.error("dist/index.js not found. Run 'npm run build' first.");
+    process.exit(1);
+  }
+
+  // Create output directory
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  // Build one .ccx per host
+  const results = [];
+  for (const host of hosts) {
+    const result = await createCcx(manifest, host);
+    results.push(result);
+  }
+
+  console.log(`\nDone. ${results.length} .ccx file(s) written to ${outputDir}/`);
+
+  // Write a manifest of produced files for CI consumption
+  const manifestOutput = {
+    version: manifest.version,
+    pluginName: manifest.name,
+    files: results.map((r) => r.filename),
+  };
+  fs.writeFileSync(
+    path.join(outputDir, "release-manifest.json"),
+    JSON.stringify(manifestOutput, null, 2) + "\n",
+  );
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
