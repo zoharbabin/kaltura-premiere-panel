@@ -20,14 +20,16 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Check if a .ccx was passed as argument
 if [ $# -ge 1 ] && [ -f "$1" ]; then
-    CCX_FILE="$1"
+    CCX_FILE="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 else
-    # Look for .ccx files next to this script
-    for f in "$SCRIPT_DIR"/*.ccx; do
-        if [ -f "$f" ]; then
-            CCX_FILE="$f"
-            break
-        fi
+    # Look for .ccx files next to this script — prefer premierepro
+    for pattern in "$SCRIPT_DIR"/*premierepro*.ccx "$SCRIPT_DIR"/*.ccx; do
+        for f in $pattern; do
+            if [ -f "$f" ]; then
+                CCX_FILE="$f"
+                break 2
+            fi
+        done
     done
 fi
 
@@ -58,12 +60,13 @@ fi
 echo "  Installing via Adobe UPIA..."
 echo ""
 
-# Run UPIA install
-"$UPIA_BIN" --install "$CCX_FILE"
-RESULT=$?
+# Run UPIA install — capture output to detect failures
+# (UPIA returns exit code 0 even on failure, so we check the output text)
+UPIA_OUTPUT=$("$UPIA_BIN" --install "$CCX_FILE" 2>&1)
+echo "$UPIA_OUTPUT"
 
 echo ""
-if [ $RESULT -eq 0 ]; then
+if echo "$UPIA_OUTPUT" | grep -qi "Installation Successful"; then
     echo "  SUCCESS! The plugin has been installed."
     echo ""
     echo "  Next steps:"
@@ -71,15 +74,20 @@ if [ $RESULT -eq 0 ]; then
     echo "  2. Go to Window > UXP Plugins > Kaltura"
     echo "  3. Sign in with your Kaltura account"
     echo ""
-else
-    echo "  Installation failed (exit code $RESULT)."
+elif echo "$UPIA_OUTPUT" | grep -qi "Failed to install"; then
+    echo "  Installation FAILED."
     echo ""
     echo "  Troubleshooting:"
     echo "  - Make sure Creative Cloud Desktop is running and up to date"
     echo "  - Make sure you are signed into Creative Cloud"
+    echo "  - Make sure Premiere Pro, After Effects, or Audition is installed"
     echo "  - Try restarting Creative Cloud Desktop and running this again"
     echo ""
     echo "  Alternative: install manually via UXP Developer Tool:"
     echo "  https://github.com/zoharbabin/kaltura-premiere-panel#install-end-users"
-    exit $RESULT
+    exit 1
+else
+    echo "  Install completed (could not confirm status)."
+    echo "  Please check Window > UXP Plugins > Kaltura in your Adobe app."
+    echo ""
 fi
