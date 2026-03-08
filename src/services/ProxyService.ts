@@ -252,8 +252,14 @@ export class ProxyService {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       const fs = uxp.storage.localFileSystem;
-      const tempFolder = await fs.getTemporaryFolder();
-      const file = await tempFolder.createFile(fileName, { overwrite: true });
+      // Use getDataFolder (plugin persistent storage) — more reliable nativePath
+      let folder;
+      try {
+        folder = await fs.getDataFolder();
+      } catch {
+        folder = await fs.getTemporaryFolder();
+      }
+      const file = await folder.createFile(fileName, { overwrite: true });
       const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
       const merged = new Uint8Array(totalLength);
       let offset = 0;
@@ -263,8 +269,24 @@ export class ProxyService {
       }
       // CRITICAL: must specify binary format — UXP defaults to utf8 text mode
       await file.write(merged.buffer, { format: uxp.storage.formats.binary });
-      log.info("Saved proxy temp file", { path: file.nativePath, size: totalLength });
-      return file.nativePath;
+
+      // Resolve the native filesystem path with fallback
+      let resolvedPath: string | undefined = file.nativePath;
+      if (!resolvedPath || typeof resolvedPath !== "string") {
+        const folderPath = folder.nativePath;
+        if (folderPath && typeof folderPath === "string") {
+          const sep = folderPath.includes("\\") ? "\\" : "/";
+          resolvedPath = `${folderPath}${sep}${fileName}`;
+        }
+      }
+      if (!resolvedPath || typeof resolvedPath !== "string") {
+        throw new Error(
+          `UXP file entry has no valid nativePath (got ${typeof file.nativePath}: ${String(file.nativePath)})`,
+        );
+      }
+
+      log.info("Saved proxy file for import", { resolvedPath, size: totalLength });
+      return resolvedPath;
     } catch (err) {
       log.error("UXP file save failed", err);
       throw new Error(

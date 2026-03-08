@@ -113,6 +113,40 @@ describe("DownloadService", () => {
     expect(progressCalls.length).toBeGreaterThan(0);
   });
 
+  it("falls back to folder nativePath when file nativePath is undefined", async () => {
+    // Override the UXP mock so file.nativePath is undefined but folder.nativePath works
+    const uxpMock = require("uxp");
+    const mockFolder = {
+      nativePath: "/tmp/kaltura-data",
+      createFile: jest.fn().mockResolvedValue({
+        write: jest.fn().mockResolvedValue(undefined),
+        nativePath: undefined, // Simulate UXP runtime where nativePath is missing
+      }),
+    };
+    uxpMock.storage.localFileSystem.getDataFolder.mockResolvedValueOnce(mockFolder);
+
+    const mockReader = {
+      read: jest
+        .fn()
+        .mockResolvedValueOnce({ done: false, value: new Uint8Array([1, 2]) })
+        .mockResolvedValueOnce({ done: true, value: undefined }),
+    };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve("https://cdn.kaltura.com/download/test.mp4"),
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: (name: string) => (name === "content-length" ? "2" : "video/mp4") },
+      body: { getReader: () => mockReader },
+    });
+
+    const result = await service.downloadAndImport("0_abc", mockFlavor);
+
+    // Should construct path from folder.nativePath + fileName
+    expect(result.localPath).toBe("/tmp/kaltura-data/0_abc_flavor_1.mp4");
+  });
+
   it("cancels a download", () => {
     // Start a download but cancel it before it completes
     service.cancelDownload("0_nonexistent");
