@@ -18,7 +18,17 @@ jest.mock(
         removeItem: jest.fn().mockResolvedValue(undefined),
       },
       localFileSystem: {
+        getDataFolder: jest.fn().mockResolvedValue({
+          nativePath: "/tmp/kaltura-data",
+          createFile: jest.fn().mockImplementation((fileName: string) =>
+            Promise.resolve({
+              write: jest.fn().mockResolvedValue(undefined),
+              nativePath: `/tmp/kaltura-data/${fileName}`,
+            }),
+          ),
+        }),
         getTemporaryFolder: jest.fn().mockResolvedValue({
+          nativePath: "/tmp/kaltura-download",
           createFile: jest.fn().mockImplementation((fileName: string) =>
             Promise.resolve({
               write: jest.fn().mockResolvedValue(undefined),

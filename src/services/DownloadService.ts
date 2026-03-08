@@ -254,13 +254,44 @@ export class DownloadService {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       const fs = uxp.storage.localFileSystem;
-      const tempFolder = await fs.getTemporaryFolder();
-      const file = await tempFolder.createFile(fileName, { overwrite: true });
+      // Use getDataFolder (plugin persistent storage) — more reliable nativePath
+      // than getTemporaryFolder which may return sandbox-only paths
+      let folder;
+      try {
+        folder = await fs.getDataFolder();
+      } catch {
+        folder = await fs.getTemporaryFolder();
+      }
+      const file = await folder.createFile(fileName, { overwrite: true });
       // CRITICAL: must specify binary format — UXP defaults to utf8 text mode
       // which corrupts video data and causes Premiere import to fail
       await file.write(merged.buffer, { format: uxp.storage.formats.binary });
-      log.info("Saved temp file", { path: file.nativePath, size: totalLength });
-      return file.nativePath;
+
+      // Resolve the native filesystem path — nativePath may be undefined in some
+      // UXP versions, so fall back to constructing it from the folder's path.
+      let resolvedPath: string | undefined = file.nativePath;
+      if (!resolvedPath || typeof resolvedPath !== "string") {
+        const folderPath = folder.nativePath;
+        if (folderPath && typeof folderPath === "string") {
+          const sep = folderPath.includes("\\") ? "\\" : "/";
+          resolvedPath = `${folderPath}${sep}${fileName}`;
+        }
+      }
+
+      if (!resolvedPath || typeof resolvedPath !== "string") {
+        throw new Error(
+          `UXP file entry has no valid nativePath (got ${typeof file.nativePath}: ${String(file.nativePath)})`,
+        );
+      }
+
+      log.info("Saved file for import", {
+        resolvedPath,
+        nativePath: file.nativePath,
+        nativePathType: typeof file.nativePath,
+        folderNativePath: folder.nativePath,
+        size: totalLength,
+      });
+      return resolvedPath;
     } catch (err) {
       log.error("UXP file save failed", err);
       throw new Error(

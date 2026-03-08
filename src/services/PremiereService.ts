@@ -181,6 +181,17 @@ export class PremiereService {
     const pp = getPremiere();
     log.info("Importing files to project", { paths: filePaths });
 
+    // Validate filePaths before calling the Premiere API — passing undefined or
+    // non-string values causes the C++ bridge to throw "Illegal Parameter type".
+    for (let i = 0; i < filePaths.length; i++) {
+      const p = filePaths[i];
+      if (!p || typeof p !== "string") {
+        const msg = `Invalid file path at index ${i}: type=${typeof p}, value=${String(p)}`;
+        log.error(msg);
+        return { success: false, error: msg };
+      }
+    }
+
     try {
       const project = await pp.Project.getActiveProject();
       log.info("Active project", { name: project.name });
@@ -219,6 +230,7 @@ export class PremiereService {
         target: bin ? KALTURA_BIN_NAME : "root",
         count: filePaths.length,
         filePaths,
+        filePathTypes: filePaths.map((p) => typeof p),
       });
 
       try {
@@ -237,12 +249,22 @@ export class PremiereService {
         // If import with bin fails, retry without bin (import to root)
         const errMsg = importErr instanceof Error ? importErr.message : String(importErr);
         log.warn("Import with bin failed, retrying to root", { error: errMsg });
-        await project.importFiles(
-          filePaths,
-          true,
-          null as unknown as premierepro.ProjectItem,
-          false,
-        );
+        // Try with fewer params — some UXP versions may not accept all 4 params
+        try {
+          await project.importFiles(
+            filePaths,
+            true,
+            null as unknown as premierepro.ProjectItem,
+            false,
+          );
+        } catch (retryErr) {
+          // Final fallback: minimal call with only filePaths (matches simplest API usage)
+          const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+          log.warn("Retry to root also failed, trying minimal importFiles call", {
+            error: retryMsg,
+          });
+          await project.importFiles(filePaths);
+        }
       }
       log.info("project.importFiles completed");
 

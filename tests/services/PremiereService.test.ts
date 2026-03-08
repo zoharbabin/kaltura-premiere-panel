@@ -95,6 +95,15 @@ describe("PremiereService", () => {
       );
     });
 
+    it("returns failure for invalid file paths", async () => {
+      const result = await service.importFiles([undefined as unknown as string]);
+
+      expect(result).toEqual({
+        success: false,
+        error: expect.stringContaining("Invalid file path"),
+      });
+    });
+
     it("retries to root when bin import fails", async () => {
       const mockBin = { name: "Kaltura Assets", type: 2, children: [] };
       const mockRootItem = {
@@ -121,7 +130,34 @@ describe("PremiereService", () => {
       expect(importFiles).toHaveBeenLastCalledWith(["/path/to/video.mp4"], true, null, false);
     });
 
-    it("returns failure with error message when import throws", async () => {
+    it("falls back to minimal importFiles call when all retries fail", async () => {
+      const mockBin = { name: "Kaltura Assets", type: 2, children: [] };
+      const mockRootItem = {
+        children: [mockBin],
+        createBinAction: jest.fn(),
+      };
+      const importFiles = jest
+        .fn()
+        .mockRejectedValueOnce(new Error("Illegal Parameter type"))
+        .mockRejectedValueOnce(new Error("Illegal Parameter type"))
+        .mockResolvedValueOnce(true);
+      const mockProject = {
+        name: "TestProject",
+        getRootItem: jest.fn().mockResolvedValue(mockRootItem),
+        importFiles,
+        executeTransaction: jest.fn(),
+      };
+      pp.Project.getActiveProject.mockResolvedValue(mockProject);
+
+      const result = await service.importFiles(["/path/to/video.mp4"]);
+
+      expect(result).toEqual({ success: true });
+      expect(importFiles).toHaveBeenCalledTimes(3);
+      // Final call: minimal params (just filePaths)
+      expect(importFiles).toHaveBeenLastCalledWith(["/path/to/video.mp4"]);
+    });
+
+    it("returns failure with error message when all import attempts throw", async () => {
       const mockRootItem = {
         children: [],
         createBinAction: jest.fn().mockResolvedValue({
