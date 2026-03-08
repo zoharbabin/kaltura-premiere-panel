@@ -101,7 +101,11 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
 
   return (
     <div className="login-container">
-      <sp-heading size="M">{PLUGIN_NAME}</sp-heading>
+      <div className="login-brand">
+        <div className="login-logo">K</div>
+        <sp-heading size="M">{PLUGIN_NAME}</sp-heading>
+        <div className="login-divider" />
+      </div>
       <div className="login-subtitle">
         Sign in to your Kaltura account to browse, import, and publish video content.
       </div>
@@ -111,21 +115,19 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
       <div className="login-form">
         {/* Auth mode toggle */}
         {onSsoLogin && (
-          <div style={{ display: "flex", gap: "4px", justifyContent: "center" }}>
-            <sp-action-button
-              quiet={authMode !== "email" || undefined}
-              size="s"
+          <div className="login-toggle">
+            <button
+              className={`login-toggle-btn${authMode === "email" ? " login-toggle-btn--active" : ""}`}
               onClick={() => setAuthMode("email")}
             >
               Email
-            </sp-action-button>
-            <sp-action-button
-              quiet={authMode !== "sso" || undefined}
-              size="s"
+            </button>
+            <button
+              className={`login-toggle-btn${authMode === "sso" ? " login-toggle-btn--active" : ""}`}
               onClick={() => setAuthMode("sso")}
             >
               SSO
-            </sp-action-button>
+            </button>
           </div>
         )}
 
@@ -181,25 +183,17 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
           </sp-button>
         )}
 
-        {authMode === "email" && (
-          <sp-action-button
-            quiet
-            size="s"
-            onClick={handleForgotPassword}
-            style={{ alignSelf: "center" }}
-          >
-            Forgot password?
-          </sp-action-button>
-        )}
+        <div className="login-links">
+          {authMode === "email" && (
+            <sp-action-button quiet size="s" onClick={handleForgotPassword}>
+              Forgot password?
+            </sp-action-button>
+          )}
 
-        <sp-action-button
-          quiet
-          size="s"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          style={{ alignSelf: "center" }}
-        >
-          {showAdvanced ? "Hide server settings" : "Configure server"}
-        </sp-action-button>
+          <sp-action-button quiet size="s" onClick={() => setShowAdvanced(!showAdvanced)}>
+            {showAdvanced ? "Hide server settings" : "Configure server"}
+          </sp-action-button>
+        </div>
 
         {showAdvanced && (
           <sp-textfield

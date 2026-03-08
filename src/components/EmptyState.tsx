@@ -13,20 +13,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   actionLabel,
   onAction,
 }) => (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "32px 16px",
-      textAlign: "center",
-      gap: "8px",
-    }}
-  >
+  <div className="empty-state">
     <sp-heading size="S">{title}</sp-heading>
     {description && (
-      <sp-body size="S" style={{ color: "var(--spectrum-global-color-gray-600)" }}>
+      <sp-body size="S" className="text-muted">
         {description}
       </sp-body>
     )}
