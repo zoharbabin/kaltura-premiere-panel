@@ -139,19 +139,49 @@ mkdir -p "$TARGET_DIR" 2>/dev/null || sudo mkdir -p "$TARGET_DIR"
 unzip -o -q "$CCX_FILE" -d "$TARGET_DIR" 2>/dev/null || sudo unzip -o -q "$CCX_FILE" -d "$TARGET_DIR"
 
 # Verify manifest exists in target
-if [ -f "$TARGET_DIR/manifest.json" ]; then
-    echo ""
-    echo "  SUCCESS! The plugin has been installed."
-    echo ""
-    echo "  Next steps:"
-    echo "  1. Open (or restart) Premiere Pro, After Effects, or Audition"
-    echo "  2. Go to Window > UXP Plugins > Kaltura"
-    echo "  3. Sign in with your Kaltura account"
-    echo ""
-else
+if [ ! -f "$TARGET_DIR/manifest.json" ]; then
     echo ""
     echo "  ERROR: Installation may have failed — manifest.json not found."
     echo "  Please try the UXP Developer Tool method instead:"
     echo "  https://github.com/zoharbabin/kaltura-premiere-panel#install-end-users"
     exit 1
 fi
+
+# Register the plugin in each host app's UXP plugin registry
+PLUGINS_INFO_DIR="$HOME/Library/Application Support/Adobe/UXP/PluginsInfo/v1"
+mkdir -p "$PLUGINS_INFO_DIR"
+
+for host_file in premierepro aftereffects audition; do
+    REGISTRY_FILE="$PLUGINS_INFO_DIR/${host_file}.json"
+    if [ ! -f "$REGISTRY_FILE" ]; then
+        echo '{"plugins":[]}' > "$REGISTRY_FILE"
+    fi
+
+    # Use python3 to safely update the JSON registry
+    if command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+registry_path = sys.argv[1]
+plugin_dir = sys.argv[2]
+with open(registry_path) as f:
+    registry = json.load(f)
+plugins = registry.get('plugins', [])
+# Remove existing entries for this plugin
+plugins = [p for p in plugins if p.get('path','') != plugin_dir]
+plugins.append({'path': plugin_dir})
+registry['plugins'] = plugins
+with open(registry_path, 'w') as f:
+    json.dump(registry, f, indent=2)
+" "$REGISTRY_FILE" "$TARGET_DIR" 2>/dev/null && \
+        echo "  Registered in ${host_file} plugin registry"
+    fi
+done
+
+echo ""
+echo "  SUCCESS! The plugin has been installed."
+echo ""
+echo "  Next steps:"
+echo "  1. Open (or restart) Premiere Pro, After Effects, or Audition"
+echo "  2. Go to Window > UXP Plugins > Kaltura"
+echo "  3. Sign in with your Kaltura account"
+echo ""
