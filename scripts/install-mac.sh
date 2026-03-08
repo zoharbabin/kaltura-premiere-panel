@@ -148,30 +148,32 @@ if [ ! -f "$TARGET_DIR/manifest.json" ]; then
 fi
 
 # Register the plugin in each host app's UXP plugin registry
-PLUGINS_INFO_DIR="$HOME/Library/Application Support/Adobe/UXP/PluginsInfo/v1"
-mkdir -p "$PLUGINS_INFO_DIR"
+# Premiere Pro reads from /Library/... (system-level), not ~/Library/...
+PLUGINS_INFO_DIR="/Library/Application Support/Adobe/UXP/PluginsInfo/v1"
+sudo mkdir -p "$PLUGINS_INFO_DIR" 2>/dev/null
 
 for host_file in premierepro aftereffects audition; do
     REGISTRY_FILE="$PLUGINS_INFO_DIR/${host_file}.json"
-    if [ ! -f "$REGISTRY_FILE" ]; then
-        echo '{"plugins":[]}' > "$REGISTRY_FILE"
-    fi
 
     # Use python3 to safely update the JSON registry
     if command -v python3 &>/dev/null; then
         python3 -c "
-import json, sys
+import json, sys, subprocess, tempfile, os
 registry_path = sys.argv[1]
 plugin_dir = sys.argv[2]
-with open(registry_path) as f:
-    registry = json.load(f)
+try:
+    with open(registry_path) as f:
+        registry = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    registry = {'plugins': []}
 plugins = registry.get('plugins', [])
-# Remove existing entries for this plugin
 plugins = [p for p in plugins if p.get('path','') != plugin_dir]
 plugins.append({'path': plugin_dir})
 registry['plugins'] = plugins
-with open(registry_path, 'w') as f:
-    json.dump(registry, f, indent=2)
+content = json.dumps(registry, indent=2)
+# Write via sudo tee
+proc = subprocess.run(['sudo', 'tee', registry_path], input=content.encode(), capture_output=True)
+sys.exit(proc.returncode)
 " "$REGISTRY_FILE" "$TARGET_DIR" 2>/dev/null && \
         echo "  Registered in ${host_file} plugin registry"
     fi
