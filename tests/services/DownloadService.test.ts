@@ -48,15 +48,34 @@ describe("DownloadService", () => {
     expect(service.queueLength).toBe(0);
   });
 
-  it("reuses existing mapping if asset already imported", async () => {
+  it("re-downloads even if asset was previously imported", async () => {
     hostService.isImported.mockReturnValue(true);
     const existingFlavor = { ...mockFlavor, id: "flavor_existing", entryId: "0_existing" };
+
+    // Mock getFlavorDownloadUrl
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => "https://cdn.kaltura.com/download/flavor_existing",
+    });
+
+    // Mock the actual download
+    const mockReader = {
+      read: jest
+        .fn()
+        .mockResolvedValueOnce({ done: false, value: new Uint8Array([1, 2, 3]) })
+        .mockResolvedValueOnce({ done: true, value: undefined }),
+    };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: (name: string) => (name === "content-length" ? "3" : null) },
+      body: { getReader: () => mockReader },
+    });
 
     const result = await service.downloadAndImport("0_existing", existingFlavor);
 
     expect(result.entryId).toBe("0_existing");
     expect(result.flavorId).toBe("flavor_existing");
-    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalled();
   });
 
   it("downloads file and creates mapping", async () => {
