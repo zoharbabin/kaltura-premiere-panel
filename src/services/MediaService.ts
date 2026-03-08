@@ -157,28 +157,21 @@ export class MediaService {
     });
   }
 
-  /** Get download URL for a specific flavor */
-  async getFlavorDownloadUrl(flavorId: string): Promise<string> {
-    // Primary: use flavorAsset.getUrl API with forceProxy for CORS compatibility
-    try {
-      const response = await this.client.request<{ objectType?: string } & Record<string, unknown>>(
-        {
-          service: "flavorAsset",
-          action: "getUrl",
-          params: { id: flavorId, forceProxy: true },
-        },
-      );
-      const url = typeof response === "string" ? response : String(response);
-      if (url && url.startsWith("http")) return url;
-    } catch {
-      // Fall through to direct URL
-    }
-
-    // Fallback: construct direct playManifest download URL
+  /**
+   * Get download URL for a specific flavor.
+   * Uses flavorAsset/action/serve which is a direct GET endpoint that serves
+   * the binary file. forceProxy=true keeps the request on *.kaltura.com
+   * (matching UXP manifest domains) and avoids CDN redirects.
+   */
+  getFlavorDownloadUrl(flavorId: string): string {
     const serviceUrl = this.client.getServiceUrl();
     const ks = this.client.getKs();
-    const partnerId = this.client.getPartnerId();
-    return `${serviceUrl}/p/${partnerId}/sp/${partnerId}00/playManifest/flavorId/${flavorId}/format/download/protocol/https/ks/${ks}`;
+    return (
+      `${serviceUrl}/api_v3/service/flavorAsset/action/serve` +
+      `?id=${encodeURIComponent(flavorId)}` +
+      `&ks=${encodeURIComponent(ks || "")}` +
+      `&forceProxy=true`
+    );
   }
 
   /** List categories */

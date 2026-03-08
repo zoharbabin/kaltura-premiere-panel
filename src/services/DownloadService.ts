@@ -141,11 +141,23 @@ export class DownloadService {
     try {
       log.info("Starting download", { entryId: request.entryId, flavorId: request.flavorId });
 
-      const downloadUrl = await this.mediaService.getFlavorDownloadUrl(request.flavorId);
-      const response = await fetch(downloadUrl, { signal: controller.signal });
+      const downloadUrl = this.mediaService.getFlavorDownloadUrl(request.flavorId);
+      log.info("Download URL", { url: downloadUrl });
+      const response = await fetch(downloadUrl, {
+        signal: controller.signal,
+        redirect: "follow",
+      });
 
       if (!response.ok) {
-        throw new NetworkError(`Download failed: HTTP ${response.status}`);
+        throw new NetworkError(`Download failed: HTTP ${response.status} ${response.statusText}`);
+      }
+
+      // Verify response is actual media content, not an error page
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/html") || contentType.includes("text/xml")) {
+        throw new NetworkError(
+          `Download returned non-media content (${contentType}). The flavor may not be available.`,
+        );
       }
 
       const contentLength = parseInt(response.headers.get("content-length") || "0", 10);
@@ -181,12 +193,17 @@ export class DownloadService {
         });
       }
 
+      if (loaded === 0) {
+        throw new NetworkError("Download returned empty response (0 bytes)");
+      }
+
       // Save file and import into host app
       const tempPath = await this.saveTempFile(request.fileName, chunks);
+      log.info("File saved, importing into project", { tempPath, size: loaded });
       const importResult = await this.hostService.importFile(tempPath);
 
       if (!importResult.success) {
-        throw new Error(importResult.error || "Import failed");
+        throw new Error(importResult.error || `Import failed for ${tempPath}`);
       }
 
       const mapping: AssetMapping = {
