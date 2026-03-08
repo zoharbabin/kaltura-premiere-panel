@@ -35,8 +35,8 @@ export interface HostService {
   /** Get the active composition/sequence/session */
   getActiveSequence(): Promise<SequenceInfo | null>;
 
-  /** Import a file into the project */
-  importFile(filePath: string, binName?: string): Promise<ImportResult>;
+  /** Import a file into the project. fileEntry is the UXP File Entry object when available. */
+  importFile(filePath: string, fileEntry?: unknown): Promise<ImportResult>;
 
   /** Add markers/cue points to the active composition */
   addMarkers(markers: MarkerData[]): Promise<void>;

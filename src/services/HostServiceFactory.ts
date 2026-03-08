@@ -40,8 +40,8 @@ class PremiereHostAdapter implements HostService {
     return this.premiere.getActiveSequence();
   }
 
-  async importFile(filePath: string): Promise<ImportResult> {
-    return this.premiere.importFiles([filePath]);
+  async importFile(filePath: string, fileEntry?: unknown): Promise<ImportResult> {
+    return this.premiere.importFiles([filePath], fileEntry ? [fileEntry] : undefined);
   }
 
   addMarkers(markers: MarkerData[]): Promise<void> {

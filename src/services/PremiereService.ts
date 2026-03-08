@@ -170,10 +170,12 @@ export class PremiereService {
     };
   }
 
-  /** Import files into the project under a "Kaltura Assets" bin */
-  async importFiles(filePaths: string[]): Promise<ImportResult> {
+  /** Import files into the project under a "Kaltura Assets" bin.
+   *  fileEntries are UXP File Entry objects — Premiere's importFiles() requires
+   *  Entry objects, not string paths ("Illegal Parameter type" error otherwise). */
+  async importFiles(filePaths: string[], fileEntries?: unknown[]): Promise<ImportResult> {
     const pp = getPremiere();
-    log.info("Importing files to project", { paths: filePaths });
+    log.info("Importing files to project", { paths: filePaths, hasEntries: !!fileEntries });
 
     try {
       const project = await pp.Project.getActiveProject();
@@ -206,8 +208,15 @@ export class PremiereService {
       }
 
       // Step 2: Import files (separate transaction)
-      log.info("Calling project.importFiles", { target: bin ? KALTURA_BIN_NAME : "root" });
-      await project.importFiles(filePaths, bin ?? undefined);
+      // Premiere UXP API requires Entry objects, not string paths.
+      // Use fileEntries when available, fall back to string paths as last resort.
+      const importItems = fileEntries && fileEntries.length > 0 ? fileEntries : filePaths;
+      log.info("Calling project.importFiles", {
+        target: bin ? KALTURA_BIN_NAME : "root",
+        usingEntries: importItems === fileEntries,
+        count: importItems.length,
+      });
+      await project.importFiles(importItems as string[], bin ?? undefined);
       log.info("project.importFiles completed");
 
       return { success: true };
