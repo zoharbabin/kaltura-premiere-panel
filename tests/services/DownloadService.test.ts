@@ -52,13 +52,8 @@ describe("DownloadService", () => {
     hostService.isImported.mockReturnValue(true);
     const existingFlavor = { ...mockFlavor, id: "flavor_existing", entryId: "0_existing" };
 
-    // Mock getFlavorDownloadUrl
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => "https://cdn.kaltura.com/download/flavor_existing",
-    });
-
-    // Mock the actual download
+    // getFlavorDownloadUrl is now synchronous (constructs serve URL directly).
+    // Only mock the actual file download fetch.
     const mockReader = {
       read: jest
         .fn()
@@ -67,7 +62,7 @@ describe("DownloadService", () => {
     };
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      headers: { get: (name: string) => (name === "content-length" ? "3" : null) },
+      headers: { get: (name: string) => (name === "content-length" ? "3" : "video/mp4") },
       body: { getReader: () => mockReader },
     });
 
@@ -75,17 +70,14 @@ describe("DownloadService", () => {
 
     expect(result.entryId).toBe("0_existing");
     expect(result.flavorId).toBe("flavor_existing");
-    expect(mockFetch).toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api_v3/service/flavorAsset/action/serve"),
+      expect.any(Object),
+    );
   });
 
   it("downloads file and creates mapping", async () => {
-    // Mock getFlavorDownloadUrl
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => "https://cdn.kaltura.com/download/flavor_1",
-    });
-
-    // Mock the actual download with proper Headers
+    // getFlavorDownloadUrl is now synchronous — only mock the file download
     const mockReader = {
       read: jest
         .fn()
@@ -98,7 +90,7 @@ describe("DownloadService", () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      headers: { get: (name: string) => (name === "content-length" ? "4" : null) },
+      headers: { get: (name: string) => (name === "content-length" ? "4" : "video/mp4") },
       body: { getReader: () => mockReader },
     });
 
