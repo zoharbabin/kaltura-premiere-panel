@@ -11,23 +11,14 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ label, size = "m
   const px = sizeMap[size];
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "16px",
-        gap: "8px",
-      }}
-    >
+    <div className="loading-spinner">
       <sp-progress-circle
         size={size === "small" ? "small" : size === "large" ? "large" : "medium"}
         indeterminate
         style={{ width: px, height: px }}
       />
       {label && (
-        <sp-body size="S" style={{ color: "var(--spectrum-global-color-gray-600)" }}>
+        <sp-body size="S" className="text-muted">
           {label}
         </sp-body>
       )}
