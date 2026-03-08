@@ -8,7 +8,7 @@ import { createLogger } from "../utils/logger";
 
 /** Minimal host interface needed by DownloadService */
 interface DownloadHostService {
-  importFile(filePath: string, fileEntry?: unknown): Promise<ImportResult>;
+  importFile(filePath: string): Promise<ImportResult>;
   isImported(entryId: string): boolean;
   storeMapping(entryId: string, localPath: string): void;
 }
@@ -201,16 +201,9 @@ export class DownloadService {
       }
 
       // Save file and import into host app
-      const { path: tempPath, entry: fileEntry } = await this.saveTempFile(
-        request.fileName,
-        chunks,
-      );
-      log.info("File saved, importing into project", {
-        tempPath,
-        size: loaded,
-        hasEntry: !!fileEntry,
-      });
-      const importResult = await this.hostService.importFile(tempPath, fileEntry);
+      const tempPath = await this.saveTempFile(request.fileName, chunks);
+      log.info("File saved, importing into project", { tempPath, size: loaded });
+      const importResult = await this.hostService.importFile(tempPath);
 
       if (!importResult.success) {
         const errDetail = importResult.error || "Unknown error";
@@ -248,10 +241,7 @@ export class DownloadService {
     }
   }
 
-  private async saveTempFile(
-    fileName: string,
-    chunks: Uint8Array[],
-  ): Promise<{ path: string; entry: unknown }> {
+  private async saveTempFile(fileName: string, chunks: Uint8Array[]): Promise<string> {
     const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
     const merged = new Uint8Array(totalLength);
     let offset = 0;
@@ -270,9 +260,7 @@ export class DownloadService {
       // which corrupts video data and causes Premiere import to fail
       await file.write(merged.buffer, { format: uxp.storage.formats.binary });
       log.info("Saved temp file", { path: file.nativePath, size: totalLength });
-      // Return the UXP File Entry — Premiere's importFiles() requires Entry objects,
-      // not string paths (passing strings causes "Illegal Parameter type" error)
-      return { path: file.nativePath, entry: file };
+      return file.nativePath;
     } catch (err) {
       log.error("UXP file save failed", err);
       throw new Error(

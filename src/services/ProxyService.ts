@@ -10,7 +10,7 @@ const MIN_PROXY_HEIGHT = 720;
 
 /** Minimal host interface — only the methods ProxyService actually uses */
 interface ProxyHostService {
-  importFile(filePath: string, fileEntry?: unknown): Promise<ImportResult>;
+  importFile(filePath: string): Promise<ImportResult>;
   storeMapping(entryId: string, localPath: string): void;
 }
 
@@ -135,13 +135,9 @@ export class ProxyService {
 
     const downloadUrl = await this.mediaService.getFlavorDownloadUrl(entryId, proxyFlavor.id);
     const fileName = `proxy_${entryId}_${proxyFlavor.id}.${proxyFlavor.fileExt || "mp4"}`;
-    const { path: localPath, entry: fileEntry } = await this.downloadFile(
-      downloadUrl,
-      fileName,
-      onProgress,
-    );
+    const localPath = await this.downloadFile(downloadUrl, fileName, onProgress);
 
-    const importResult = await this.hostService.importFile(localPath, fileEntry);
+    const importResult = await this.hostService.importFile(localPath);
     if (!importResult.success) {
       throw new Error(importResult.error || "Failed to import proxy into host app");
     }
@@ -215,7 +211,7 @@ export class ProxyService {
     url: string,
     fileName: string,
     onProgress?: (percent: number) => void,
-  ): Promise<{ path: string; entry: unknown }> {
+  ): Promise<string> {
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -251,10 +247,7 @@ export class ProxyService {
     return this.saveTempFile(fileName, chunks);
   }
 
-  private async saveTempFile(
-    fileName: string,
-    chunks: Uint8Array[],
-  ): Promise<{ path: string; entry: unknown }> {
+  private async saveTempFile(fileName: string, chunks: Uint8Array[]): Promise<string> {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
@@ -271,8 +264,7 @@ export class ProxyService {
       // CRITICAL: must specify binary format — UXP defaults to utf8 text mode
       await file.write(merged.buffer, { format: uxp.storage.formats.binary });
       log.info("Saved proxy temp file", { path: file.nativePath, size: totalLength });
-      // Return UXP File Entry — Premiere requires Entry objects, not string paths
-      return { path: file.nativePath, entry: file };
+      return file.nativePath;
     } catch (err) {
       log.error("UXP file save failed", err);
       throw new Error(
