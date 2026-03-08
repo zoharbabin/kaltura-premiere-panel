@@ -80,7 +80,17 @@ if %ERRORLEVEL% equ 0 (
     echo   3. Sign in with your Kaltura account
     echo.
     del "%TMPOUT%" >nul 2>&1
-) else (
+    goto :done
+)
+findstr /i "status = -204" "%TMPOUT%" >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    echo   The plugin is already installed ^(v1.0.2^).
+    echo   To reinstall, first remove it via Creative Cloud Desktop ^> Manage Plugins,
+    echo   then run this installer again.
+    echo.
+    del "%TMPOUT%" >nul 2>&1
+    goto :done
+)
     echo   Installation FAILED.
     echo.
     echo   Troubleshooting:
@@ -92,6 +102,6 @@ if %ERRORLEVEL% equ 0 (
     echo   Alternative: install manually via UXP Developer Tool:
     echo   https://github.com/zoharbabin/kaltura-premiere-panel#install-end-users
     del "%TMPOUT%" >nul 2>&1
-)
 
+:done
 pause
