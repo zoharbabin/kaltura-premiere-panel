@@ -8,6 +8,10 @@ jest.mock(
       setup: jest.fn(),
     },
     storage: {
+      formats: {
+        binary: "binary",
+        utf8: "utf8",
+      },
       secureStorage: {
         getItem: jest.fn().mockResolvedValue(null),
         setItem: jest.fn().mockResolvedValue(undefined),

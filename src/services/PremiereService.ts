@@ -212,8 +212,13 @@ export class PremiereService {
 
       return { success: true };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Import failed";
-      log.error("Import failed", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : JSON.stringify(error) || "Unknown import error";
+      log.error("Import failed", { message, error });
       return { success: false, error: message };
     }
   }
