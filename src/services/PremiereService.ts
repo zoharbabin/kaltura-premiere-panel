@@ -212,13 +212,22 @@ export class PremiereService {
 
       return { success: true };
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : typeof error === "string"
-            ? error
-            : JSON.stringify(error) || "Unknown import error";
-      log.error("Import failed", { message, error });
+      let message: string;
+      if (error instanceof Error) {
+        message = error.message;
+        log.error("Import failed (Error)", { message, name: error.name, stack: error.stack });
+      } else if (typeof error === "string") {
+        message = error;
+        log.error("Import failed (string)", { message });
+      } else {
+        // Premiere UXP may throw non-standard error objects
+        try {
+          message = JSON.stringify(error) || "Unknown import error";
+        } catch {
+          message = String(error) || "Unknown import error";
+        }
+        log.error("Import failed (unknown type)", { message, type: typeof error, error });
+      }
       return { success: false, error: message };
     }
   }

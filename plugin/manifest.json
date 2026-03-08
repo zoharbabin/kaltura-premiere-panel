@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.kaltura.premiere.panel",
   "name": "Kaltura for Adobe Creative Cloud",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "main": "index.html",
   "host": [
     {
@@ -41,7 +41,13 @@
   ],
   "requiredPermissions": {
     "network": {
-      "domains": ["https://*.kaltura.com", "https://*.kaltura.cloud", "wss://*.kaltura.com"]
+      "domains": [
+        "https://*.kaltura.com",
+        "https://*.kaltura.cloud",
+        "wss://*.kaltura.com",
+        "https://*.akamaihd.net",
+        "https://*.cloudfront.net"
+      ]
     },
     "localFileSystem": "fullAccess",
     "launchProcess": {
