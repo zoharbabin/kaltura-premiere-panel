@@ -52,17 +52,17 @@ npm run dev
 
 ## Available Scripts
 
-| Script                  | Purpose                                                                |
-| ----------------------- | ---------------------------------------------------------------------- |
-| `npm run dev`           | Development build with watch mode                                      |
-| `npm run build`         | Production build (outputs to `dist/`)                                  |
-| `npm test`              | Run all tests                                                          |
-| `npm run test:coverage` | Run tests with coverage report                                         |
-| `npm run lint`          | ESLint check                                                           |
-| `npm run lint:fix`      | ESLint auto-fix                                                        |
-| `npm run typecheck`     | TypeScript type check (no emit)                                        |
-| `npm run package`       | Build + validate manifest + generate Exchange metadata + create `.ccx` |
-| `npm run ci`            | Full CI pipeline: lint, typecheck, test, build                         |
+| Script                  | Purpose                                                |
+| ----------------------- | ------------------------------------------------------ |
+| `npm run dev`           | Development build with watch mode                      |
+| `npm run build`         | Production build (outputs to `dist/`)                  |
+| `npm test`              | Run all tests                                          |
+| `npm run test:coverage` | Run tests with coverage report                         |
+| `npm run lint`          | ESLint check                                           |
+| `npm run lint:fix`      | ESLint auto-fix                                        |
+| `npm run typecheck`     | TypeScript type check (no emit)                        |
+| `npm run package`       | Build + validate manifest + generate Exchange metadata |
+| `npm run ci`            | Full CI pipeline: lint, typecheck, test, build         |
 
 ## Architecture
 
@@ -159,7 +159,7 @@ npm run test:coverage     # Run with coverage report
 
 - **Framework:** Jest + jsdom + React Testing Library
 - **Coverage thresholds** (enforced in CI): statements 72%, branches 58%, functions 68%, lines 73%
-- **Test structure** mirrors `src/`: panels (8), components (10), services (19), hooks (2), utils (4), integration (1)
+- **Test structure** mirrors `src/`: panels (8), components (9 + integration), services (19), hooks (2), utils (4), integration (1)
 - **Mocking:** UXP and host app modules mocked globally in `tests/setup.ts`; `fetch` mocked globally — no live API calls in CI
 
 ## Packaging & Distribution

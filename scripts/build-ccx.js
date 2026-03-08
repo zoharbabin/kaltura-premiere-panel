@@ -53,6 +53,22 @@ function shouldInclude(file) {
   return true;
 }
 
+/** Recursively add directory contents to archive, filtering dev-only files */
+function addDirectoryToArchive(archive, dirPath, prefix) {
+  const entries = fs.readdirSync(dirPath);
+  for (const entry of entries) {
+    if (!shouldInclude(entry)) continue;
+    const fullPath = path.join(dirPath, entry);
+    const archiveName = prefix ? `${prefix}/${entry}` : entry;
+    const stat = fs.statSync(fullPath);
+    if (stat.isDirectory()) {
+      addDirectoryToArchive(archive, fullPath, archiveName);
+    } else {
+      archive.file(fullPath, { name: archiveName });
+    }
+  }
+}
+
 function createCcx(manifest, host) {
   return new Promise((resolve, reject) => {
     const appName = host.app;
@@ -83,27 +99,7 @@ function createCcx(manifest, host) {
     archive.pipe(output);
 
     // Add production files from dist/ (exclude dev-only artifacts)
-    const distFiles = fs.readdirSync(distDir);
-    for (const file of distFiles) {
-      if (!shouldInclude(file)) continue;
-      const filePath = path.join(distDir, file);
-      const stat = fs.statSync(filePath);
-      if (stat.isDirectory()) {
-        // For directories like icons/, include everything;
-        // for directories like services/, panels/ etc. that only contain .d.ts, skip them
-        const children = fs.readdirSync(filePath);
-        const hasProductionFiles = children.some((c) => shouldInclude(c));
-        if (hasProductionFiles) {
-          // Filter directory contents
-          for (const child of children) {
-            if (!shouldInclude(child)) continue;
-            archive.file(path.join(filePath, child), { name: `${file}/${child}` });
-          }
-        }
-      } else {
-        archive.file(filePath, { name: file });
-      }
-    }
+    addDirectoryToArchive(archive, distDir, "");
 
     // Add the single-host manifest
     archive.append(JSON.stringify(hostManifest, null, 2) + "\n", {

@@ -456,11 +456,16 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => {
                   if (isContentHeld(entry)) return; // Block import for held entries
-                  mediaService.getEntryDetails(entry.id).then((details) => {
-                    const webFlavor = details.flavors.find((f) => f.isWeb);
-                    if (webFlavor) onImportEntry(entry, webFlavor);
-                    else if (details.flavors.length > 0) onImportEntry(entry, details.flavors[0]);
-                  });
+                  mediaService
+                    .getEntryDetails(entry.id)
+                    .then((details) => {
+                      const webFlavor = details.flavors.find((f) => f.isWeb);
+                      if (webFlavor) onImportEntry(entry, webFlavor);
+                      else if (details.flavors.length > 0) onImportEntry(entry, details.flavors[0]);
+                    })
+                    .catch(() => {
+                      /* detail fetch failed — ignore double-click */
+                    });
                 }}
               />
             ))}
@@ -476,11 +481,16 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => {
                   if (isContentHeld(entry)) return; // Block import for held entries
-                  mediaService.getEntryDetails(entry.id).then((details) => {
-                    const webFlavor = details.flavors.find((f) => f.isWeb);
-                    if (webFlavor) onImportEntry(entry, webFlavor);
-                    else if (details.flavors.length > 0) onImportEntry(entry, details.flavors[0]);
-                  });
+                  mediaService
+                    .getEntryDetails(entry.id)
+                    .then((details) => {
+                      const webFlavor = details.flavors.find((f) => f.isWeb);
+                      if (webFlavor) onImportEntry(entry, webFlavor);
+                      else if (details.flavors.length > 0) onImportEntry(entry, details.flavors[0]);
+                    })
+                    .catch(() => {
+                      /* detail fetch failed — ignore double-click */
+                    });
                 }}
               />
             ))}

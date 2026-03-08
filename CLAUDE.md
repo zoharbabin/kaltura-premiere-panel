@@ -11,7 +11,7 @@ Multi-app support: Premiere Pro, After Effects, Audition via HostService abstrac
 - **Runtime:** Adobe UXP (Manifest v5) — lightweight JS engine, NOT a browser
 - **UI:** React 18 + Spectrum Web Components (custom elements: `sp-button`, `sp-textfield`, etc.)
 - **API Client:** Custom `KalturaClient` with multi-request batching and error normalization
-- **Host API:** HostService interface → PremiereService, AfterEffectsHostService, AuditionHostService
+- **Host API:** HostService interface → PremiereHostAdapter, AfterEffectsHostService, AuditionHostService
 - **Auth:** Email/password login + App Token (`appToken.startSession`) + SSO (three-party OAuth)
 - **Distribution:** `.ccx` package via Adobe Exchange
 

@@ -189,12 +189,14 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     description,
     tags,
     selectedCategoryIds,
+    selectedAccessControlId,
     scheduledDate,
     publishMode,
     existingEntryId,
     mediaService,
     uploadService,
     publishWorkflowService,
+    auditService,
     onPublished,
   ]);
 
