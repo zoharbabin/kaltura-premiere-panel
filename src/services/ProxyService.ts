@@ -133,7 +133,7 @@ export class ProxyService {
       resolution: `${proxyFlavor.width}x${proxyFlavor.height}`,
     });
 
-    const downloadUrl = await this.mediaService.getFlavorDownloadUrl(proxyFlavor.id);
+    const downloadUrl = this.mediaService.getFlavorDownloadUrl(entryId, proxyFlavor.id);
     const fileName = `proxy_${entryId}_${proxyFlavor.id}.${proxyFlavor.fileExt || "mp4"}`;
     const localPath = await this.downloadFile(downloadUrl, fileName, onProgress);
 
@@ -171,7 +171,7 @@ export class ProxyService {
       bitrate: originalFlavor.bitrate,
     });
 
-    const downloadUrl = await this.mediaService.getFlavorDownloadUrl(originalFlavor.id);
+    const downloadUrl = this.mediaService.getFlavorDownloadUrl(entryId, originalFlavor.id);
 
     // Update the mapping to reflect original quality
     this.hostService.storeMapping(entryId, downloadUrl);

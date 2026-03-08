@@ -158,19 +158,21 @@ export class MediaService {
   }
 
   /**
-   * Get download URL for a specific flavor.
-   * Uses flavorAsset/action/serve which is a direct GET endpoint that serves
-   * the binary file. forceProxy=true keeps the request on *.kaltura.com
-   * (matching UXP manifest domains) and avoids CDN redirects.
+   * Get download URL for a specific flavor asset.
+   * Uses Kaltura's playManifest endpoint with format=download, which is the
+   * standard mechanism for downloading media files. Requires both entryId
+   * and flavorId to resolve correctly.
    */
-  getFlavorDownloadUrl(flavorId: string): string {
+  getFlavorDownloadUrl(entryId: string, flavorId: string): string {
     const serviceUrl = this.client.getServiceUrl();
     const ks = this.client.getKs();
+    const partnerId = this.client.getPartnerId();
     return (
-      `${serviceUrl}/api_v3/service/flavorAsset/action/serve` +
-      `?id=${encodeURIComponent(flavorId)}` +
-      `&ks=${encodeURIComponent(ks || "")}` +
-      `&forceProxy=true`
+      `${serviceUrl}/p/${partnerId}/sp/${partnerId}00/playManifest` +
+      `/entryId/${entryId}` +
+      `/flavorId/${flavorId}` +
+      `/format/download/protocol/https` +
+      `/ks/${encodeURIComponent(ks || "")}`
     );
   }
 

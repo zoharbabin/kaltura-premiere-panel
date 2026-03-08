@@ -71,7 +71,7 @@ describe("DownloadService", () => {
     expect(result.entryId).toBe("0_existing");
     expect(result.flavorId).toBe("flavor_existing");
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api_v3/service/flavorAsset/action/serve"),
+      expect.stringContaining("/playManifest/entryId/0_existing/flavorId/flavor_existing/"),
       expect.any(Object),
     );
   });
