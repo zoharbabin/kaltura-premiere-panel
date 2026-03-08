@@ -128,7 +128,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   batchService,
   auditService,
   offlineService,
-  proxyService,
+  proxyService: _proxyService,
   partnerId,
   userId,
   isImported,

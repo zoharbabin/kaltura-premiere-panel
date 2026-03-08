@@ -242,7 +242,7 @@ function printInstructions(manifest) {
 function createCcxPackage(manifest) {
   if (validateOnly) {
     console.log("\nSkipping .ccx creation (validate-only mode)");
-    return;
+    return Promise.resolve();
   }
 
   console.log("\nCreating .ccx package...");
@@ -261,36 +261,50 @@ function createCcxPackage(manifest) {
   if (!archiver) {
     console.log("  Manual .ccx creation:");
     console.log(`  cd dist && zip -r ../kaltura-panel-${manifest.version}.ccx . && cd ..`);
-    return;
+    return Promise.resolve();
   }
 
-  const outputPath = path.resolve(__dirname, `../kaltura-panel-${manifest.version}.ccx`);
-  const output = fs.createWriteStream(outputPath);
-  const archive = archiver("zip", { zlib: { level: 9 } });
+  return new Promise((resolve, reject) => {
+    const outputPath = path.resolve(__dirname, `../kaltura-panel-${manifest.version}.ccx`);
+    const output = fs.createWriteStream(outputPath);
+    const archive = archiver("zip", { zlib: { level: 9 } });
 
-  archive.pipe(output);
-  archive.directory(distDir, false);
+    output.on("close", () => {
+      const size = archive.pointer();
+      const sizeStr =
+        size > 1024 * 1024
+          ? `${(size / 1024 / 1024).toFixed(1)} MB`
+          : `${(size / 1024).toFixed(1)} KB`;
+      console.log(`  Created: ${path.basename(outputPath)} (${sizeStr})`);
+      resolve();
+    });
 
-  archive.finalize().then(() => {
-    const size = fs.statSync(outputPath).size;
-    const sizeStr =
-      size > 1024 * 1024
-        ? `${(size / 1024 / 1024).toFixed(1)} MB`
-        : `${(size / 1024).toFixed(1)} KB`;
-    console.log(`  Created: ${path.basename(outputPath)} (${sizeStr})`);
+    output.on("error", reject);
+    archive.on("error", reject);
+
+    archive.pipe(output);
+    archive.directory(distDir, false);
+    archive.finalize();
   });
 }
 
 // Main
-const manifest = verifyBuild();
-const hasIcons = verifyIcons();
-reportBundleSize();
-generateExchangeMetadata(manifest);
-createCcxPackage(manifest);
-printInstructions(manifest);
+async function main() {
+  const manifest = verifyBuild();
+  const hasIcons = verifyIcons();
+  reportBundleSize();
+  generateExchangeMetadata(manifest);
+  await createCcxPackage(manifest);
+  printInstructions(manifest);
 
-if (!hasIcons) {
-  process.exit(0); // Warn but don't fail — icons can be added later
+  if (!hasIcons) {
+    process.exit(0); // Warn but don't fail — icons can be added later
+  }
+
+  console.log("\nPackage preparation complete.");
 }
 
-console.log("\nPackage preparation complete.");
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

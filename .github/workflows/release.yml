@@ -60,22 +60,22 @@ jobs:
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Generate release notes
-        id: notes
         run: |
-          cat > release/RELEASE_NOTES.md << 'NOTES_EOF'
+          VERSION="${{ steps.version.outputs.version }}"
+          cat > release/RELEASE_NOTES.md <<EOF
           ## Install the Plugin
 
           ### Premiere Pro users
-          1. Download **`kaltura-panel-${{ steps.version.outputs.version }}-premierepro.ccx`** below
+          1. Download **\`kaltura-panel-${VERSION}-premierepro.ccx\`** below
           2. Double-click the downloaded file
           3. Creative Cloud Desktop will open — click **Install**
           4. Open Premiere Pro → **Window → UXP Plugins → Kaltura**
 
           ### After Effects users
-          Download `kaltura-panel-${{ steps.version.outputs.version }}-aftereffects.ccx` and follow the same steps.
+          Download \`kaltura-panel-${VERSION}-aftereffects.ccx\` and follow the same steps.
 
           ### Audition users
-          Download `kaltura-panel-${{ steps.version.outputs.version }}-audition.ccx` and follow the same steps.
+          Download \`kaltura-panel-${VERSION}-audition.ccx\` and follow the same steps.
 
           ### Requirements
           - Adobe Premiere Pro, After Effects, or Audition **v25.2+**
@@ -83,21 +83,23 @@ jobs:
 
           ### Enterprise / IT deployment
           Use the UPIA command-line tool to deploy silently:
-          ```
-          UnifiedPluginInstallerAgent --install kaltura-panel-${{ steps.version.outputs.version }}-premierepro.ccx
-          ```
+          \`\`\`
+          UnifiedPluginInstallerAgent --install kaltura-panel-${VERSION}-premierepro.ccx
+          \`\`\`
           Or deploy via **Adobe Admin Console** managed packages. See the [Enterprise Deployment Guide](https://github.com/${{ github.repository }}/blob/main/docs/enterprise-deployment.md).
 
           ---
+          EOF
 
-          NOTES_EOF
+          # Strip leading whitespace from heredoc (YAML run block indentation)
+          sed -i 's/^          //' release/RELEASE_NOTES.md
 
           # Append CHANGELOG entries for this version if available
           if [ -f CHANGELOG.md ]; then
             echo "### Changelog" >> release/RELEASE_NOTES.md
             echo "" >> release/RELEASE_NOTES.md
-            # Extract the section for this version
-            sed -n '/^## '${{ steps.version.outputs.version }}'/,/^## [0-9]/p' CHANGELOG.md | sed '$d' >> release/RELEASE_NOTES.md
+            # Extract section between this version header and the next version header
+            awk '/^## '"${VERSION}"'/{found=1; next} /^## [0-9]/{found=0} found' CHANGELOG.md >> release/RELEASE_NOTES.md
           fi
 
       - name: Create GitHub Release
