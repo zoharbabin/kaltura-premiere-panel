@@ -803,7 +803,8 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         )}
         {isImported && (
           <div className="alert-info" style={{ margin: 0 }}>
-            {"\u2713"} Previously imported to Project panel. Click to re-import.
+            {"\u2713"} Previously imported. Look for it in the <strong>Kaltura Assets</strong> bin
+            in the Project panel.
           </div>
         )}
         <div className="detail-actions-row">
