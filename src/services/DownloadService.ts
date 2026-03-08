@@ -276,13 +276,59 @@ export class DownloadService {
     }
   }
 
+  /**
+   * Try multiple binary write strategies — UXP's file.write() with binary format
+   * silently produces 0-byte files in some Premiere Pro versions.
+   */
+  private async writeBinary(
+    file: { write: (data: unknown, opts?: unknown) => Promise<void> },
+    data: Uint8Array,
+    formats: { binary: unknown },
+  ): Promise<void> {
+    const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+
+    // Strategy 1: ArrayBuffer with format option (documented UXP API)
+    try {
+      await file.write(buf, { format: formats.binary });
+      return;
+    } catch (e) {
+      log.warn("Binary write strategy 1 (ArrayBuffer+format) failed", e);
+    }
+
+    // Strategy 2: Uint8Array directly with format option
+    try {
+      await file.write(data, { format: formats.binary });
+      return;
+    } catch (e) {
+      log.warn("Binary write strategy 2 (Uint8Array+format) failed", e);
+    }
+
+    // Strategy 3: ArrayBuffer without format option (auto-detect)
+    try {
+      await file.write(buf);
+      return;
+    } catch (e) {
+      log.warn("Binary write strategy 3 (ArrayBuffer no-format) failed", e);
+    }
+
+    // Strategy 4: Blob
+    try {
+      const blob = new Blob([buf as ArrayBuffer], { type: "application/octet-stream" });
+      await file.write(blob, { format: formats.binary });
+      return;
+    } catch (e) {
+      log.warn("Binary write strategy 4 (Blob) failed", e);
+    }
+
+    // Strategy 5: Uint8Array without format
+    await file.write(data);
+  }
+
   private async saveTempFile(fileName: string, data: Uint8Array): Promise<string> {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       const fs = uxp.storage.localFileSystem;
-      // Use getDataFolder (plugin persistent storage) — more reliable nativePath
-      // than getTemporaryFolder which may return sandbox-only paths
       let folder;
       try {
         folder = await fs.getDataFolder();
@@ -290,13 +336,39 @@ export class DownloadService {
         folder = await fs.getTemporaryFolder();
       }
       const file = await folder.createFile(fileName, { overwrite: true });
-      // UXP binary write: pass a standalone ArrayBuffer with exact byte length.
-      // Using .slice() ensures no extra padding from the typed array's backing buffer.
-      const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-      await file.write(buf, { format: uxp.storage.formats.binary });
 
-      // Resolve the native filesystem path — nativePath may be undefined in some
-      // UXP versions, so fall back to constructing it from the folder's path.
+      await this.writeBinary(file, data, uxp.storage.formats);
+
+      // Verify the file was actually written by reading back its size
+      try {
+        const readBack = await file.read({ format: uxp.storage.formats.binary });
+        const writtenSize =
+          readBack instanceof ArrayBuffer
+            ? readBack.byteLength
+            : typeof readBack === "string"
+              ? readBack.length
+              : 0;
+        log.info("Write verification", {
+          expectedSize: data.byteLength,
+          writtenSize,
+          readBackType: typeof readBack,
+          isArrayBuffer: readBack instanceof ArrayBuffer,
+        });
+        if (writtenSize === 0 && data.byteLength > 0) {
+          log.error("Binary write produced 0-byte file — all write strategies failed silently");
+          throw new Error(
+            "UXP file.write() produced 0-byte file. Binary writing may not be supported.",
+          );
+        }
+      } catch (readErr) {
+        // If read-back fails, log but continue (the write might have worked)
+        if (readErr instanceof Error && readErr.message.includes("0-byte")) {
+          throw readErr;
+        }
+        log.warn("Could not verify file write", readErr);
+      }
+
+      // Resolve the native filesystem path
       let resolvedPath: string | undefined = file.nativePath;
       if (!resolvedPath || typeof resolvedPath !== "string") {
         const folderPath = folder.nativePath;
@@ -314,9 +386,6 @@ export class DownloadService {
 
       log.info("Saved file for import", {
         resolvedPath,
-        nativePath: file.nativePath,
-        nativePathType: typeof file.nativePath,
-        folderNativePath: folder.nativePath,
         size: data.byteLength,
       });
       return resolvedPath;
