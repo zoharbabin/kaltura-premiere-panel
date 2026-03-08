@@ -14,11 +14,14 @@
 
 set -euo pipefail
 
+# Ensure we're in a valid directory (avoids getcwd errors if cwd was deleted)
+cd /tmp
+
 REPO="zoharbabin/kaltura-premiere-panel"
-TMPDIR_BASE="${TMPDIR:-/tmp}"
-INSTALL_DIR="${TMPDIR_BASE}/kaltura-premiere-install-$$"
+INSTALL_DIR="/tmp/kaltura-premiere-install-$$"
 
 cleanup() {
+    cd /tmp 2>/dev/null || true
     rm -rf "$INSTALL_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -76,4 +79,4 @@ chmod +x "${INSTALL_DIR}/install-mac.sh"
 echo ""
 echo "  Running installer..."
 echo ""
-"${INSTALL_DIR}/install-mac.sh" "${INSTALL_DIR}/${CCX_PATTERN}"
+(cd /tmp && "${INSTALL_DIR}/install-mac.sh" "${INSTALL_DIR}/${CCX_PATTERN}")

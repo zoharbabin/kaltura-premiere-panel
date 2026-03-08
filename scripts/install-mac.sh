@@ -7,6 +7,9 @@
 
 set -euo pipefail
 
+# Ensure we're in a valid directory (avoids getcwd errors if cwd was deleted)
+cd /tmp 2>/dev/null || cd /
+
 UPIA_DIR="/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS"
 UPIA_BIN="$UPIA_DIR/UnifiedPluginInstallerAgent"
 PLUGIN_ID="com.kaltura.premiere.panel"
