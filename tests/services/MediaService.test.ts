@@ -99,6 +99,35 @@ describe("MediaService", () => {
     });
   });
 
+  describe("getFlavorDownloadUrl()", () => {
+    it("returns direct CDN URL from getUrl API", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => "https://cfvod.kaltura.com/pd/p/12345/serveFlavor/test.mp4",
+      });
+
+      const url = await service.getFlavorDownloadUrl("0_entry", "flavor_1");
+      expect(url).toBe("https://cfvod.kaltura.com/pd/p/12345/serveFlavor/test.mp4");
+    });
+
+    it("falls back to playManifest when getUrl API fails", async () => {
+      mockFetch.mockRejectedValueOnce(new Error("API error"));
+
+      const url = await service.getFlavorDownloadUrl("0_entry", "flavor_1");
+      expect(url).toContain("/playManifest/entryId/0_entry/flavorId/flavor_1/");
+    });
+
+    it("falls back to playManifest when getUrl returns non-URL", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ objectType: "KalturaAPIException", message: "not found" }),
+      });
+
+      const url = await service.getFlavorDownloadUrl("0_entry", "flavor_1");
+      expect(url).toContain("/playManifest/");
+    });
+  });
+
   describe("eSearch()", () => {
     it("calls eSearch endpoint with correct params", async () => {
       mockFetch.mockResolvedValueOnce({
