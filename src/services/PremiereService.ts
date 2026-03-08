@@ -211,21 +211,39 @@ export class PremiereService {
         log.info("Bin lookup after create", { found: !!bin });
       }
 
-      // Step 2: Import files (separate transaction)
-      // Official UXP API signature (from Adobe samples):
-      //   project.importFiles(filePaths: string[], suppressUI?: boolean,
-      //                       targetBin?: ProjectItem, asNumberedStills?: boolean)
-      // NOTE: filePaths must be native path strings, NOT UXP Entry objects.
-      // The second param is suppressUI (boolean), NOT the target bin.
+      // Step 2: Import files into the project
+      // Use exact same call pattern as Adobe's official sample:
+      //   project.importFiles(filePaths, suppressUI, targetBin, asNumberedStills)
+      // First try with bin, fall back to root if bin causes issues.
       log.info("Calling project.importFiles", {
         target: bin ? KALTURA_BIN_NAME : "root",
         count: filePaths.length,
-      });
-      await project.importFiles(
         filePaths,
-        true, // suppressUI
-        bin ?? undefined, // targetBin (3rd param, NOT 2nd)
-      );
+      });
+
+      try {
+        if (bin) {
+          await project.importFiles(filePaths, true, bin, false);
+        } else {
+          // Exact Adobe sample pattern: null for targetBin
+          await project.importFiles(
+            filePaths,
+            true, // suppressUI
+            null as unknown as premierepro.ProjectItem, // import to root
+            false, // asNumberedStills
+          );
+        }
+      } catch (importErr) {
+        // If import with bin fails, retry without bin (import to root)
+        const errMsg = importErr instanceof Error ? importErr.message : String(importErr);
+        log.warn("Import with bin failed, retrying to root", { error: errMsg });
+        await project.importFiles(
+          filePaths,
+          true,
+          null as unknown as premierepro.ProjectItem,
+          false,
+        );
+      }
       log.info("project.importFiles completed");
 
       return { success: true };

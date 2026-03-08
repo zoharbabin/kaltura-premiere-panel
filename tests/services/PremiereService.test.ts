@@ -87,7 +87,12 @@ describe("PremiereService", () => {
 
       expect(result).toEqual({ success: true });
       // importFiles(filePaths, suppressUI=true, targetBin=undefined)
-      expect(mockProject.importFiles).toHaveBeenCalledWith(["/path/to/video.mp4"], true, undefined);
+      expect(mockProject.importFiles).toHaveBeenCalledWith(
+        ["/path/to/video.mp4"],
+        true,
+        null,
+        false,
+      );
     });
 
     it("returns failure with error message when import throws", async () => {
