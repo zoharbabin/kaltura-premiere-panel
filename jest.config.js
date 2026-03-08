@@ -5,10 +5,7 @@ module.exports = {
     "^.+\\.tsx?$": [
       "ts-jest",
       {
-        tsconfig: {
-          rootDir: ".",
-          outDir: "./dist",
-        },
+        tsconfig: "tsconfig.test.json",
       },
     ],
   },
