@@ -53,12 +53,37 @@ echo ""
 
 # --- Method 1: Try UPIA first ---
 upia_install_success=false
+UPIA_TIMEOUT=30
+
+# Run a command with a timeout (macOS doesn't have `timeout` by default)
+run_with_timeout() {
+    local secs="$1"; shift
+    local outfile="$1"; shift
+    "$@" > "$outfile" 2>&1 &
+    local pid=$!
+    local elapsed=0
+    while [ $elapsed -lt $secs ]; do
+        if ! kill -0 $pid 2>/dev/null; then
+            wait $pid 2>/dev/null || true
+            return 0
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+    kill $pid 2>/dev/null || true
+    wait $pid 2>/dev/null || true
+    echo "Timed out after ${secs}s" >> "$outfile"
+    return 1
+}
 
 if [ -f "$UPIA_BIN" ]; then
     echo "  Installing via Adobe UPIA..."
     echo ""
 
-    UPIA_OUTPUT=$("$UPIA_BIN" --install "$CCX_FILE" 2>&1) || true
+    UPIA_OUTFILE="/tmp/kaltura-upia-$$"
+    run_with_timeout $UPIA_TIMEOUT "$UPIA_OUTFILE" "$UPIA_BIN" --install "$CCX_FILE" || true
+    UPIA_OUTPUT=$(cat "$UPIA_OUTFILE" 2>/dev/null) || true
+    rm -f "$UPIA_OUTFILE"
     echo "$UPIA_OUTPUT"
     echo ""
 
@@ -69,10 +94,13 @@ if [ -f "$UPIA_BIN" ]; then
         # Try removing first, then reinstalling
         echo "  Previous installation detected. Removing and reinstalling..."
         echo ""
-        "$UPIA_BIN" --remove "Kaltura for Adobe Creative Cloud" 2>&1 || true
+        run_with_timeout $UPIA_TIMEOUT "$UPIA_OUTFILE" "$UPIA_BIN" --remove "Kaltura for Adobe Creative Cloud" || true
+        rm -f "$UPIA_OUTFILE"
         echo ""
 
-        UPIA_OUTPUT=$("$UPIA_BIN" --install "$CCX_FILE" 2>&1) || true
+        run_with_timeout $UPIA_TIMEOUT "$UPIA_OUTFILE" "$UPIA_BIN" --install "$CCX_FILE" || true
+        UPIA_OUTPUT=$(cat "$UPIA_OUTFILE" 2>/dev/null) || true
+        rm -f "$UPIA_OUTFILE"
         echo "$UPIA_OUTPUT"
         echo ""
 
