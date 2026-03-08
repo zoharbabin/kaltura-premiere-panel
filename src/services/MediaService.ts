@@ -159,13 +159,26 @@ export class MediaService {
 
   /** Get download URL for a specific flavor */
   async getFlavorDownloadUrl(flavorId: string): Promise<string> {
-    const response = await this.client.request<{ objectType?: string } & Record<string, unknown>>({
-      service: "flavorAsset",
-      action: "getUrl",
-      params: { id: flavorId },
-    });
+    // Primary: use flavorAsset.getUrl API with forceProxy for CORS compatibility
+    try {
+      const response = await this.client.request<{ objectType?: string } & Record<string, unknown>>(
+        {
+          service: "flavorAsset",
+          action: "getUrl",
+          params: { id: flavorId, forceProxy: true },
+        },
+      );
+      const url = typeof response === "string" ? response : String(response);
+      if (url && url.startsWith("http")) return url;
+    } catch {
+      // Fall through to direct URL
+    }
 
-    return typeof response === "string" ? response : String(response);
+    // Fallback: construct direct playManifest download URL
+    const serviceUrl = this.client.getServiceUrl();
+    const ks = this.client.getKs();
+    const partnerId = this.client.getPartnerId();
+    return `${serviceUrl}/p/${partnerId}/sp/${partnerId}00/playManifest/flavorId/${flavorId}/format/download/protocol/https/ks/${ks}`;
   }
 
   /** List categories */

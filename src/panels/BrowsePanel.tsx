@@ -653,9 +653,17 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
     <div className="panel-root">
       {/* Back button bar */}
       <div className="detail-header">
-        <button className="detail-back-btn" onClick={onBack}>
+        <div
+          className="detail-back-btn"
+          role="button"
+          tabIndex={0}
+          onClick={onBack}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") onBack();
+          }}
+        >
           {"\u2190"} Back
-        </button>
+        </div>
       </div>
 
       <div className="detail-scroll">
@@ -829,24 +837,50 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         )}
         <div className="detail-actions-row">
           {onDelete && (
-            <button className="detail-delete-btn" onClick={onDelete} title="Delete entry">
+            <div
+              className="detail-delete-btn"
+              role="button"
+              tabIndex={0}
+              onClick={onDelete}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") onDelete();
+              }}
+              title="Delete entry"
+            >
               {"\u2716"}
-            </button>
+            </div>
           )}
-          <button className="detail-btn detail-btn--secondary" onClick={onEdit}>
+          <div
+            className="detail-btn detail-btn--secondary"
+            role="button"
+            tabIndex={0}
+            onClick={onEdit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") onEdit();
+            }}
+          >
             Edit Metadata
-          </button>
-          <button
+          </div>
+          <div
             className={`detail-btn ${isContentHeld(entry) ? "detail-btn--disabled" : "detail-btn--primary"}`}
-            onClick={onImport}
-            disabled={isContentHeld(entry) || undefined}
+            role="button"
+            tabIndex={isContentHeld(entry) ? -1 : 0}
+            onClick={isContentHeld(entry) ? undefined : onImport}
+            onKeyDown={
+              isContentHeld(entry)
+                ? undefined
+                : (e) => {
+                    if (e.key === "Enter" || e.key === " ") onImport();
+                  }
+            }
+            aria-disabled={isContentHeld(entry) || undefined}
           >
             {isContentHeld(entry)
               ? "Import Blocked"
               : isImported
                 ? "Re-import to Project"
                 : "Import to Project"}
-          </button>
+          </div>
         </div>
       </div>
     </div>
