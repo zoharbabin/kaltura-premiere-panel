@@ -53,7 +53,7 @@ echo ""
 
 # --- Method 1: Try UPIA first ---
 upia_install_success=false
-UPIA_TIMEOUT=30
+UPIA_TIMEOUT=15
 
 # Run a command with a timeout (macOS doesn't have `timeout` by default)
 run_with_timeout() {
@@ -69,7 +69,10 @@ run_with_timeout() {
         fi
         sleep 1
         elapsed=$((elapsed + 1))
+        # Print progress dots so the user knows we're waiting
+        printf "." >&2
     done
+    echo "" >&2
     kill $pid 2>/dev/null || true
     wait $pid 2>/dev/null || true
     echo "Timed out after ${secs}s" >> "$outfile"
