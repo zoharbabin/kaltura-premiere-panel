@@ -52,6 +52,12 @@ class PremiereHostAdapter implements HostService {
     return this.premiere.getMarkers();
   }
 
+  exportActiveSequence(
+    onProgress?: (percent: number) => void,
+  ): Promise<{ nativePath: string; name: string; size: number }> {
+    return this.premiere.exportActiveSequence(onProgress);
+  }
+
   isImported(entryId: string): boolean {
     return this.premiere.isImported(entryId);
   }

@@ -15,13 +15,8 @@ describe("AuditService", () => {
   });
 
   describe("logAction()", () => {
-    it("logs action locally and sends to Kaltura audit trail", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ objectType: "KalturaAuditTrail", id: "at-1" }),
-      });
-
-      await service.logAction("import", "0_abc", "Imported flavor xyz");
+    it("logs action locally without making API calls", () => {
+      service.logAction("import", "0_abc", "Imported flavor xyz");
 
       const localLog = service.getLocalLog();
       expect(localLog).toHaveLength(1);
@@ -29,29 +24,13 @@ describe("AuditService", () => {
       expect(localLog[0].entryId).toBe("0_abc");
       expect(localLog[0].details).toBe("Imported flavor xyz");
 
-      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(body.auditTrail.action).toBe("import");
-      expect(body.auditTrail.relatedObjectId).toBe("0_abc");
+      // No API calls should be made
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it("stores locally even when remote audit fails", async () => {
-      mockFetch.mockRejectedValueOnce(new Error("Plugin not enabled"));
-
-      await service.logAction("login", undefined, "User login");
-
-      const localLog = service.getLocalLog();
-      expect(localLog).toHaveLength(1);
-      expect(localLog[0].action).toBe("login");
-    });
-
-    it("trims local log to MAX_LOCAL_LOG entries", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({ objectType: "KalturaAuditTrail", id: "at-1" }),
-      });
-
+    it("trims local log to MAX_LOCAL_LOG entries", () => {
       for (let i = 0; i < 510; i++) {
-        await service.logAction("search", undefined, `search ${i}`);
+        service.logAction("search", undefined, `search ${i}`);
       }
 
       expect(service.getLocalLog().length).toBeLessThanOrEqual(500);
@@ -59,13 +38,8 @@ describe("AuditService", () => {
   });
 
   describe("clearLocalLog()", () => {
-    it("clears the local log", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ objectType: "KalturaAuditTrail", id: "at-1" }),
-      });
-
-      await service.logAction("login");
+    it("clears the local log", () => {
+      service.logAction("login");
       expect(service.getLocalLog()).toHaveLength(1);
 
       service.clearLocalLog();

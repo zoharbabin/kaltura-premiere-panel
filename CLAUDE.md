@@ -31,7 +31,7 @@ src/
     AnalyticsPanel.tsx        # Viewer stats, top moments, drop-off analysis
     InteractivePanel.tsx      # Chapters, cue points, marker-to-chapter sync
     SettingsPanel.tsx          # Preferences, cache, about
-  components/                 # Shared UI components
+  components/                 # Shared UI components (incl. ErrorBoundary at app root)
   services/                   # API service layers
     KalturaClient.ts          # Low-level HTTP: single/multi-request, KS injection
     AuthService.ts            # Login, session persistence, auto-refresh
@@ -85,12 +85,18 @@ docs/                         # Documentation
 - **No CSS Grid** — use Flexbox only
 - **No `window` global** — use UXP equivalents
 - **No `@font-face`** — use system fonts only
+- **No `TextEncoder` / `TextDecoder`** — use manual `charCodeAt` for string→bytes
 - **No `data-*` attribute CSS selectors**
 - **No Node.js APIs** — no `fs`, `path`, `crypto` from Node; use UXP `uxp.storage`
 - **No `float` CSS** — Flexbox only
+- **`FormData` + `Blob` unreliable for binary uploads** — build multipart bodies manually
+- **`fs.readFile(path)` without encoding returns `ArrayBuffer`** — never pass `{ encoding: "buffer" }`
 - **`fetch()` is available** but `XMLHttpRequest` needed for upload progress tracking
 - **`WebSocket` is available** in UXP runtime
 - **Spectrum Web Components** are custom HTML elements, typed in `src/types/spectrum.d.ts`
+- **SWC `preCreateCallback` assertion** — defer view transitions with `setTimeout(0)` to avoid crash
+- **Uncaught exceptions crash Premiere** — ErrorBoundary at app root is mandatory
+- See `docs/UXP_LESSONS_LEARNED.md` for comprehensive patterns and workarounds
 
 ### Kaltura API
 

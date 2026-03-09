@@ -111,23 +111,8 @@ export const App: React.FC = () => {
     }
   }, [authState.isAuthenticated, authState.user?.email, auditService, hostService]);
 
-  // Connect/disconnect notification service with auth state
-  React.useEffect(() => {
-    if (authState.isAuthenticated) {
-      notificationService.connect();
-    } else {
-      notificationService.disconnect();
-    }
-    return () => notificationService.disconnect();
-  }, [authState.isAuthenticated, notificationService]);
-
-  // Watch selected entry for real-time notifications
-  React.useEffect(() => {
-    if (selectedEntryId) {
-      notificationService.watchEntry(selectedEntryId);
-      return () => notificationService.unwatchEntry(selectedEntryId);
-    }
-  }, [selectedEntryId, notificationService]);
+  // NotificationService: disabled — no components consume its events yet.
+  // Re-enable when a panel needs real-time entry status updates.
 
   const handleServerUrlChange = useCallback(
     (url: string) => {
@@ -166,7 +151,10 @@ export const App: React.FC = () => {
   const handlePublished = useCallback((entry: KalturaMediaEntry) => {
     setSelectedEntryId(entry.id);
     setSelectedEntryName(entry.name);
-    setActiveTab("browse");
+    // Defer tab switch by one frame — UXP's Spectrum Web Components crash
+    // (AssertionError in preCreateCallback) if we destroy and create SWC
+    // elements in the same synchronous React render cycle.
+    setTimeout(() => setActiveTab("browse"), 0);
   }, []);
 
   // Auth gate

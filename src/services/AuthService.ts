@@ -17,7 +17,19 @@ import { createLogger } from "../utils/logger";
 
 const log = createLogger("AuthService");
 
-/** UXP SecureStorage interface (available at runtime) */
+/**
+ * UXP SecureStorage raw interface.
+ * IMPORTANT: UXP secureStorage.getItem returns Uint8Array, not string.
+ * And setItem expects a string value which it stores as bytes internally.
+ * We wrap it to handle the Uint8Array ↔ string conversion.
+ */
+interface SecureStorageRaw {
+  getItem(key: string): Promise<Uint8Array | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+}
+
+/** Wrapped SecureStorage that handles UXP's Uint8Array returns */
 interface SecureStorage {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
@@ -29,7 +41,35 @@ function getSecureStorage(): SecureStorage | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const uxp = require("uxp");
-    return uxp.storage.secureStorage as SecureStorage;
+    const raw = uxp.storage.secureStorage as SecureStorageRaw;
+    if (!raw) return null;
+
+    // Wrap to handle Uint8Array ↔ string conversion
+    return {
+      async getItem(key: string): Promise<string | null> {
+        try {
+          const value = await raw.getItem(key);
+          if (value == null) return null;
+          // UXP returns Uint8Array — decode to string
+          if (value instanceof Uint8Array) {
+            return new TextDecoder().decode(value);
+          }
+          // Some UXP versions may return string directly
+          if (typeof value === "string") return value;
+          return String(value);
+        } catch {
+          // UXP secureStorage can throw "Failed to getItem" if storage
+          // is not yet initialized or was corrupted — treat as empty
+          return null;
+        }
+      },
+      async setItem(key: string, value: string): Promise<void> {
+        await raw.setItem(key, value);
+      },
+      async removeItem(key: string): Promise<void> {
+        await raw.removeItem(key);
+      },
+    };
   } catch {
     return null;
   }
@@ -260,6 +300,13 @@ export class AuthService {
       const storedKs = await storage.getItem(SECURE_STORAGE_KEY_KS);
       const storedUser = await storage.getItem(SECURE_STORAGE_KEY_USER);
 
+      log.info("Restore session: stored data", {
+        hasKs: !!storedKs,
+        ksLength: storedKs?.length ?? 0,
+        hasUser: !!storedUser,
+        userLength: storedUser?.length ?? 0,
+      });
+
       if (!storedKs || !storedUser) return null;
 
       const userInfo = JSON.parse(storedUser) as AuthSession;
@@ -272,6 +319,11 @@ export class AuthService {
       }
 
       this.client.setKs(storedKs);
+
+      // Restore partnerId on the client so API calls use the correct partner
+      if (userInfo.partnerId) {
+        this.client.configure({ partnerId: userInfo.partnerId });
+      }
 
       // Validate the session is still active
       try {

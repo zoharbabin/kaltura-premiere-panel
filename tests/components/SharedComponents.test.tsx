@@ -126,9 +126,9 @@ describe("EmptyState", () => {
 
 describe("ProgressBar", () => {
   it("renders the progress bar element with the given value", () => {
-    const { container } = render(<ProgressBar value={42} />);
-    const bar = container.querySelector("sp-progress-bar");
-    expect(bar).toHaveAttribute("value", "42");
+    render(<ProgressBar value={42} />);
+    // Native HTML progress bar shows percentage text
+    expect(screen.getByText("42%")).toBeInTheDocument();
   });
 
   it("shows the percentage by default", () => {

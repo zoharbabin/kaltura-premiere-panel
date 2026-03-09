@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { createLogger, LogLevel, setLogLevel } from "./utils/logger";
 
 const log = createLogger("Plugin");
@@ -33,7 +34,11 @@ function setupPlugin(): void {
           create(rootNode: HTMLElement) {
             log.info("Panel created");
             const root = createRoot(rootNode);
-            root.render(<App />);
+            root.render(
+              <ErrorBoundary>
+                <App />
+              </ErrorBoundary>,
+            );
           },
           show() {
             log.debug("Panel shown");
@@ -54,7 +59,11 @@ function setupPlugin(): void {
     const container = document.getElementById("root");
     if (container) {
       const root = createRoot(container);
-      root.render(<App />);
+      root.render(
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>,
+      );
     }
   }
 }

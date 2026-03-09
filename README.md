@@ -132,8 +132,8 @@ src/
   App.tsx                       # Auth gate, 18-service initialization, tab router
   panels/                       # 8 tab panels (Login, Browse, Publish, Captions, Review,
                                 #   Analytics, Interactive, Settings)
-  components/                   # 9 shared UI components (FilterBar, ConfirmDialog,
-                                #   ErrorBanner, LoadingSpinner, ProgressBar, etc.)
+  components/                   # 10 shared UI components (ErrorBoundary, FilterBar,
+                                #   ConfirmDialog, ErrorBanner, LoadingSpinner, ProgressBar, etc.)
   services/                     # 22 service modules (see Service Layer below)
   hooks/                        # useAuth, useDebounce
   types/                        # TypeScript types: Kaltura API, Premiere API, Spectrum stubs
@@ -249,13 +249,20 @@ Adobe UXP is not a full browser. Key limitations to be aware of when contributin
 - **No `box-shadow`** — use borders and background colors for depth
 - **No `window` global** — use UXP equivalents
 - **No `@font-face`** — system fonts only
-- **No Node.js APIs** — use `uxp.storage` instead of `fs`/`path`
+- **No `TextEncoder` / `TextDecoder`** — use manual `charCodeAt` conversion for string-to-bytes
 - **No `data-*` attribute CSS selectors**
-- **`fetch()` available**; `XMLHttpRequest` used for upload progress tracking
+- **`FormData` + `Blob` unreliable for binary uploads** — build multipart bodies manually with `Uint8Array`
+- **`fs.readFile(path)` without encoding returns `ArrayBuffer`** — do NOT pass `{ encoding: "buffer" }`
+- **`fetch()` available**; `XMLHttpRequest` needed for upload progress tracking
 - **`WebSocket` available** in UXP runtime
+- **Spectrum Web Components crash on rapid create/destroy** — defer view transitions with `setTimeout(0)`
+- **Uncaught exceptions corrupt UXP scripting engine** — always use a React ErrorBoundary at the app root
+
+See [UXP Lessons Learned](./docs/UXP_LESSONS_LEARNED.md) for detailed patterns and workarounds.
 
 ## Further Reading
 
+- [UXP Lessons Learned](./docs/UXP_LESSONS_LEARNED.md) — hard-won patterns for UXP plugin development, Kaltura upload API, Premiere Pro export API
 - [Research & Strategy Document](./docs/Kaltura_Adobe_Premiere_Integration_Research.md) — market analysis, personas, competitive landscape, phased roadmap
 - [Enterprise Deployment Guide](./docs/enterprise-deployment.md) — Admin Console, UPIA, pre-configuration
 - [Adobe UXP for Premiere Pro](https://developer.adobe.com/premiere-pro/uxp/) — official API reference

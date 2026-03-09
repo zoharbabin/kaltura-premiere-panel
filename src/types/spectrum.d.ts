@@ -12,6 +12,7 @@ type SpectrumBaseProps = {
   className?: string;
   id?: string;
   key?: React.Key;
+  ref?: React.Ref<any>;
   title?: string;
   size?: "s" | "m" | "l" | "S" | "M" | "L" | "XS" | "XL" | "small" | "medium" | "large";
   quiet?: boolean;

@@ -75,8 +75,8 @@ export class AuditService {
 
   constructor(private client: KalturaClient) {}
 
-  /** Log a panel action locally and optionally to Kaltura's audit trail */
-  async logAction(action: AuditAction, entryId?: string, details?: string): Promise<void> {
+  /** Log a panel action locally */
+  logAction(action: AuditAction, entryId?: string, details?: string): void {
     const entry: AuditLogEntry = {
       action,
       entryId,
@@ -90,25 +90,6 @@ export class AuditService {
     }
 
     log.debug("Audit action", { action, entryId, details });
-
-    try {
-      await this.client.request({
-        service: "auditTrail",
-        action: "add",
-        params: {
-          auditTrail: {
-            objectType: "KalturaAuditTrail",
-            action,
-            relatedObjectId: entryId || "",
-            relatedObjectType: entryId ? "entry" : "kuser",
-            description: details || `Panel action: ${action}`,
-          },
-        },
-      });
-    } catch {
-      // Audit trail plugin may not be enabled — log locally only
-      log.debug("Remote audit logging unavailable, stored locally");
-    }
   }
 
   /** Get the local audit log for current session */

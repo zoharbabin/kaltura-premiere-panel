@@ -5,7 +5,9 @@ import { ProgressBar } from "../../src/components/ProgressBar";
 describe("ProgressBar", () => {
   it("renders progress bar element", () => {
     const { container } = render(<ProgressBar value={50} />);
-    expect(container.querySelector("sp-progress-bar")).toBeTruthy();
+    // Native HTML progress bar (no sp-progress-bar — unreliable in UXP)
+    const track = container.querySelector("div > div");
+    expect(track).toBeTruthy();
   });
 
   it("shows percent by default", () => {
