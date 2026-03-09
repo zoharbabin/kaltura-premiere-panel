@@ -80,6 +80,7 @@ export class AuthService {
           loginId: credentials.email,
           password: credentials.password,
           partnerId: credentials.partnerId,
+          privileges: "disableentitlement",
         },
       });
 
@@ -141,6 +142,7 @@ export class AuthService {
         userId: credentials.userId,
         type: credentials.sessionType ?? KalturaSessionType.USER,
         expiry: 86400,
+        sessionPrivileges: "disableentitlement",
       },
     });
 
@@ -364,6 +366,7 @@ export class AuthService {
           partnerId: this.session.partnerId,
           type: KalturaSessionType.USER,
           expiry: 86400,
+          privileges: "disableentitlement",
         },
       });
 
