@@ -194,7 +194,7 @@ npm run test:coverage     # Run with coverage report
 ```
 
 - **Framework:** Jest + jsdom + React Testing Library
-- **Coverage thresholds** (enforced in CI): statements 72%, branches 58%, functions 68%, lines 73%
+- **Coverage thresholds** (enforced in CI): statements 65%, branches 52%, functions 64%, lines 66%
 - **Test structure** mirrors `src/`: panels (8), components (9 + integration), services (19), hooks (2), utils (4), integration (1)
 - **Mocking:** UXP and host app modules mocked globally in `tests/setup.ts`; `fetch` mocked globally — no live API calls in CI
 
