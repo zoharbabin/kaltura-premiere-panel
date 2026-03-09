@@ -159,12 +159,18 @@ export class MediaService {
 
   /**
    * Get download URL for a specific flavor asset.
-   * Uses flavorAsset.getUrl API which returns a direct CDN URL with no
-   * redirects — more reliable than playManifest which returns 302 redirects
-   * that UXP's fetch may not follow correctly.
-   * Falls back to playManifest URL construction if the API call fails.
+   *
+   * Uses flavorAsset.getUrl API which returns a direct CDN URL.
+   * Requires KS with disableentitlement privilege, otherwise the API
+   * returns FLAVOR_ASSET_ID_NOT_FOUND.
+   * Falls back to playManifest URL if the API call fails.
    */
   async getFlavorDownloadUrl(entryId: string, flavorId: string): Promise<string> {
+    const serviceUrl = this.client.getServiceUrl();
+    const ks = this.client.getKs();
+    const partnerId = this.client.getPartnerId();
+
+    // Strategy 1: flavorAsset.getUrl — returns direct CDN URL (no redirects)
     try {
       const response = await this.client.request<{ objectType?: string } & Record<string, unknown>>(
         {
@@ -174,8 +180,6 @@ export class MediaService {
         },
       );
 
-      // getUrl returns a plain string in JSON, which our client parses.
-      // The response may be a raw string or wrapped object depending on format.
       const url = typeof response === "string" ? response : String(response);
       if (url && url.startsWith("http")) {
         log.info("Got direct CDN URL from getUrl API", { flavorId, url: url.substring(0, 80) });
@@ -185,17 +189,16 @@ export class MediaService {
       log.warn("flavorAsset.getUrl failed, falling back to playManifest", { flavorId, err });
     }
 
-    // Fallback: construct playManifest URL
-    const serviceUrl = this.client.getServiceUrl();
-    const ks = this.client.getKs();
-    const partnerId = this.client.getPartnerId();
+    // Strategy 2: playManifest progressive download URL
+    // Per Kaltura docs: /p/{pid}/sp/0/playManifest/entryId/{eid}/format/url/protocol/https/flavorId/{fid}/ks/{ks}/video.mp4
+    // Using flavorId (singular) for single flavor; flavorIds (plural) is for multi-bitrate HLS
     const fallbackUrl =
-      `${serviceUrl}/p/${partnerId}/sp/${partnerId}00/playManifest` +
-      `/entryId/${entryId}` +
-      `/flavorId/${flavorId}` +
-      `/format/download/protocol/https` +
-      `/ks/${encodeURIComponent(ks || "")}`;
-    log.info("Using playManifest fallback URL", { flavorId });
+      `${serviceUrl}/p/${partnerId}/sp/0/playManifest` +
+      `/entryId/${entryId}/flavorId/${flavorId}` +
+      `/format/url/protocol/https` +
+      `/ks/${encodeURIComponent(ks || "")}` +
+      `/video.mp4`;
+    log.info("Using playManifest fallback URL", { flavorId, url: fallbackUrl.substring(0, 100) });
     return fallbackUrl;
   }
 
