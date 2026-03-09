@@ -158,48 +158,22 @@ export class MediaService {
   }
 
   /**
-   * Get download URL for a specific flavor asset.
-   *
-   * Uses flavorAsset.getUrl API which returns a direct CDN URL.
-   * Requires KS with disableentitlement privilege, otherwise the API
-   * returns FLAVOR_ASSET_ID_NOT_FOUND.
-   * Falls back to playManifest URL if the API call fails.
+   * Get download URL for a specific flavor asset via playManifest.
+   * Per Kaltura docs: /p/{pid}/sp/0/playManifest/entryId/{eid}/format/url/protocol/https/flavorId/{fid}/ks/{ks}/video.mp4
    */
-  async getFlavorDownloadUrl(entryId: string, flavorId: string): Promise<string> {
+  getFlavorDownloadUrl(entryId: string, flavorId: string): string {
     const serviceUrl = this.client.getServiceUrl();
     const ks = this.client.getKs();
     const partnerId = this.client.getPartnerId();
 
-    // Strategy 1: flavorAsset.getUrl — returns direct CDN URL (no redirects)
-    try {
-      const response = await this.client.request<{ objectType?: string } & Record<string, unknown>>(
-        {
-          service: "flavorAsset",
-          action: "getUrl",
-          params: { id: flavorId },
-        },
-      );
-
-      const url = typeof response === "string" ? response : String(response);
-      if (url && url.startsWith("http")) {
-        log.info("Got direct CDN URL from getUrl API", { flavorId, url: url.substring(0, 80) });
-        return url;
-      }
-    } catch (err) {
-      log.warn("flavorAsset.getUrl failed, falling back to playManifest", { flavorId, err });
-    }
-
-    // Strategy 2: playManifest progressive download URL
-    // Per Kaltura docs: /p/{pid}/sp/0/playManifest/entryId/{eid}/format/url/protocol/https/flavorId/{fid}/ks/{ks}/video.mp4
-    // Using flavorId (singular) for single flavor; flavorIds (plural) is for multi-bitrate HLS
-    const fallbackUrl =
+    const url =
       `${serviceUrl}/p/${partnerId}/sp/0/playManifest` +
       `/entryId/${entryId}/flavorId/${flavorId}` +
       `/format/url/protocol/https` +
       `/ks/${encodeURIComponent(ks || "")}` +
       `/video.mp4`;
-    log.info("Using playManifest fallback URL", { flavorId, url: fallbackUrl.substring(0, 100) });
-    return fallbackUrl;
+    log.info("Download URL", { flavorId, url: url.substring(0, 120) });
+    return url;
   }
 
   /** List categories */
