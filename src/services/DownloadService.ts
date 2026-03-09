@@ -240,7 +240,13 @@ export class DownloadService {
           error: errDetail,
           size: downloadedData.length,
         });
-        throw new Error(`Import into project failed: ${errDetail}`);
+        throw new Error(
+          `Import failed: ${errDetail}\n` +
+            `Path: ${tempPath}\n` +
+            `Downloaded: ${downloadedData.length} bytes\n` +
+            `Content-Type: ${contentType}\n` +
+            `URL: ${downloadUrl.substring(0, 120)}`,
+        );
       }
 
       const mapping: AssetMapping = {
@@ -277,101 +283,146 @@ export class DownloadService {
   }
 
   /**
-   * Try multiple binary write strategies — UXP's file.write() with binary format
-   * silently produces 0-byte files in some Premiere Pro versions.
+   * Write a diagnostic text log file alongside the media file.
+   * Text writes are known to work in UXP (Adobe samples use them).
    */
-  private async writeBinary(
-    file: { write: (data: unknown, opts?: unknown) => Promise<void> },
-    data: Uint8Array,
-    formats: { binary: unknown },
+  private async writeDiagnosticLog(
+    folder: {
+      createFile: (
+        n: string,
+        o: { overwrite: boolean },
+      ) => Promise<{ write: (d: string) => Promise<void>; nativePath?: string }>;
+    },
+    fileName: string,
+    diagnostics: string,
   ): Promise<void> {
-    const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-
-    // Strategy 1: ArrayBuffer with format option (documented UXP API)
     try {
-      await file.write(buf, { format: formats.binary });
-      return;
+      const logFile = await folder.createFile(`${fileName}.diagnostic.txt`, { overwrite: true });
+      await logFile.write(diagnostics);
+      log.info("Diagnostic log written", { path: logFile.nativePath });
     } catch (e) {
-      log.warn("Binary write strategy 1 (ArrayBuffer+format) failed", e);
+      log.warn("Could not write diagnostic log", e);
     }
-
-    // Strategy 2: Uint8Array directly with format option
-    try {
-      await file.write(data, { format: formats.binary });
-      return;
-    } catch (e) {
-      log.warn("Binary write strategy 2 (Uint8Array+format) failed", e);
-    }
-
-    // Strategy 3: ArrayBuffer without format option (auto-detect)
-    try {
-      await file.write(buf);
-      return;
-    } catch (e) {
-      log.warn("Binary write strategy 3 (ArrayBuffer no-format) failed", e);
-    }
-
-    // Strategy 4: Blob
-    try {
-      const blob = new Blob([buf as ArrayBuffer], { type: "application/octet-stream" });
-      await file.write(blob, { format: formats.binary });
-      return;
-    } catch (e) {
-      log.warn("Binary write strategy 4 (Blob) failed", e);
-    }
-
-    // Strategy 5: Uint8Array without format
-    await file.write(data);
   }
 
   private async saveTempFile(fileName: string, data: Uint8Array): Promise<string> {
+    const diag: string[] = [];
+    diag.push(`[${new Date().toISOString()}] saveTempFile start`);
+    diag.push(`fileName: ${fileName}`);
+    diag.push(`data.byteLength: ${data.byteLength}`);
+    diag.push(`data.constructor: ${data.constructor?.name}`);
+    diag.push(`first16bytes: [${Array.from(data.slice(0, 16)).join(",")}]`);
+    if (data.length >= 8) {
+      diag.push(`magic(4-8): ${String.fromCharCode(...data.slice(4, 8))}`);
+    }
+
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
-      const fs = uxp.storage.localFileSystem;
+      const lfs = uxp.storage.localFileSystem;
       let folder;
       try {
-        folder = await fs.getDataFolder();
-      } catch {
-        folder = await fs.getTemporaryFolder();
+        folder = await lfs.getDataFolder();
+        diag.push(`folder: getDataFolder() => nativePath=${folder.nativePath}`);
+      } catch (e) {
+        folder = await lfs.getTemporaryFolder();
+        diag.push(`folder: getTemporaryFolder() (getDataFolder failed: ${e})`);
       }
+
+      // Strategy A: Use require('fs') to write directly to disk (bypasses UXP storage API)
+      const folderPath = folder.nativePath;
+      if (folderPath && typeof folderPath === "string") {
+        const sep = folderPath.includes("\\") ? "\\" : "/";
+        const fullPath = `${folderPath}${sep}${fileName}`;
+        diag.push(`fullPath: ${fullPath}`);
+
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const nodeFs = require("fs");
+          diag.push("require('fs') available: true");
+          const buf = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+          nodeFs.writeFileSync(fullPath, buf);
+          diag.push(`fs.writeFileSync completed`);
+
+          // Verify
+          const stats = nodeFs.statSync(fullPath);
+          diag.push(`fs.statSync size: ${stats.size}`);
+          if (stats.size === data.byteLength) {
+            diag.push("SUCCESS: fs.writeFileSync wrote correct size");
+            await this.writeDiagnosticLog(folder, fileName, diag.join("\n"));
+            log.info("Saved file via require('fs')", { fullPath, size: stats.size });
+            return fullPath;
+          }
+          diag.push(`WARNING: size mismatch (expected ${data.byteLength}, got ${stats.size})`);
+        } catch (fsErr) {
+          const msg = fsErr instanceof Error ? fsErr.message : String(fsErr);
+          diag.push(`require('fs') failed: ${msg}`);
+        }
+      }
+
+      // Strategy B: UXP file.write() with multiple approaches
       const file = await folder.createFile(fileName, { overwrite: true });
+      diag.push(`file.nativePath: ${file.nativePath} (type: ${typeof file.nativePath})`);
 
-      await this.writeBinary(file, data, uxp.storage.formats);
+      const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+      diag.push(`ArrayBuffer byteLength: ${buf.byteLength}`);
+      diag.push(`formats.binary value: ${JSON.stringify(uxp.storage.formats.binary)}`);
 
-      // Verify the file was actually written by reading back its size
-      try {
-        const readBack = await file.read({ format: uxp.storage.formats.binary });
-        const writtenSize =
-          readBack instanceof ArrayBuffer
-            ? readBack.byteLength
-            : typeof readBack === "string"
-              ? readBack.length
-              : 0;
-        log.info("Write verification", {
-          expectedSize: data.byteLength,
-          writtenSize,
-          readBackType: typeof readBack,
-          isArrayBuffer: readBack instanceof ArrayBuffer,
-        });
-        if (writtenSize === 0 && data.byteLength > 0) {
-          log.error("Binary write produced 0-byte file — all write strategies failed silently");
-          throw new Error(
-            "UXP file.write() produced 0-byte file. Binary writing may not be supported.",
-          );
+      const strategies = [
+        {
+          name: "ArrayBuffer+format",
+          fn: () => file.write(buf, { format: uxp.storage.formats.binary }),
+        },
+        {
+          name: "Uint8Array+format",
+          fn: () => file.write(data, { format: uxp.storage.formats.binary }),
+        },
+        { name: "ArrayBuffer-noformat", fn: () => file.write(buf) },
+        {
+          name: "Blob+format",
+          fn: () =>
+            file.write(new Blob([buf as ArrayBuffer], { type: "application/octet-stream" }), {
+              format: uxp.storage.formats.binary,
+            }),
+        },
+        { name: "Uint8Array-noformat", fn: () => file.write(data) },
+      ];
+
+      for (const strategy of strategies) {
+        try {
+          await strategy.fn();
+          diag.push(`strategy ${strategy.name}: write() resolved`);
+
+          // Check if file has data by reading back
+          try {
+            const readBack = await file.read({ format: uxp.storage.formats.binary });
+            const size = readBack instanceof ArrayBuffer ? readBack.byteLength : 0;
+            diag.push(
+              `strategy ${strategy.name}: read-back size=${size} type=${typeof readBack} isAB=${readBack instanceof ArrayBuffer}`,
+            );
+            if (size > 0) {
+              diag.push(`SUCCESS: strategy ${strategy.name} wrote ${size} bytes`);
+              break;
+            }
+            diag.push(`strategy ${strategy.name}: 0-byte file, trying next`);
+            // Re-create file for next attempt
+            await folder.createFile(fileName, { overwrite: true });
+          } catch (readErr) {
+            const readMsg = readErr instanceof Error ? readErr.message : String(readErr);
+            diag.push(`strategy ${strategy.name}: read-back failed: ${readMsg}`);
+          }
+        } catch (writeErr) {
+          const writeMsg = writeErr instanceof Error ? writeErr.message : String(writeErr);
+          diag.push(`strategy ${strategy.name}: write() threw: ${writeMsg}`);
         }
-      } catch (readErr) {
-        // If read-back fails, log but continue (the write might have worked)
-        if (readErr instanceof Error && readErr.message.includes("0-byte")) {
-          throw readErr;
-        }
-        log.warn("Could not verify file write", readErr);
       }
 
-      // Resolve the native filesystem path
+      // Write diagnostic log as text (guaranteed to work)
+      await this.writeDiagnosticLog(folder, fileName, diag.join("\n"));
+
+      // Resolve path
       let resolvedPath: string | undefined = file.nativePath;
       if (!resolvedPath || typeof resolvedPath !== "string") {
-        const folderPath = folder.nativePath;
         if (folderPath && typeof folderPath === "string") {
           const sep = folderPath.includes("\\") ? "\\" : "/";
           resolvedPath = `${folderPath}${sep}${fileName}`;
@@ -379,21 +430,16 @@ export class DownloadService {
       }
 
       if (!resolvedPath || typeof resolvedPath !== "string") {
-        throw new Error(
-          `UXP file entry has no valid nativePath (got ${typeof file.nativePath}: ${String(file.nativePath)})`,
-        );
+        throw new Error(`No valid path. Diagnostics:\n${diag.join("\n")}`);
       }
 
-      log.info("Saved file for import", {
-        resolvedPath,
-        size: data.byteLength,
-      });
+      log.info("Saved file for import", { resolvedPath, size: data.byteLength });
       return resolvedPath;
     } catch (err) {
-      log.error("UXP file save failed", err);
-      throw new Error(
-        `Failed to save downloaded file: ${err instanceof Error ? err.message : "UXP storage not available"}`,
-      );
+      const errMsg = err instanceof Error ? err.message : String(err);
+      diag.push(`FATAL: ${errMsg}`);
+      log.error("File save failed", { diagnostics: diag.join(" | ") });
+      throw new Error(`Failed to save file. Diagnostics:\n${diag.join("\n")}`);
     }
   }
 }
