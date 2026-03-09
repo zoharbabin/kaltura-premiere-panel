@@ -100,31 +100,18 @@ describe("MediaService", () => {
   });
 
   describe("getFlavorDownloadUrl()", () => {
-    it("returns direct CDN URL from getUrl API", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => "https://cfvod.kaltura.com/pd/p/12345/serveFlavor/test.mp4",
-      });
-
-      const url = await service.getFlavorDownloadUrl("0_entry", "flavor_1");
-      expect(url).toBe("https://cfvod.kaltura.com/pd/p/12345/serveFlavor/test.mp4");
+    it("returns playManifest URL with correct format", () => {
+      const url = service.getFlavorDownloadUrl("0_entry", "flavor_1");
+      expect(url).toContain("/p/12345/sp/0/playManifest");
+      expect(url).toContain("/entryId/0_entry/flavorId/flavor_1/");
+      expect(url).toContain("/format/url/protocol/https");
+      expect(url).toContain("/ks/test_ks/");
+      expect(url).toContain("/video.mp4");
     });
 
-    it("falls back to playManifest when getUrl API fails", async () => {
-      mockFetch.mockRejectedValueOnce(new Error("API error"));
-
-      const url = await service.getFlavorDownloadUrl("0_entry", "flavor_1");
-      expect(url).toContain("/playManifest/entryId/0_entry/flavorId/flavor_1/");
-    });
-
-    it("falls back to playManifest when getUrl returns non-URL", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ objectType: "KalturaAPIException", message: "not found" }),
-      });
-
-      const url = await service.getFlavorDownloadUrl("0_entry", "flavor_1");
-      expect(url).toContain("/playManifest/");
+    it("encodes KS in the URL", () => {
+      const url = service.getFlavorDownloadUrl("0_entry", "flavor_1");
+      expect(url).toContain("/ks/");
     });
   });
 
