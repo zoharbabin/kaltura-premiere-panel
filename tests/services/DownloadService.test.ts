@@ -13,6 +13,25 @@ function createMockHostService() {
   };
 }
 
+function mockFetchResponse(data: Uint8Array) {
+  return {
+    ok: true,
+    status: 200,
+    statusText: "OK",
+    url: "https://cdn.kaltura.com/download/test.mp4",
+    redirected: true,
+    headers: {
+      get: (name: string) => {
+        if (name === "content-length") return String(data.byteLength);
+        if (name === "content-type") return "video/mp4";
+        return null;
+      },
+    },
+    arrayBuffer: () =>
+      Promise.resolve(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)),
+  };
+}
+
 describe("DownloadService", () => {
   let client: KalturaClient;
   let mediaService: MediaService;
@@ -52,17 +71,7 @@ describe("DownloadService", () => {
     hostService.isImported.mockReturnValue(true);
     const existingFlavor = { ...mockFlavor, id: "flavor_existing", entryId: "0_existing" };
 
-    const mockReader = {
-      read: jest
-        .fn()
-        .mockResolvedValueOnce({ done: false, value: new Uint8Array([1, 2, 3]) })
-        .mockResolvedValueOnce({ done: true, value: undefined }),
-    };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      headers: { get: (name: string) => (name === "content-length" ? "3" : "video/mp4") },
-      body: { getReader: () => mockReader },
-    });
+    mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2, 3])));
 
     const result = await service.downloadAndImport("0_existing", existingFlavor);
 
@@ -71,21 +80,7 @@ describe("DownloadService", () => {
   });
 
   it("downloads file and creates mapping", async () => {
-    const mockReader = {
-      read: jest
-        .fn()
-        .mockResolvedValueOnce({
-          done: false,
-          value: new Uint8Array([1, 2, 3, 4]),
-        })
-        .mockResolvedValueOnce({ done: true, value: undefined }),
-    };
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      headers: { get: (name: string) => (name === "content-length" ? "4" : "video/mp4") },
-      body: { getReader: () => mockReader },
-    });
+    mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2, 3, 4])));
 
     const progressCalls: number[] = [];
     const result = await service.downloadAndImport("0_abc", mockFlavor, (p) => {
@@ -99,28 +94,15 @@ describe("DownloadService", () => {
   });
 
   it("resolves native path via getEntryWithUrl", async () => {
-    const mockReader = {
-      read: jest
-        .fn()
-        .mockResolvedValueOnce({ done: false, value: new Uint8Array([1, 2]) })
-        .mockResolvedValueOnce({ done: true, value: undefined }),
-    };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      headers: { get: (name: string) => (name === "content-length" ? "2" : "video/mp4") },
-      body: { getReader: () => mockReader },
-    });
+    mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2])));
 
     const result = await service.downloadAndImport("0_abc", mockFlavor);
 
-    // Path comes from getEntryWithUrl mock resolving plugin-data:/ to /tmp/kaltura-data/
     expect(result.localPath).toBe("/tmp/kaltura-data/0_abc_flavor_1.mp4");
   });
 
   it("cancels a download", () => {
-    // Start a download but cancel it before it completes
     service.cancelDownload("0_nonexistent");
-    // Should not throw
     expect(service.activeCount).toBe(0);
   });
 
