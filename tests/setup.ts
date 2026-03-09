@@ -60,8 +60,36 @@ jest.mock(
             });
           }),
         }),
+        getEntryWithUrl: jest.fn().mockImplementation((url: string) => {
+          // Extract filename from plugin-data:/filename
+          const fileName = url.replace("plugin-data:/", "");
+          return Promise.resolve({
+            nativePath: `/tmp/kaltura-data/${fileName}`,
+            isFile: true,
+          });
+        }),
       },
     },
+  }),
+  { virtual: true },
+);
+
+// Mock UXP fs module (NOT Node.js fs — UXP's own path-based file API)
+jest.mock(
+  "fs",
+  () => ({
+    writeFile: jest.fn().mockResolvedValue(0),
+    readFile: jest.fn().mockResolvedValue(new ArrayBuffer(0)),
+    lstat: jest.fn().mockResolvedValue({
+      isFile: () => true,
+      size: 1024,
+    }),
+    readFileSync: jest.fn().mockReturnValue(new ArrayBuffer(0)),
+    writeFileSync: jest.fn().mockReturnValue(0),
+    lstatSync: jest.fn().mockReturnValue({
+      isFile: () => true,
+      size: 1024,
+    }),
   }),
   { virtual: true },
 );

@@ -283,163 +283,45 @@ export class DownloadService {
   }
 
   /**
-   * Write a diagnostic text log file alongside the media file.
-   * Text writes are known to work in UXP (Adobe samples use them).
+   * Save downloaded data to the plugin-data folder using UXP's fs module.
+   * Per Adobe docs, fs.writeFile supports Uint8Array for binary data
+   * and plugin-data:/ URL scheme for the plugin's persistent data folder.
    */
-  private async writeDiagnosticLog(
-    folder: {
-      createFile: (
-        n: string,
-        o: { overwrite: boolean },
-      ) => Promise<{ write: (d: string) => Promise<void>; nativePath?: string }>;
-    },
-    fileName: string,
-    diagnostics: string,
-  ): Promise<void> {
-    try {
-      const logFile = await folder.createFile(`${fileName}.diagnostic.txt`, { overwrite: true });
-      await logFile.write(diagnostics);
-      log.info("Diagnostic log written", { path: logFile.nativePath });
-    } catch (e) {
-      log.warn("Could not write diagnostic log", e);
-    }
-  }
-
   private async saveTempFile(fileName: string, data: Uint8Array): Promise<string> {
-    const diag: string[] = [];
-    diag.push(`[${new Date().toISOString()}] saveTempFile start`);
-    diag.push(`fileName: ${fileName}`);
-    diag.push(`data.byteLength: ${data.byteLength}`);
-    diag.push(`data.constructor: ${data.constructor?.name}`);
-    diag.push(`first16bytes: [${Array.from(data.slice(0, 16)).join(",")}]`);
-    if (data.length >= 8) {
-      diag.push(`magic(4-8): ${String.fromCharCode(...data.slice(4, 8))}`);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs");
+    const pluginDataPath = `plugin-data:/${fileName}`;
+
+    log.info("Writing file via UXP fs module", {
+      path: pluginDataPath,
+      size: data.byteLength,
+      magic: data.length >= 8 ? String.fromCharCode(...data.slice(4, 8)) : "n/a",
+    });
+
+    // Write binary data using UXP fs.writeFile (supports Uint8Array natively)
+    const bytesWritten = await fs.writeFile(pluginDataPath, data);
+    log.info("fs.writeFile completed", { bytesWritten });
+
+    // Verify the file was written correctly
+    const stats = await fs.lstat(pluginDataPath);
+    if (!stats.isFile() || stats.size === 0) {
+      throw new Error(
+        `File write verification failed: size=${stats.size}, expected=${data.byteLength}`,
+      );
+    }
+    log.info("File verified", { size: stats.size });
+
+    // Resolve native path for Premiere's importFiles API
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const uxp = require("uxp");
+    const entry = await uxp.storage.localFileSystem.getEntryWithUrl(pluginDataPath);
+    const nativePath = entry.nativePath;
+
+    if (!nativePath || typeof nativePath !== "string") {
+      throw new Error(`Could not resolve native path for ${pluginDataPath}`);
     }
 
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const uxp = require("uxp");
-      const lfs = uxp.storage.localFileSystem;
-      let folder;
-      try {
-        folder = await lfs.getDataFolder();
-        diag.push(`folder: getDataFolder() => nativePath=${folder.nativePath}`);
-      } catch (e) {
-        folder = await lfs.getTemporaryFolder();
-        diag.push(`folder: getTemporaryFolder() (getDataFolder failed: ${e})`);
-      }
-
-      // Strategy A: Use require('fs') to write directly to disk (bypasses UXP storage API)
-      const folderPath = folder.nativePath;
-      if (folderPath && typeof folderPath === "string") {
-        const sep = folderPath.includes("\\") ? "\\" : "/";
-        const fullPath = `${folderPath}${sep}${fileName}`;
-        diag.push(`fullPath: ${fullPath}`);
-
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const nodeFs = require("fs");
-          diag.push("require('fs') available: true");
-          const buf = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
-          nodeFs.writeFileSync(fullPath, buf);
-          diag.push(`fs.writeFileSync completed`);
-
-          // Verify
-          const stats = nodeFs.statSync(fullPath);
-          diag.push(`fs.statSync size: ${stats.size}`);
-          if (stats.size === data.byteLength) {
-            diag.push("SUCCESS: fs.writeFileSync wrote correct size");
-            await this.writeDiagnosticLog(folder, fileName, diag.join("\n"));
-            log.info("Saved file via require('fs')", { fullPath, size: stats.size });
-            return fullPath;
-          }
-          diag.push(`WARNING: size mismatch (expected ${data.byteLength}, got ${stats.size})`);
-        } catch (fsErr) {
-          const msg = fsErr instanceof Error ? fsErr.message : String(fsErr);
-          diag.push(`require('fs') failed: ${msg}`);
-        }
-      }
-
-      // Strategy B: UXP file.write() with multiple approaches
-      const file = await folder.createFile(fileName, { overwrite: true });
-      diag.push(`file.nativePath: ${file.nativePath} (type: ${typeof file.nativePath})`);
-
-      const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-      diag.push(`ArrayBuffer byteLength: ${buf.byteLength}`);
-      diag.push(`formats.binary value: ${JSON.stringify(uxp.storage.formats.binary)}`);
-
-      const strategies = [
-        {
-          name: "ArrayBuffer+format",
-          fn: () => file.write(buf, { format: uxp.storage.formats.binary }),
-        },
-        {
-          name: "Uint8Array+format",
-          fn: () => file.write(data, { format: uxp.storage.formats.binary }),
-        },
-        { name: "ArrayBuffer-noformat", fn: () => file.write(buf) },
-        {
-          name: "Blob+format",
-          fn: () =>
-            file.write(new Blob([buf as ArrayBuffer], { type: "application/octet-stream" }), {
-              format: uxp.storage.formats.binary,
-            }),
-        },
-        { name: "Uint8Array-noformat", fn: () => file.write(data) },
-      ];
-
-      for (const strategy of strategies) {
-        try {
-          await strategy.fn();
-          diag.push(`strategy ${strategy.name}: write() resolved`);
-
-          // Check if file has data by reading back
-          try {
-            const readBack = await file.read({ format: uxp.storage.formats.binary });
-            const size = readBack instanceof ArrayBuffer ? readBack.byteLength : 0;
-            diag.push(
-              `strategy ${strategy.name}: read-back size=${size} type=${typeof readBack} isAB=${readBack instanceof ArrayBuffer}`,
-            );
-            if (size > 0) {
-              diag.push(`SUCCESS: strategy ${strategy.name} wrote ${size} bytes`);
-              break;
-            }
-            diag.push(`strategy ${strategy.name}: 0-byte file, trying next`);
-            // Re-create file for next attempt
-            await folder.createFile(fileName, { overwrite: true });
-          } catch (readErr) {
-            const readMsg = readErr instanceof Error ? readErr.message : String(readErr);
-            diag.push(`strategy ${strategy.name}: read-back failed: ${readMsg}`);
-          }
-        } catch (writeErr) {
-          const writeMsg = writeErr instanceof Error ? writeErr.message : String(writeErr);
-          diag.push(`strategy ${strategy.name}: write() threw: ${writeMsg}`);
-        }
-      }
-
-      // Write diagnostic log as text (guaranteed to work)
-      await this.writeDiagnosticLog(folder, fileName, diag.join("\n"));
-
-      // Resolve path
-      let resolvedPath: string | undefined = file.nativePath;
-      if (!resolvedPath || typeof resolvedPath !== "string") {
-        if (folderPath && typeof folderPath === "string") {
-          const sep = folderPath.includes("\\") ? "\\" : "/";
-          resolvedPath = `${folderPath}${sep}${fileName}`;
-        }
-      }
-
-      if (!resolvedPath || typeof resolvedPath !== "string") {
-        throw new Error(`No valid path. Diagnostics:\n${diag.join("\n")}`);
-      }
-
-      log.info("Saved file for import", { resolvedPath, size: data.byteLength });
-      return resolvedPath;
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      diag.push(`FATAL: ${errMsg}`);
-      log.error("File save failed", { diagnostics: diag.join(" | ") });
-      throw new Error(`Failed to save file. Diagnostics:\n${diag.join("\n")}`);
-    }
+    log.info("Saved file for import", { nativePath, size: stats.size });
+    return nativePath;
   }
 }

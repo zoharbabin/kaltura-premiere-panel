@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.kaltura.premiere.panel",
   "name": "Kaltura for Adobe Creative Cloud",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "main": "index.html",
   "host": [
     {

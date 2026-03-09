@@ -78,14 +78,13 @@ interface BatchServiceLike {
   ): Promise<{ total: number; successful: number }>;
 }
 
-/** Duck-typed AuditService for access control and DRM info */
+/** Duck-typed AuditService for access control info */
 interface AuditServiceLike {
   getAccessControlProfile(profileId: number): Promise<{
     id: number;
     name: string;
     restrictions: { type: string; description: string }[];
   } | null>;
-  getEntryDrmPolicy(entryId: string): Promise<{ provider: string; licenseUrl?: string }[]>;
 }
 
 /** Duck-typed ProxyService for proxy editing workflow */
@@ -637,8 +636,6 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
     name: string;
     restrictions: { type: string; description: string }[];
   } | null>(null);
-  const [drmPolicies, setDrmPolicies] = useState<{ provider: string }[]>([]);
-
   useEffect(() => {
     if (!auditService) return;
     if (entry.accessControlId) {
@@ -646,8 +643,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         if (profile) setAccessControl({ name: profile.name, restrictions: profile.restrictions });
       });
     }
-    auditService.getEntryDrmPolicy(entry.id).then(setDrmPolicies);
-  }, [auditService, entry.accessControlId, entry.id]);
+  }, [auditService, entry.accessControlId]);
 
   return (
     <div className="panel-root">
@@ -768,20 +764,6 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
                   <span className="detail-field-value">{r.description}</span>
                 </div>
               ))}
-          </div>
-        )}
-
-        {/* DRM policy indicators */}
-        {drmPolicies.length > 0 && drmPolicies[0].provider !== "none" && (
-          <div className="detail-section">
-            <div className="detail-section-title">DRM Protection</div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {drmPolicies.map((drm, i) => (
-                <span key={i} className="badge-drm">
-                  {drm.provider.toUpperCase()}
-                </span>
-              ))}
-            </div>
           </div>
         )}
 

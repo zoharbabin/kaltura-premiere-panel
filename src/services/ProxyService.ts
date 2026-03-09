@@ -247,75 +247,33 @@ export class ProxyService {
     return this.saveTempFile(fileName, chunks);
   }
 
-  private async writeBinary(
-    file: { write: (data: unknown, opts?: unknown) => Promise<void> },
-    data: Uint8Array,
-    formats: { binary: unknown },
-  ): Promise<void> {
-    const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-    try {
-      await file.write(buf, { format: formats.binary });
-      return;
-    } catch {
-      /* fall through */
-    }
-    try {
-      await file.write(data, { format: formats.binary });
-      return;
-    } catch {
-      /* fall through */
-    }
-    try {
-      await file.write(buf);
-      return;
-    } catch {
-      /* fall through */
-    }
-    await file.write(data);
-  }
-
   private async saveTempFile(fileName: string, chunks: Uint8Array[]): Promise<string> {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const uxp = require("uxp");
-      const fs = uxp.storage.localFileSystem;
-      let folder;
-      try {
-        folder = await fs.getDataFolder();
-      } catch {
-        folder = await fs.getTemporaryFolder();
-      }
-      const file = await folder.createFile(fileName, { overwrite: true });
-      const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-      const merged = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        merged.set(chunk, offset);
-        offset += chunk.length;
-      }
-      await this.writeBinary(file, merged, uxp.storage.formats);
-
-      let resolvedPath: string | undefined = file.nativePath;
-      if (!resolvedPath || typeof resolvedPath !== "string") {
-        const folderPath = folder.nativePath;
-        if (folderPath && typeof folderPath === "string") {
-          const sep = folderPath.includes("\\") ? "\\" : "/";
-          resolvedPath = `${folderPath}${sep}${fileName}`;
-        }
-      }
-      if (!resolvedPath || typeof resolvedPath !== "string") {
-        throw new Error(
-          `UXP file entry has no valid nativePath (got ${typeof file.nativePath}: ${String(file.nativePath)})`,
-        );
-      }
-
-      log.info("Saved proxy file for import", { resolvedPath, size: totalLength });
-      return resolvedPath;
-    } catch (err) {
-      log.error("UXP file save failed", err);
-      throw new Error(
-        `Failed to save proxy file: ${err instanceof Error ? err.message : "UXP storage not available"}`,
-      );
+    const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
     }
+
+    // Use UXP fs module for binary writes (supports Uint8Array natively)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs");
+    const pluginDataPath = `plugin-data:/${fileName}`;
+
+    await fs.writeFile(pluginDataPath, merged);
+
+    // Resolve native path for Premiere's importFiles API
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const uxp = require("uxp");
+    const entry = await uxp.storage.localFileSystem.getEntryWithUrl(pluginDataPath);
+    const nativePath = entry.nativePath;
+
+    if (!nativePath || typeof nativePath !== "string") {
+      throw new Error(`Could not resolve native path for ${pluginDataPath}`);
+    }
+
+    log.info("Saved proxy file for import", { nativePath, size: totalLength });
+    return nativePath;
   }
 }
