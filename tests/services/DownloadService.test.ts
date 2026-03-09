@@ -98,18 +98,7 @@ describe("DownloadService", () => {
     expect(progressCalls.length).toBeGreaterThan(0);
   });
 
-  it("falls back to folder nativePath when file nativePath is undefined", async () => {
-    // Override the UXP mock so file.nativePath is undefined but folder.nativePath works
-    const uxpMock = require("uxp");
-    const mockFolder = {
-      nativePath: "/tmp/kaltura-data",
-      createFile: jest.fn().mockResolvedValue({
-        write: jest.fn().mockResolvedValue(undefined),
-        nativePath: undefined, // Simulate UXP runtime where nativePath is missing
-      }),
-    };
-    uxpMock.storage.localFileSystem.getDataFolder.mockResolvedValueOnce(mockFolder);
-
+  it("resolves native path via getEntryWithUrl", async () => {
     const mockReader = {
       read: jest
         .fn()
@@ -124,7 +113,7 @@ describe("DownloadService", () => {
 
     const result = await service.downloadAndImport("0_abc", mockFlavor);
 
-    // Should construct path from folder.nativePath + fileName
+    // Path comes from getEntryWithUrl mock resolving plugin-data:/ to /tmp/kaltura-data/
     expect(result.localPath).toBe("/tmp/kaltura-data/0_abc_flavor_1.mp4");
   });
 
