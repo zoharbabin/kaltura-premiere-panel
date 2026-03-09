@@ -29,12 +29,13 @@ describe("PremiereService", () => {
     it("returns sequence info when an active sequence exists", async () => {
       const mockSequence = {
         name: "My Sequence",
-        id: "seq-1",
-        settings: {
+        guid: { toString: () => "seq-1" },
+        getEndTime: jest.fn().mockResolvedValue(null),
+        getSettings: jest.fn().mockResolvedValue({
           videoFrameRate: { seconds: 1 / 29.97 },
           videoFrameWidth: 1920,
           videoFrameHeight: 1080,
-        },
+        }),
       };
       const mockProject = {
         getActiveSequence: jest.fn().mockResolvedValue(mockSequence),

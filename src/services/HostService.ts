@@ -44,6 +44,11 @@ export interface HostService {
   /** Read markers from the active sequence (not all hosts support this) */
   getMarkers?(): Promise<MarkerData[]>;
 
+  /** Export the active sequence/composition to a file (not all hosts support this) */
+  exportActiveSequence?(
+    onProgress?: (percent: number) => void,
+  ): Promise<{ nativePath: string; name: string; size: number }>;
+
   /** Check if an asset has been imported by Kaltura entry ID */
   isImported(entryId: string): boolean;
 

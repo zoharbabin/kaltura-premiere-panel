@@ -140,6 +140,48 @@ export class MediaService {
     });
   }
 
+  /** Replace the content of an existing entry with a new uploaded file */
+  async updateContent(entryId: string, uploadTokenId: string): Promise<KalturaMediaEntry> {
+    log.info("Replacing content on entry", { entryId, uploadTokenId });
+
+    return this.client.request<KalturaMediaEntry>({
+      service: "media",
+      action: "updateContent",
+      params: {
+        entryId,
+        resource: {
+          objectType: "KalturaUploadedFileTokenResource",
+          token: uploadTokenId,
+        },
+      },
+    });
+  }
+
+  /**
+   * Create a new media entry from an already-uploaded file token.
+   * Combines entry creation + content attachment in a single API call.
+   * This is the recommended approach per Kaltura best practices.
+   */
+  async addFromUploadedFile(
+    entry: Partial<KalturaMediaEntry>,
+    uploadTokenId: string,
+  ): Promise<KalturaMediaEntry> {
+    log.info("Creating entry from uploaded file", { name: entry.name, uploadTokenId });
+
+    return this.client.request<KalturaMediaEntry>({
+      service: "media",
+      action: "addFromUploadedFile",
+      params: {
+        mediaEntry: {
+          objectType: "KalturaMediaEntry",
+          mediaType: KalturaMediaType.VIDEO,
+          ...entry,
+        },
+        uploadTokenId,
+      },
+    });
+  }
+
   /** Update entry metadata */
   async update(entryId: string, entry: Partial<KalturaMediaEntry>): Promise<KalturaMediaEntry> {
     log.info("Updating entry", { entryId });

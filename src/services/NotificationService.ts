@@ -99,15 +99,27 @@ export class NotificationService {
       };
 
       this.ws.onclose = () => {
-        log.info("WebSocket disconnected");
         this.connected = false;
-        this.scheduleReconnect();
+        // Only reconnect if we were previously connected (not on initial failure)
+        if (!this.usePolling) {
+          log.info("WebSocket disconnected, reconnecting");
+          this.scheduleReconnect();
+        }
       };
 
       this.ws.onerror = () => {
-        log.warn("WebSocket error, falling back to polling");
         this.connected = false;
-        this.ws?.close();
+        // Switch to polling permanently — don't keep retrying WebSocket
+        if (!this.usePolling) {
+          log.debug("WebSocket unavailable, using polling fallback");
+          this.usePolling = true;
+          this.cancelReconnect();
+        }
+        try {
+          this.ws?.close();
+        } catch {
+          /* ignore */
+        }
         this.startPolling();
       };
     } catch {

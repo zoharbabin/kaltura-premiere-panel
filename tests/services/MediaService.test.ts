@@ -99,6 +99,27 @@ describe("MediaService", () => {
     });
   });
 
+  describe("addFromUploadedFile()", () => {
+    it("creates entry from uploaded file token in a single call", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: "0_uploaded", name: "Uploaded Video" }),
+      });
+
+      const result = await service.addFromUploadedFile({ name: "Uploaded Video" }, "token_abc");
+      expect(result.id).toBe("0_uploaded");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.mediaEntry.objectType).toBe("KalturaMediaEntry");
+      expect(body.mediaEntry.name).toBe("Uploaded Video");
+      expect(body.uploadTokenId).toBe("token_abc");
+
+      // Verify the correct API action
+      const url = mockFetch.mock.calls[0][0];
+      expect(url).toContain("/service/media/action/addFromUploadedFile");
+    });
+  });
+
   describe("getFlavorDownloadUrl()", () => {
     it("returns playManifest URL with correct format", () => {
       const url = service.getFlavorDownloadUrl("0_entry", "flavor_1");
