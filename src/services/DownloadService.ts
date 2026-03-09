@@ -141,96 +141,63 @@ export class DownloadService {
     try {
       log.info("Starting download", { entryId: request.entryId, flavorId: request.flavorId });
 
-      const downloadUrl = await this.mediaService.getFlavorDownloadUrl(
-        request.entryId,
-        request.flavorId,
-      );
-      log.info("Download URL", { url: downloadUrl.substring(0, 100) });
+      const downloadUrl = this.mediaService.getFlavorDownloadUrl(request.entryId, request.flavorId);
+      log.info("Download URL", { url: downloadUrl.substring(0, 150) });
+
       const response = await fetch(downloadUrl, {
         signal: controller.signal,
         redirect: "follow",
+      });
+
+      log.info("Fetch response", {
+        status: response.status,
+        ok: response.ok,
+        url: (response.url || "").substring(0, 150),
+        contentType: response.headers.get("content-type"),
+        contentLength: response.headers.get("content-length"),
+        redirected: response.redirected,
       });
 
       if (!response.ok) {
         throw new NetworkError(`Download failed: HTTP ${response.status} ${response.statusText}`);
       }
 
-      // Verify response is actual media content, not an error page
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.includes("text/html") || contentType.includes("text/xml")) {
+      // Use arrayBuffer() for maximum compatibility with UXP
+      // (ReadableStream may not work reliably across UXP versions)
+      const buf = await response.arrayBuffer();
+      const downloadedData = new Uint8Array(buf);
+
+      log.info("Downloaded data", {
+        byteLength: downloadedData.byteLength,
+        magic:
+          downloadedData.length >= 8 ? String.fromCharCode(...downloadedData.slice(4, 8)) : "n/a",
+      });
+
+      if (downloadedData.byteLength === 0) {
         throw new NetworkError(
-          `Download returned non-media content (${contentType}). The flavor may not be available.`,
+          `Download returned 0 bytes.\n` +
+            `Status: ${response.status}\n` +
+            `Content-Type: ${response.headers.get("content-type")}\n` +
+            `Content-Length: ${response.headers.get("content-length")}\n` +
+            `Redirected: ${response.redirected}\n` +
+            `Final URL: ${(response.url || "").substring(0, 150)}\n` +
+            `Original URL: ${downloadUrl.substring(0, 150)}`,
         );
       }
 
-      const contentLength = parseInt(response.headers.get("content-length") || "0", 10);
-      log.info("Download response", {
-        contentType,
-        contentLength,
-        hasBody: !!response.body,
+      // Report progress (100% since we used arrayBuffer)
+      const progressCallback = this.onProgressCallbacks.get(request.entryId);
+      progressCallback?.({
+        entryId: request.entryId,
+        loaded: downloadedData.byteLength,
+        total: downloadedData.byteLength,
+        percent: 100,
+        speed: 0,
       });
-
-      // Try streaming for progress, fall back to arrayBuffer() for reliability
-      let downloadedData: Uint8Array;
-      const reader = response.body?.getReader();
-
-      if (reader) {
-        const chunks: Uint8Array[] = [];
-        let loaded = 0;
-
-        let readDone = false;
-        while (!readDone) {
-          const { done, value } = await reader.read();
-          if (done) {
-            readDone = true;
-            break;
-          }
-
-          chunks.push(value);
-          loaded += value.length;
-
-          const elapsed = (Date.now() - active.startTime) / 1000;
-          const speed = elapsed > 0 ? loaded / elapsed : 0;
-          const progressCallback = this.onProgressCallbacks.get(request.entryId);
-          progressCallback?.({
-            entryId: request.entryId,
-            loaded,
-            total: contentLength,
-            percent: contentLength > 0 ? Math.round((loaded / contentLength) * 100) : 0,
-            speed,
-          });
-        }
-
-        if (loaded === 0) {
-          throw new NetworkError("Download returned empty response (0 bytes)");
-        }
-
-        // Merge chunks into a single Uint8Array
-        downloadedData = new Uint8Array(loaded);
-        let offset = 0;
-        for (const chunk of chunks) {
-          downloadedData.set(chunk, offset);
-          offset += chunk.length;
-        }
-      } else {
-        // Fallback: read entire response as ArrayBuffer (no progress)
-        log.warn("No stream reader, using arrayBuffer() fallback");
-        const buf = await response.arrayBuffer();
-        downloadedData = new Uint8Array(buf);
-        if (downloadedData.length === 0) {
-          throw new NetworkError("Download returned empty response (0 bytes)");
-        }
-      }
-
-      // Verify the first bytes look like a valid media container (MP4/MOV: ftyp box)
-      if (downloadedData.length >= 8) {
-        const magic = String.fromCharCode(...downloadedData.slice(4, 8));
-        log.info("File header magic", { magic, first16: Array.from(downloadedData.slice(0, 16)) });
-      }
 
       // Save file and import into host app
       const tempPath = await this.saveTempFile(request.fileName, downloadedData);
-      log.info("File saved, importing into project", { tempPath, size: downloadedData.length });
+      log.info("File saved, importing into project", { tempPath, size: downloadedData.byteLength });
       const importResult = await this.hostService.importFile(tempPath);
 
       if (!importResult.success) {
@@ -238,14 +205,12 @@ export class DownloadService {
         log.error("Host import rejected file", {
           tempPath,
           error: errDetail,
-          size: downloadedData.length,
+          size: downloadedData.byteLength,
         });
         throw new Error(
           `Import failed: ${errDetail}\n` +
             `Path: ${tempPath}\n` +
-            `Downloaded: ${downloadedData.length} bytes\n` +
-            `Content-Type: ${contentType}\n` +
-            `URL: ${downloadUrl.substring(0, 120)}`,
+            `Downloaded: ${downloadedData.byteLength} bytes`,
         );
       }
 
@@ -260,7 +225,7 @@ export class DownloadService {
       this.hostService.storeMapping(request.entryId, tempPath);
       log.info("Download and import complete", {
         entryId: request.entryId,
-        size: downloadedData.length,
+        size: downloadedData.byteLength,
       });
 
       return mapping;

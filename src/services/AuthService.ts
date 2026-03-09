@@ -292,7 +292,8 @@ export class AuthService {
         return null;
       }
     } catch (error) {
-      log.error("Failed to restore session", error);
+      log.warn("Failed to restore session (clearing corrupt data)", error);
+      await this.clearSession();
       return null;
     }
   }
