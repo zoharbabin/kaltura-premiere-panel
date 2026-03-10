@@ -226,62 +226,50 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       <sp-divider size="s" className="settings-section-divider" />
 
       {/* Preferences */}
-      <sp-detail size="M" style={{ padding: "0 0 8px" }}>
+      <sp-detail size="M" style={{ marginBottom: "8px" }}>
         Preferences
       </sp-detail>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        <div className="form-group">
-          <label className="form-label">Default Export Preset</label>
-          <sp-picker
-            size="s"
-            value={settings.defaultExportPreset}
-            onChange={(e: Event) =>
-              updateSetting("defaultExportPreset", (e.target as HTMLSelectElement).value)
-            }
-            style={{ width: "100%" }}
-          >
-            <sp-menu-item value="Match Source - Adaptive High Bitrate">
-              Match Source - Adaptive High Bitrate
-            </sp-menu-item>
-            <sp-menu-item value="H.264 - Match Source - High Bitrate">
-              H.264 - High Bitrate
-            </sp-menu-item>
-            <sp-menu-item value="H.264 - Match Source - Medium Bitrate">
-              H.264 - Medium Bitrate
-            </sp-menu-item>
-            <sp-menu-item value="ProRes 422">ProRes 422</sp-menu-item>
-            <sp-menu-item value="ProRes 422 HQ">ProRes 422 HQ</sp-menu-item>
-          </sp-picker>
-        </div>
-
-        {hostAppInfo?.supportsVideo && (
-          <div className="form-group">
-            <label className="form-label">Default Caption Language</label>
-            <sp-picker
-              size="s"
-              value={settings.defaultCaptionLanguage}
-              onChange={(e: Event) =>
-                updateSetting("defaultCaptionLanguage", (e.target as HTMLSelectElement).value)
-              }
-              style={{ width: "100%" }}
-            >
-              <sp-menu-item value="en">English</sp-menu-item>
-              <sp-menu-item value="es">Spanish</sp-menu-item>
-              <sp-menu-item value="fr">French</sp-menu-item>
-              <sp-menu-item value="de">German</sp-menu-item>
-              <sp-menu-item value="ja">Japanese</sp-menu-item>
-              <sp-menu-item value="zh">Chinese</sp-menu-item>
-              <sp-menu-item value="ar">Arabic</sp-menu-item>
-              <sp-menu-item value="pt">Portuguese</sp-menu-item>
-              <sp-menu-item value="ko">Korean</sp-menu-item>
-              <sp-menu-item value="it">Italian</sp-menu-item>
-              <sp-menu-item value="ru">Russian</sp-menu-item>
-              <sp-menu-item value="hi">Hindi</sp-menu-item>
-            </sp-picker>
-          </div>
-        )}
+      <div style={{ marginBottom: 12 }}>
+        <div className="form-label">Default Export Preset</div>
+        <select
+          className="native-select"
+          value={settings.defaultExportPreset}
+          onChange={(e) => updateSetting("defaultExportPreset", e.target.value)}
+        >
+          <option value="Match Source - Adaptive High Bitrate">
+            Match Source - Adaptive High Bitrate
+          </option>
+          <option value="H.264 - Match Source - High Bitrate">H.264 - High Bitrate</option>
+          <option value="H.264 - Match Source - Medium Bitrate">H.264 - Medium Bitrate</option>
+          <option value="ProRes 422">ProRes 422</option>
+          <option value="ProRes 422 HQ">ProRes 422 HQ</option>
+        </select>
       </div>
+
+      {hostAppInfo?.supportsVideo && (
+        <div style={{ marginBottom: 12 }}>
+          <div className="form-label">Default Caption Language</div>
+          <select
+            className="native-select"
+            value={settings.defaultCaptionLanguage}
+            onChange={(e) => updateSetting("defaultCaptionLanguage", e.target.value)}
+          >
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="ja">Japanese</option>
+            <option value="zh">Chinese</option>
+            <option value="ar">Arabic</option>
+            <option value="pt">Portuguese</option>
+            <option value="ko">Korean</option>
+            <option value="it">Italian</option>
+            <option value="ru">Russian</option>
+            <option value="hi">Hindi</option>
+          </select>
+        </div>
+      )}
 
       <sp-divider size="s" className="settings-section-divider" />
 
@@ -304,8 +292,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       </div>
 
       {/* Offline cache size setting */}
-      <div className="form-group" style={{ marginBottom: "8px" }}>
-        <label className="form-label">Max Cache Size (MB)</label>
+      <div style={{ marginBottom: "8px" }}>
+        <div className="form-label">Max Cache Size (MB)</div>
         <sp-textfield
           type="number"
           value={String(settings.maxCacheSizeMB)}
@@ -317,7 +305,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         />
       </div>
 
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", flexWrap: "wrap" }}>
         <sp-button variant="secondary" size="s" onClick={handleClearThumbnailCache}>
           Clear Cache
         </sp-button>
@@ -353,7 +341,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </sp-button>
           ) : (
             <div>
-              <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+              <div style={{ display: "flex", marginBottom: "8px" }}>
                 <sp-button variant="secondary" size="s" onClick={() => setShowAuditLog(false)}>
                   Hide Log
                 </sp-button>

@@ -9,12 +9,12 @@ interface ProgressBarProps {
 export const ProgressBar: React.FC<ProgressBarProps> = ({ value, label, showPercent = true }) => {
   const pct = Math.round(Math.max(0, Math.min(100, value)));
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
       <div
         style={{
           width: "100%",
           height: "6px",
-          backgroundColor: "var(--spectrum-global-color-gray-300, #444)",
+          backgroundColor: "#4a4a4a",
           borderRadius: "3px",
           overflow: "hidden",
         }}
@@ -23,7 +23,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ value, label, showPerc
           style={{
             width: `${pct}%`,
             height: "100%",
-            backgroundColor: "var(--spectrum-global-color-blue-500, #1473e6)",
+            backgroundColor: "#2680eb",
             borderRadius: "3px",
           }}
         />
@@ -34,22 +34,11 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ value, label, showPerc
             display: "flex",
             justifyContent: label ? "space-between" : "center",
             alignItems: "center",
+            marginTop: "8px",
           }}
         >
-          {label && (
-            <span
-              style={{ fontSize: "12px", color: "var(--spectrum-global-color-gray-700, #999)" }}
-            >
-              {label}
-            </span>
-          )}
-          {showPercent && (
-            <span
-              style={{ fontSize: "12px", color: "var(--spectrum-global-color-gray-700, #999)" }}
-            >
-              {pct}%
-            </span>
-          )}
+          {label && <span style={{ fontSize: "12px", color: "#b0b0b0" }}>{label}</span>}
+          {showPercent && <span style={{ fontSize: "12px", color: "#b0b0b0" }}>{pct}%</span>}
         </div>
       )}
     </div>

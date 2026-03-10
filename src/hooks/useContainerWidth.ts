@@ -69,9 +69,15 @@ export function getGridColumns(containerWidth: number): number {
   return 6;
 }
 
-/** Calculate CSS width for a grid card */
-export function getCardWidth(columns: number, gap: number = 8): string {
-  if (columns <= 0) return ""; // Empty = use CSS default width
-  const gapShare = (gap * (columns - 1)) / columns;
-  return `calc(${(100 / columns).toFixed(4)}% - ${gapShare}px)`;
+/**
+ * Calculate pixel width for a grid card.
+ * Uses the actual container width to compute fixed pixel values.
+ * Avoids calc() which is unreliable in UXP.
+ */
+export function getCardWidth(columns: number, gap: number = 8, containerWidth: number = 0): string {
+  if (columns <= 0 || containerWidth <= 0) return ""; // Empty = use CSS default width
+  const totalGap = gap * (columns - 1);
+  const availableWidth = containerWidth - 16 - totalGap; // 16 = grid padding (8px each side)
+  const cardPx = Math.floor(availableWidth / columns);
+  return `${cardPx}px`;
 }

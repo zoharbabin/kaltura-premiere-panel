@@ -46,20 +46,20 @@ describe("FilterBar", () => {
   it("expands filter panel when Filters button clicked", () => {
     const { container } = render(<FilterBar {...defaultProps} />);
     // Initially no pickers visible
-    expect(container.querySelectorAll("sp-picker").length).toBe(0);
+    expect(container.querySelectorAll("select.native-select").length).toBe(0);
 
     fireEvent.click(screen.getByText("Filters"));
-    // After expand, pickers should be visible
-    expect(container.querySelectorAll("sp-picker").length).toBe(3);
+    // After expand, selects should be visible
+    expect(container.querySelectorAll("select.native-select").length).toBe(3);
   });
 
   it("collapses filter panel when Filters button clicked again", () => {
     const { container } = render(<FilterBar {...defaultProps} />);
     fireEvent.click(screen.getByText("Filters"));
-    expect(container.querySelectorAll("sp-picker").length).toBe(3);
+    expect(container.querySelectorAll("select.native-select").length).toBe(3);
 
     fireEvent.click(screen.getByText("Filters"));
-    expect(container.querySelectorAll("sp-picker").length).toBe(0);
+    expect(container.querySelectorAll("select.native-select").length).toBe(0);
   });
 });
 

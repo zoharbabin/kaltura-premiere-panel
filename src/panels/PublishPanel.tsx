@@ -145,7 +145,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
 
   const canExportSequence = !!premiereService.exportActiveSequence;
 
-  // Detect active sequence and pre-fill title
+  // Detect active sequence and pre-fill title (only for new entries)
   useEffect(() => {
     if (!premiereService.isAvailable()) return;
     premiereService
@@ -154,12 +154,12 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         if (seq && seq.name) {
           setSequenceName(seq.name);
           log.info("Active sequence detected", { name: seq.name });
-          if (!title) setTitle(seq.name);
+          if (publishMode === "new" && !title) setTitle(seq.name);
           if (canExportSequence) setSourceMode("sequence");
         }
       })
       .catch(() => {});
-  }, [premiereService, canExportSequence, title]);
+  }, [premiereService, canExportSequence, title, publishMode]);
 
   // Load categories on mount
   useEffect(() => {
@@ -188,12 +188,12 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       });
   }, [auditService]);
 
-  // Pre-fill title from selected file name
+  // Pre-fill title from selected file name (only for new entries)
   useEffect(() => {
-    if (sourceMode === "file" && selectedFile && !title) {
+    if (publishMode === "new" && sourceMode === "file" && selectedFile && !title) {
       setTitle(selectedFile.name.replace(/\.[^.]+$/, ""));
     }
-  }, [sourceMode, selectedFile, title]);
+  }, [publishMode, sourceMode, selectedFile, title]);
 
   const handleSelectFile = useCallback(async () => {
     const file = await pickFile();
@@ -216,7 +216,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
 
   const hasSource = sourceMode === "sequence" || !!selectedFile;
   const canPublish =
-    !!title.trim() && hasSource && (publishMode === "update" ? !!existingEntryId.trim() : true);
+    hasSource && (publishMode === "new" ? !!title.trim() : !!existingEntryId.trim());
 
   /**
    * Core publish flow:
@@ -338,12 +338,17 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         setProgress({ progress: 88, phase: "processing", message: "Replacing content..." });
         await mediaService.updateContent(existingEntryId, token.id);
 
-        setProgress({ progress: 94, phase: "processing", message: "Updating metadata..." });
-        entry = await mediaService.update(existingEntryId, {
-          name: title.trim(),
-          description: description.trim(),
-          tags: tags.trim(),
-        });
+        const updateData: Partial<KalturaMediaEntry> = {};
+        if (title.trim()) updateData.name = title.trim();
+        if (description.trim()) updateData.description = description.trim();
+        if (tags.trim()) updateData.tags = tags.trim();
+
+        if (Object.keys(updateData).length > 0) {
+          setProgress({ progress: 94, phase: "processing", message: "Updating metadata..." });
+          entry = await mediaService.update(existingEntryId, updateData);
+        } else {
+          entry = await mediaService.get(existingEntryId);
+        }
         log.info("Update complete", { entryId: entry.id });
         auditService?.logAction("update_metadata", entry.id, `Updated: ${entry.name}`);
       }
@@ -450,7 +455,6 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           justifyContent: "center",
           height: "100%",
           padding: "24px",
-          gap: "16px",
         }}
       >
         {/* Step dots */}
@@ -486,7 +490,10 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     <div className="panel-root panel-padding">
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
-      <div className="flex-col" style={{ flex: 1, overflowY: "auto", gap: "4px" }}>
+      <div
+        className="flex-col"
+        style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", overflowY: "auto" }}
+      >
         {/* Publish mode toggle */}
         <div style={{ marginBottom: "8px" }}>
           <SegmentedControl
@@ -495,14 +502,21 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
               { value: "update" as PublishMode, label: "Replace Existing" },
             ]}
             value={publishMode}
-            onChange={setPublishMode}
+            onChange={(mode: PublishMode) => {
+              setPublishMode(mode);
+              if (mode === "update") {
+                setTitle("");
+                setDescription("");
+                setTags("");
+              }
+            }}
           />
         </div>
 
         {/* Source section — always visible */}
         {publishMode === "update" && (
-          <div className="form-group">
-            <label className="form-label form-label--required">Entry ID</label>
+          <div style={{ marginBottom: 12 }}>
+            <div className="form-label">Entry ID *</div>
             <sp-textfield
               placeholder="Kaltura Entry ID (e.g. 0_abc123)"
               value={existingEntryId}
@@ -531,7 +545,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         ) : null}
 
         {/* Source switcher */}
-        <div style={{ display: "flex", gap: "8px", alignItems: "center", margin: "4px 0 8px" }}>
+        <div style={{ display: "flex", alignItems: "center", marginTop: 4, marginBottom: 8 }}>
           {sourceMode === "file" && (
             <sp-action-button quiet size="s" onClick={handleSelectFile}>
               {selectedFile ? "Change file" : "Select a file"}
@@ -549,83 +563,76 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           )}
         </div>
 
-        {/* Basic Info — always expanded */}
-        <AccordionSection title="BASIC INFO" defaultExpanded={true}>
-          <div className="form-group">
-            <label className="form-label form-label--required">Title</label>
-            <sp-textfield
-              placeholder="Video title"
-              value={title}
-              onInput={(e: Event) => setTitle((e.target as HTMLInputElement).value)}
-              style={{ width: "100%" }}
-            />
-          </div>
+        {/* Basic Info — shown directly (no accordion for required fields) */}
+        <div className="form-label">{publishMode === "new" ? "Title *" : "Title (optional)"}</div>
+        <sp-textfield
+          placeholder={publishMode === "new" ? "Video title" : "Leave empty to keep current title"}
+          value={title}
+          onInput={(e: Event) => setTitle((e.target as HTMLInputElement).value)}
+          style={{ width: "100%", marginBottom: 12 }}
+        />
 
-          <div className="form-group">
-            <label className="form-label">Description</label>
-            <sp-textarea
-              placeholder="Video description"
-              value={description}
-              onInput={(e: Event) => setDescription((e.target as HTMLTextAreaElement).value)}
-              style={{ width: "100%" }}
-            />
-          </div>
+        <div className="form-label">Description</div>
+        <sp-textarea
+          placeholder="Video description"
+          value={description}
+          onInput={(e: Event) => setDescription((e.target as HTMLTextAreaElement).value)}
+          style={{ width: "100%", marginBottom: 12 }}
+        />
 
-          <div className="form-group">
-            <label className="form-label">Tags</label>
-            <sp-textfield
-              placeholder="Comma-separated tags"
-              value={tags}
-              onInput={(e: Event) => setTags((e.target as HTMLInputElement).value)}
-              style={{ width: "100%" }}
-            />
-          </div>
-        </AccordionSection>
+        <div className="form-label">Tags</div>
+        <sp-textfield
+          placeholder="Comma-separated tags"
+          value={tags}
+          onInput={(e: Event) => setTags((e.target as HTMLInputElement).value)}
+          style={{ width: "100%", marginBottom: 12 }}
+        />
 
         {/* Publishing Options — collapsed by default */}
         {publishMode === "new" && (
           <AccordionSection title="PUBLISHING OPTIONS" summary={optionsSummary}>
             {/* Categories */}
             {categories.length > 0 && (
-              <div className="form-group">
-                <label className="form-label">
+              <div style={{ marginBottom: 12 }}>
+                <div className="form-label">
                   Categories
                   {selectedCategoryIds.length > 0 ? ` (${selectedCategoryIds.length})` : ""}
-                </label>
+                </div>
                 <div
                   style={{
                     maxHeight: "120px",
                     overflowY: "auto",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    border: "1px solid #3e3e3e",
                     borderRadius: "4px",
                     padding: "4px",
                   }}
                 >
                   {categories.map((cat) => (
-                    <label
+                    <div
                       key={cat.id}
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "6px",
                         padding: "3px 4px",
                         fontSize: "12px",
                         cursor: "pointer",
+                      }}
+                      onClick={() => {
+                        if (selectedCategoryIds.includes(cat.id)) {
+                          setSelectedCategoryIds((prev) => prev.filter((id) => id !== cat.id));
+                        } else {
+                          setSelectedCategoryIds((prev) => [...prev, cat.id]);
+                        }
                       }}
                     >
                       <input
                         type="checkbox"
                         checked={selectedCategoryIds.includes(cat.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedCategoryIds((prev) => [...prev, cat.id]);
-                          } else {
-                            setSelectedCategoryIds((prev) => prev.filter((id) => id !== cat.id));
-                          }
-                        }}
+                        readOnly
+                        style={{ marginRight: 6 }}
                       />
-                      {formatCategoryName(cat.fullName || cat.name)}
-                    </label>
+                      <span>{formatCategoryName(cat.fullName || cat.name)}</span>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -633,8 +640,8 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
 
             {/* Schedule */}
             {publishWorkflowService && (
-              <div className="form-group">
-                <label className="form-label">Schedule</label>
+              <div style={{ marginBottom: 12 }}>
+                <div className="form-label">Schedule</div>
                 <sp-textfield
                   type="datetime-local"
                   value={scheduledDate}
@@ -642,28 +649,20 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
                   style={{ width: "100%" }}
                   placeholder="Leave empty to publish immediately"
                 />
-                <span className="form-helper">Leave empty to publish immediately</span>
+                <div className="form-helper">Leave empty to publish immediately</div>
               </div>
             )}
 
             {/* Access control */}
             {accessControlProfiles.length > 0 && (
-              <div className="form-group">
-                <label className="form-label">Access Control</label>
+              <div style={{ marginBottom: 12 }}>
+                <div className="form-label">Access Control</div>
                 <select
+                  className="native-select"
                   value={selectedAccessControlId != null ? String(selectedAccessControlId) : ""}
                   onChange={(e) => {
                     const val = e.target.value;
                     setSelectedAccessControlId(val ? Number(val) : null);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "7px 8px",
-                    fontSize: "12px",
-                    background: "rgba(255, 255, 255, 0.06)",
-                    border: "1px solid rgba(255, 255, 255, 0.15)",
-                    borderRadius: "4px",
-                    color: "inherit",
                   }}
                 >
                   {accessControlProfiles.map((profile) => (
@@ -673,7 +672,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
                     </option>
                   ))}
                 </select>
-                <span className="form-helper">Controls who can view the published content</span>
+                <div className="form-helper">Controls who can view the published content</div>
               </div>
             )}
           </AccordionSection>

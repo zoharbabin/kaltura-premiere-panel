@@ -8,10 +8,10 @@ interface StatusBarProps {
 }
 
 const stateColors: Record<ConnectionState, string> = {
-  [ConnectionState.CONNECTED]: "var(--spectrum-global-color-green-500)",
-  [ConnectionState.CONNECTING]: "var(--spectrum-global-color-yellow-500)",
-  [ConnectionState.DISCONNECTED]: "var(--spectrum-global-color-gray-500)",
-  [ConnectionState.ERROR]: "var(--spectrum-global-color-red-500)",
+  [ConnectionState.CONNECTED]: "#2d9d78",
+  [ConnectionState.CONNECTING]: "#c9a21e",
+  [ConnectionState.DISCONNECTED]: "#6e6e6e",
+  [ConnectionState.ERROR]: "#e34850",
 };
 
 const stateLabels: Record<ConnectionState, string> = {
@@ -23,7 +23,7 @@ const stateLabels: Record<ConnectionState, string> = {
 
 export const StatusBar: React.FC<StatusBarProps> = ({ connectionState, statusMessage }) => (
   <div className="status-bar">
-    <div className="flex-row gap-6">
+    <div className="flex-row">
       <div className="status-dot" style={{ backgroundColor: stateColors[connectionState] }} />
       <span>{statusMessage || stateLabels[connectionState]}</span>
     </div>

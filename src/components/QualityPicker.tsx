@@ -50,15 +50,16 @@ export const QualityPicker: React.FC<QualityPickerProps> = ({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "8px",
         padding: "12px",
-        backgroundColor: "var(--spectrum-global-color-gray-100)",
+        backgroundColor: "#323232",
         borderRadius: "4px",
       }}
     >
-      <sp-detail size="M">Select Quality</sp-detail>
+      <sp-detail size="M" style={{ marginBottom: 8 }}>
+        Select Quality
+      </sp-detail>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      <div style={{ display: "flex", flexDirection: "column" }}>
         {sorted.map((flavor) => (
           <div
             key={flavor.id}
@@ -66,26 +67,20 @@ export const QualityPicker: React.FC<QualityPickerProps> = ({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "8px",
               padding: "8px",
               borderRadius: "4px",
               cursor: "pointer",
-              border:
-                selectedFlavorId === flavor.id
-                  ? "2px solid var(--spectrum-global-color-blue-500)"
-                  : "1px solid var(--spectrum-global-color-gray-300)",
-              backgroundColor:
-                selectedFlavorId === flavor.id
-                  ? "var(--spectrum-global-color-blue-100)"
-                  : "transparent",
+              marginBottom: "4px",
+              border: selectedFlavorId === flavor.id ? "2px solid #2680eb" : "1px solid #4a4a4a",
+              backgroundColor: selectedFlavorId === flavor.id ? "#1a3a5c" : "transparent",
             }}
           >
-            <div style={{ flex: 1 }}>
+            <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%" }}>
               <div style={{ fontSize: "12px", fontWeight: 600 }}>{getFlavorLabel(flavor)}</div>
               <div
                 style={{
                   fontSize: "10px",
-                  color: "var(--spectrum-global-color-gray-600)",
+                  color: "#8b8b8b",
                   marginTop: "2px",
                 }}
               >
@@ -100,16 +95,14 @@ export const QualityPicker: React.FC<QualityPickerProps> = ({
               </div>
             </div>
             {flavor.isWeb && (
-              <span style={{ fontSize: "10px", color: "var(--spectrum-global-color-green-600)" }}>
-                Web
-              </span>
+              <span style={{ fontSize: "10px", color: "#2d9d78", marginLeft: 8 }}>Web</span>
             )}
           </div>
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "4px" }}>
-        <sp-button variant="secondary" size="s" onClick={onCancel}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
+        <sp-button variant="secondary" size="s" onClick={onCancel} style={{ marginRight: 8 }}>
           Cancel
         </sp-button>
         <sp-button

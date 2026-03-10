@@ -116,18 +116,28 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
         {/* Auth mode toggle */}
         {onSsoLogin && (
           <div className="login-toggle">
-            <button
+            <div
+              role="button"
+              tabIndex={0}
               className={`login-toggle-btn${authMode === "email" ? " login-toggle-btn--active" : ""}`}
               onClick={() => setAuthMode("email")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setAuthMode("email");
+              }}
             >
               Email
-            </button>
-            <button
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
               className={`login-toggle-btn${authMode === "sso" ? " login-toggle-btn--active" : ""}`}
               onClick={() => setAuthMode("sso")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setAuthMode("sso");
+              }}
             >
               SSO
-            </button>
+            </div>
           </div>
         )}
 

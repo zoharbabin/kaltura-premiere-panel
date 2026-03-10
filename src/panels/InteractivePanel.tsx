@@ -206,7 +206,7 @@ export const InteractivePanel: React.FC<InteractivePanelProps> = ({
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", overflowY: "auto" }}>
         {view === "chapters" && (
           <ChaptersView
             chapters={chapters}
@@ -255,10 +255,7 @@ const ChaptersView: React.FC<{
     )}
 
     {/* Add chapter form */}
-    <div
-      className="flex-col gap-4"
-      style={{ borderTop: "1px solid var(--spectrum-global-color-gray-300)", paddingTop: 8 }}
-    >
+    <div className="flex-col gap-4" style={{ borderTop: "1px solid #4a4a4a", paddingTop: 8 }}>
       <sp-heading size="s">Add Chapter</sp-heading>
       <div className="flex-row gap-4">
         <sp-textfield
@@ -266,7 +263,7 @@ const ChaptersView: React.FC<{
           placeholder="Chapter title"
           value={newTitle}
           onInput={(e: Event) => onTitleChange((e.target as HTMLInputElement).value)}
-          style={{ flex: 1 }}
+          style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%" }}
         />
         <sp-textfield
           size="s"

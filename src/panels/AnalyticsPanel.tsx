@@ -119,7 +119,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", overflowY: "auto" }}>
         {view === "overview" && stats && <OverviewView stats={stats} />}
         {view === "moments" && <MomentsView moments={moments} />}
         {view === "dropoff" && <DropOffView dropoffs={dropoffs} />}
