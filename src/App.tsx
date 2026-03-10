@@ -231,17 +231,20 @@ export const App: React.FC = () => {
 
         {/* Overflow menu for entry-specific tabs */}
         <div className="tab-overflow" ref={overflowRef}>
-          <button
+          <div
+            role="button"
+            tabIndex={0}
             className={`tab-overflow-trigger${isOverflowTabActive ? " tab-overflow-trigger--active" : ""}`}
             onClick={() => setShowOverflow((prev) => !prev)}
             onKeyDown={(e) => {
               if (e.key === "Escape") setShowOverflow(false);
+              if (e.key === "Enter" || e.key === " ") setShowOverflow((prev) => !prev);
             }}
             aria-label="More tabs"
             aria-expanded={showOverflow}
           >
             {"\u00B7\u00B7\u00B7"}
-          </button>
+          </div>
           {showOverflow && (
             <div className="tab-overflow-menu" role="menu">
               {visibleOverflowTabs.map((tab) => (
