@@ -25,7 +25,6 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ value, label, showPerc
             height: "100%",
             backgroundColor: "var(--spectrum-global-color-blue-500, #1473e6)",
             borderRadius: "3px",
-            transition: "width 0.3s ease",
           }}
         />
       </div>

@@ -230,9 +230,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         Preferences
       </sp-detail>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        <div>
-          <sp-detail size="S">Default Export Preset</sp-detail>
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="form-group">
+          <label className="form-label">Default Export Preset</label>
           <sp-picker
             size="s"
             value={settings.defaultExportPreset}
@@ -256,8 +256,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </div>
 
         {hostAppInfo?.supportsVideo && (
-          <div>
-            <sp-detail size="S">Default Caption Language</sp-detail>
+          <div className="form-group">
+            <label className="form-label">Default Caption Language</label>
             <sp-picker
               size="s"
               value={settings.defaultCaptionLanguage}
@@ -304,8 +304,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       </div>
 
       {/* Offline cache size setting */}
-      <div style={{ marginBottom: "8px" }}>
-        <sp-detail size="S">Max Cache Size (MB)</sp-detail>
+      <div className="form-group" style={{ marginBottom: "8px" }}>
+        <label className="form-label">Max Cache Size (MB)</label>
         <sp-textfield
           type="number"
           value={String(settings.maxCacheSizeMB)}
