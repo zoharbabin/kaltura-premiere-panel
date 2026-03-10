@@ -181,7 +181,7 @@ export const CaptionsPanel: React.FC<CaptionsPanelProps> = ({
         )}
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", overflowY: "auto" }}>
         {view === "tracks" && (
           <CaptionTrackList captions={captions} tasks={tasks} captionService={captionService} />
         )}
@@ -242,9 +242,7 @@ const CaptionTrackList: React.FC<{
               <span
                 className={task.status === KalturaVendorTaskStatus.ERROR ? "text-error" : undefined}
                 style={
-                  task.status !== KalturaVendorTaskStatus.ERROR
-                    ? { color: "var(--spectrum-global-color-blue-500)" }
-                    : undefined
+                  task.status !== KalturaVendorTaskStatus.ERROR ? { color: "#2680eb" } : undefined
                 }
               >
                 {captionService.getTaskStatusLabel(task.status)}
@@ -299,18 +297,17 @@ const OrderCaptionsView: React.FC<{
   <div className="flex-col gap-12">
     <div>
       <sp-detail size="S">Source Language</sp-detail>
-      <sp-picker
-        size="s"
+      <select
+        className="native-select"
         value={sourceLanguage}
-        onChange={(e: Event) => onSourceLanguageChange((e.target as HTMLSelectElement).value)}
-        style={{ width: "100%" }}
+        onChange={(e) => onSourceLanguageChange(e.target.value)}
       >
         {LANGUAGES.map((lang) => (
-          <sp-menu-item key={lang.code} value={lang.code}>
+          <option key={lang.code} value={lang.code}>
             {lang.name}
-          </sp-menu-item>
+          </option>
         ))}
-      </sp-picker>
+      </select>
     </div>
 
     <div>
@@ -367,18 +364,17 @@ const TranslateView: React.FC<{
   <div className="flex-col gap-12">
     <div>
       <sp-detail size="S">Source Language</sp-detail>
-      <sp-picker
-        size="s"
+      <select
+        className="native-select"
         value={sourceLanguage}
-        onChange={(e: Event) => onSourceLanguageChange((e.target as HTMLSelectElement).value)}
-        style={{ width: "100%" }}
+        onChange={(e) => onSourceLanguageChange(e.target.value)}
       >
         {LANGUAGES.map((lang) => (
-          <sp-menu-item key={lang.code} value={lang.code}>
+          <option key={lang.code} value={lang.code}>
             {lang.name}
-          </sp-menu-item>
+          </option>
         ))}
-      </sp-picker>
+      </select>
     </div>
 
     <div>

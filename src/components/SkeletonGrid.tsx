@@ -9,10 +9,7 @@ interface SkeletonGridProps {
  * Skeleton placeholder cards shown while the browse grid is loading.
  * Uses a JS-driven pulse toggle since UXP doesn't support CSS animations.
  */
-export const SkeletonGrid: React.FC<SkeletonGridProps> = ({
-  count = 6,
-  columnWidth = "calc(33.33% - 6px)",
-}) => {
+export const SkeletonGrid: React.FC<SkeletonGridProps> = ({ count = 6, columnWidth }) => {
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {
@@ -26,7 +23,7 @@ export const SkeletonGrid: React.FC<SkeletonGridProps> = ({
         <div
           key={i}
           className={`skeleton-card${pulse ? " skeleton-pulse" : ""}`}
-          style={{ width: columnWidth }}
+          style={columnWidth ? { width: columnWidth } : undefined}
         >
           <div className="skeleton-thumb" />
           <div className="skeleton-title" />

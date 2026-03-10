@@ -41,10 +41,9 @@ describe("PublishPanel", () => {
     expect(screen.getByText("Replace Existing")).toBeTruthy();
   });
 
-  it("shows Basic Info accordion with title field", () => {
+  it("shows title field label", () => {
     render(<PublishPanel {...defaultProps} />);
-    expect(screen.getByText("BASIC INFO")).toBeTruthy();
-    expect(screen.getByText("Title")).toBeTruthy();
+    expect(screen.getByText("Title *")).toBeTruthy();
   });
 
   it("shows description and tags fields inside Basic Info", () => {

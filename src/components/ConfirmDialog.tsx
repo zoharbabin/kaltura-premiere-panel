@@ -29,7 +29,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      backgroundColor: "#000000",
       zIndex: 1000,
     }}
     onClick={onCancel}
@@ -37,12 +37,12 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     <div
       onClick={(e) => e.stopPropagation()}
       style={{
-        backgroundColor: "var(--spectrum-global-color-gray-100)",
+        backgroundColor: "#323232",
         borderRadius: "4px",
         padding: "16px",
         maxWidth: "320px",
         width: "90%",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+        border: "1px solid #4a4a4a",
       }}
     >
       <sp-heading size="XS" style={{ marginBottom: "8px" }}>
@@ -51,8 +51,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       <sp-body size="S" style={{ marginBottom: "16px" }}>
         {message}
       </sp-body>
-      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-        <sp-button variant="secondary" size="s" onClick={onCancel}>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <sp-button variant="secondary" size="s" onClick={onCancel} style={{ marginRight: 8 }}>
           {cancelLabel}
         </sp-button>
         <sp-button variant={variant} size="s" onClick={onConfirm}>

@@ -115,20 +115,23 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
     .filter(Boolean);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "8px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div style={{ display: "flex", flexDirection: "column", padding: "8px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        }}
+      >
         <sp-detail size="M">Edit Metadata</sp-detail>
-        {hasChanges && (
-          <span style={{ fontSize: "10px", color: "var(--spectrum-global-color-orange-500)" }}>
-            Unsaved changes
-          </span>
-        )}
+        {hasChanges && <span style={{ fontSize: "10px", color: "#e68619" }}>Unsaved changes</span>}
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {/* Title */}
-      <div>
+      <div style={{ marginBottom: 12 }}>
         <sp-detail size="S">Title *</sp-detail>
         <sp-textfield
           placeholder="Video title"
@@ -139,7 +142,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
       </div>
 
       {/* Description */}
-      <div>
+      <div style={{ marginBottom: 12 }}>
         <sp-detail size="S">Description</sp-detail>
         <sp-textarea
           placeholder="Video description"
@@ -150,26 +153,27 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
       </div>
 
       {/* Tags */}
-      <div>
+      <div style={{ marginBottom: 12 }}>
         <sp-detail size="S">Tags</sp-detail>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "4px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", marginBottom: "4px" }}>
           {tagList.map((tag) => (
             <span
               key={tag}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "4px",
                 padding: "2px 8px",
-                backgroundColor: "var(--spectrum-global-color-gray-200)",
+                backgroundColor: "#3e3e3e",
                 borderRadius: "12px",
                 fontSize: "11px",
+                marginRight: "4px",
+                marginBottom: "4px",
               }}
             >
               {tag}
               <span
                 onClick={() => removeTag(tag)}
-                style={{ cursor: "pointer", fontWeight: "bold", opacity: 0.6 }}
+                style={{ cursor: "pointer", fontWeight: "bold", marginLeft: 4, color: "#8b8b8b" }}
               >
                 x
               </span>
@@ -191,7 +195,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
         {tagSuggestions.length > 0 && (
           <div
             style={{
-              border: "1px solid var(--spectrum-global-color-gray-300)",
+              border: "1px solid #4a4a4a",
               borderRadius: "4px",
               marginTop: "2px",
               maxHeight: "120px",
@@ -216,8 +220,8 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
       </div>
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-        <sp-button variant="secondary" size="s" onClick={handleCancel}>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <sp-button variant="secondary" size="s" onClick={handleCancel} style={{ marginRight: 8 }}>
           Cancel
         </sp-button>
         <sp-button

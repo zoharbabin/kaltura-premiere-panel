@@ -162,7 +162,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   const gridRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(gridRef);
   const gridColumns = getGridColumns(containerWidth);
-  const cardWidth = getCardWidth(gridColumns);
+  const cardWidth = getCardWidth(gridColumns, 8, containerWidth);
   const activeFilterCount = countActiveFilters(filters);
 
   const buildFilter = useCallback((): KalturaMediaEntryFilter => {
@@ -379,7 +379,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
           value={searchText}
           onInput={(e: Event) => setSearchText((e.target as HTMLInputElement).value)}
           onSubmit={(e: Event) => e.preventDefault()}
-          style={{ flex: 1, minWidth: 0, width: "100%" }}
+          style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", minWidth: 0, width: "100%" }}
           size="s"
         />
         <sp-action-button
@@ -596,12 +596,12 @@ const ListRow: React.FC<ListRowProps> = ({
           </span>
         )}
         {getLicenseStatus(entry) === "expired" && (
-          <span style={{ color: "var(--spectrum-global-color-orange-600)", marginLeft: 4 }}>
+          <span className="text-warning-orange" style={{ marginLeft: 4 }}>
             License expired
           </span>
         )}
         {getLicenseStatus(entry) === "expiring" && (
-          <span style={{ color: "var(--spectrum-global-color-yellow-700)", marginLeft: 4 }}>
+          <span className="text-warning-yellow" style={{ marginLeft: 4 }}>
             Expiring: {formatDate(entry.endDate!)}
           </span>
         )}

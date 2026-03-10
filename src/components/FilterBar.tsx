@@ -44,7 +44,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
   return (
     <div className="filter-bar">
-      <div style={{ display: "flex", alignItems: "center", padding: "4px 8px", gap: "8px" }}>
+      <div style={{ display: "flex", alignItems: "center", padding: "4px 8px" }}>
         <sp-action-button quiet size="s" onClick={() => setExpanded(!expanded)}>
           Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </sp-action-button>
@@ -60,58 +60,54 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           style={{
             display: "flex",
             flexWrap: "wrap",
-            gap: "8px",
             padding: "4px 8px 8px",
           }}
         >
           {/* Media Type */}
-          <sp-picker
-            size="s"
-            label="Type"
+          <select
+            className="native-select"
             value={filters.mediaType?.toString() ?? ""}
-            onChange={(e: Event) => {
-              const val = (e.target as HTMLSelectElement).value;
+            onChange={(e) => {
+              const val = e.target.value;
               updateFilter("mediaType", val ? (parseInt(val) as KalturaMediaType) : null);
             }}
-            style={{ minWidth: "100px" }}
+            style={{ minWidth: "100px", maxWidth: "140px", marginRight: "8px" }}
           >
-            <sp-menu-item value="">All types</sp-menu-item>
-            <sp-menu-item value={String(KalturaMediaType.VIDEO)}>Video</sp-menu-item>
-            <sp-menu-item value={String(KalturaMediaType.AUDIO)}>Audio</sp-menu-item>
-            <sp-menu-item value={String(KalturaMediaType.IMAGE)}>Image</sp-menu-item>
-          </sp-picker>
+            <option value="">All types</option>
+            <option value={String(KalturaMediaType.VIDEO)}>Video</option>
+            <option value={String(KalturaMediaType.AUDIO)}>Audio</option>
+            <option value={String(KalturaMediaType.IMAGE)}>Image</option>
+          </select>
 
           {/* Date Range */}
-          <sp-picker
-            size="s"
-            label="Date"
+          <select
+            className="native-select"
             value={filters.dateRange ?? ""}
-            onChange={(e: Event) => {
-              const val = (e.target as HTMLSelectElement).value;
+            onChange={(e) => {
+              const val = e.target.value;
               updateFilter("dateRange", (val as DateRange) || null);
             }}
-            style={{ minWidth: "100px" }}
+            style={{ minWidth: "100px", maxWidth: "140px", marginRight: "8px" }}
           >
-            <sp-menu-item value="">Any time</sp-menu-item>
-            <sp-menu-item value="week">Last week</sp-menu-item>
-            <sp-menu-item value="month">Last month</sp-menu-item>
-            <sp-menu-item value="quarter">Last quarter</sp-menu-item>
-            <sp-menu-item value="year">Last year</sp-menu-item>
-          </sp-picker>
+            <option value="">Any time</option>
+            <option value="week">Last week</option>
+            <option value="month">Last month</option>
+            <option value="quarter">Last quarter</option>
+            <option value="year">Last year</option>
+          </select>
 
           {/* Owner */}
-          <sp-picker
-            size="s"
-            label="Owner"
+          <select
+            className="native-select"
             value={filters.ownerFilter}
-            onChange={(e: Event) => {
-              updateFilter("ownerFilter", (e.target as HTMLSelectElement).value as OwnerFilter);
+            onChange={(e) => {
+              updateFilter("ownerFilter", e.target.value as OwnerFilter);
             }}
-            style={{ minWidth: "100px" }}
+            style={{ minWidth: "100px", maxWidth: "140px", marginRight: "8px" }}
           >
-            <sp-menu-item value="all">All content</sp-menu-item>
-            <sp-menu-item value="mine">My content</sp-menu-item>
-          </sp-picker>
+            <option value="all">All content</option>
+            <option value="mine">My content</option>
+          </select>
         </div>
       )}
     </div>

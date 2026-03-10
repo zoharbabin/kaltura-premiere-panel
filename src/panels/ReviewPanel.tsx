@@ -179,8 +179,8 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ reviewService, entryId
       {syncStatus && <div className="sync-banner">{syncStatus}</div>}
 
       {/* Sync controls */}
-      <div className="flex-row gap-4" style={{ marginBottom: 8 }}>
-        <sp-action-button quiet size="s" onClick={handleSyncToMarkers}>
+      <div className="flex-row" style={{ marginBottom: 8 }}>
+        <sp-action-button quiet size="s" onClick={handleSyncToMarkers} style={{ marginRight: 4 }}>
           Pull to Markers
         </sp-action-button>
         <sp-action-button quiet size="s" onClick={handleSyncFromMarkers}>
@@ -189,23 +189,26 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ reviewService, entryId
       </div>
 
       {/* Annotation list */}
-      <div style={{ flex: 1, overflowY: "auto", marginBottom: 8 }}>
+      <div
+        style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", overflowY: "auto", marginBottom: 8 }}
+      >
         {rootAnnotations.length === 0 ? (
           <EmptyState title="No comments" description="Add a comment below to start a review." />
         ) : (
-          <div className="flex-col gap-8">
+          <div className="flex-col">
             {rootAnnotations.map((annotation) => (
-              <AnnotationCard
-                key={annotation.id}
-                annotation={annotation}
-                replies={repliesMap.get(annotation.id) || []}
-                isReplying={replyTo === annotation.id}
-                replyText={replyText}
-                onReplyClick={() => setReplyTo(replyTo === annotation.id ? null : annotation.id)}
-                onReplyTextChange={setReplyText}
-                onReplySubmit={handleAddReply}
-                onDelete={handleDelete}
-              />
+              <div key={annotation.id} style={{ marginBottom: 8 }}>
+                <AnnotationCard
+                  annotation={annotation}
+                  replies={repliesMap.get(annotation.id) || []}
+                  isReplying={replyTo === annotation.id}
+                  replyText={replyText}
+                  onReplyClick={() => setReplyTo(replyTo === annotation.id ? null : annotation.id)}
+                  onReplyTextChange={setReplyText}
+                  onReplySubmit={handleAddReply}
+                  onDelete={handleDelete}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -216,25 +219,24 @@ export const ReviewPanel: React.FC<ReviewPanelProps> = ({ reviewService, entryId
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "4px",
-          borderTop: "1px solid var(--spectrum-global-color-gray-300)",
+          borderTop: "1px solid #3e3e3e",
           paddingTop: "8px",
         }}
       >
-        <div style={{ display: "flex", gap: "4px" }}>
+        <div style={{ display: "flex", marginBottom: 4 }}>
           <sp-textfield
             size="s"
             placeholder="Timecode (e.g. 1:30)"
             value={newTimestamp}
             onInput={(e: Event) => setNewTimestamp((e.target as HTMLInputElement).value)}
-            style={{ width: "80px" }}
+            style={{ width: "80px", marginRight: 4 }}
           />
           <sp-textfield
             size="s"
             placeholder="Add a comment..."
             value={newComment}
             onInput={(e: Event) => setNewComment((e.target as HTMLInputElement).value)}
-            style={{ flex: 1 }}
+            style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%" }}
           />
         </div>
         <sp-button
@@ -275,8 +277,8 @@ const AnnotationCard: React.FC<{
   <div className="card-item">
     {/* Header */}
     <div className="card-item-header">
-      <div className="flex-row gap-8">
-        <span style={{ fontWeight: 600 }}>{annotation.userId || "Anonymous"}</span>
+      <div className="flex-row">
+        <span style={{ fontWeight: 600, marginRight: 8 }}>{annotation.userId || "Anonymous"}</span>
         <span className="text-muted-light" style={{ fontSize: 10 }}>
           {formatTimestamp(annotation.startTime)}
           {annotation.endTime ? ` - ${formatTimestamp(annotation.endTime)}` : ""}
@@ -288,7 +290,7 @@ const AnnotationCard: React.FC<{
     </div>
 
     {/* Text */}
-    <div className="card-item-body" style={{ margin: "4px 0" }}>
+    <div className="card-item-body" style={{ marginTop: 4, marginBottom: 4 }}>
       {annotation.text}
     </div>
 
@@ -319,13 +321,13 @@ const AnnotationCard: React.FC<{
 
     {/* Reply form */}
     {isReplying && (
-      <div style={{ display: "flex", gap: "4px", marginTop: "8px" }}>
+      <div style={{ display: "flex", marginTop: "8px" }}>
         <sp-textfield
           size="s"
           placeholder="Write a reply..."
           value={replyText}
           onInput={(e: Event) => onReplyTextChange((e.target as HTMLInputElement).value)}
-          style={{ flex: 1 }}
+          style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", marginRight: 4 }}
         />
         <sp-button
           size="s"

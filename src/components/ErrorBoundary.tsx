@@ -47,7 +47,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             justifyContent: "center",
             height: "100%",
             padding: "24px",
-            gap: "16px",
+            /* no gap — use margin on children */
             textAlign: "center",
           }}
         >
