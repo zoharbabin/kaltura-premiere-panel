@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useState, useCallback } from "react";
+import React, { Suspense, useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { TabId, KalturaMediaEntry, KalturaFlavorAsset } from "./types";
 import {
   KalturaClient,
@@ -46,6 +46,14 @@ import { createLogger } from "./utils/logger";
 const log = createLogger("App");
 const PARTNER_ID = 0; // Set by login
 
+/** Tabs shown in the overflow menu (entry-specific or secondary) */
+const OVERFLOW_TABS: { id: TabId; label: string; requiresVideo?: boolean }[] = [
+  { id: "captions", label: "Captions", requiresVideo: true },
+  { id: "review", label: "Review" },
+  { id: "analytics", label: "Analytics", requiresVideo: true },
+  { id: "interactive", label: "Interactive", requiresVideo: true },
+];
+
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>("browse");
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -53,6 +61,20 @@ export const App: React.FC = () => {
   const [importStatus, setImportStatus] = useState<{ message: string; isError: boolean } | null>(
     null,
   );
+  const [showOverflow, setShowOverflow] = useState(false);
+  const overflowRef = useRef<HTMLDivElement>(null);
+
+  // Close overflow menu on outside click
+  useEffect(() => {
+    if (!showOverflow) return;
+    const handleClick = (e: MouseEvent) => {
+      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
+        setShowOverflow(false);
+      }
+    };
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [showOverflow]);
 
   // Initialize services (memoized)
   const client = useMemo(
@@ -93,10 +115,13 @@ export const App: React.FC = () => {
   );
   const offlineService = useMemo(() => new OfflineService(), []);
 
+  // Suppress unused-var warnings for services wired but not directly referenced
+  void notificationService;
+
   const { authState, login, loginWithSso, cancelSso, logout, isLoading, error, clearError } =
     useAuth(client, authService);
 
-  // Update client when auth changes; log auth events
+  // Update client when auth changes
   React.useEffect(() => {
     if (authState.partnerId) {
       client.configure({ partnerId: authState.partnerId });
@@ -106,13 +131,9 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     if (authState.isAuthenticated) {
       auditService.logAction("login", undefined, `User: ${authState.user?.email}`);
-      // Sync import mappings with the current project so isImported is accurate
       hostService.syncWithProject?.();
     }
   }, [authState.isAuthenticated, authState.user?.email, auditService, hostService]);
-
-  // NotificationService: disabled — no components consume its events yet.
-  // Re-enable when a panel needs real-time entry status updates.
 
   const handleServerUrlChange = useCallback(
     (url: string) => {
@@ -151,11 +172,30 @@ export const App: React.FC = () => {
   const handlePublished = useCallback((entry: KalturaMediaEntry) => {
     setSelectedEntryId(entry.id);
     setSelectedEntryName(entry.name);
-    // Defer tab switch by one frame — UXP's Spectrum Web Components crash
-    // (AssertionError in preCreateCallback) if we destroy and create SWC
-    // elements in the same synchronous React render cycle.
+    // Defer tab switch — UXP SWC crash prevention (see docs/UXP_LESSONS_LEARNED.md)
     setTimeout(() => setActiveTab("browse"), 0);
   }, []);
+
+  const handleTabSwitch = useCallback((id: TabId) => {
+    // Defer all tab switches to prevent SWC assertion crashes
+    setTimeout(() => setActiveTab(id), 0);
+  }, []);
+
+  const handleOverflowTab = useCallback(
+    (id: TabId) => {
+      setShowOverflow(false);
+      handleTabSwitch(id);
+    },
+    [handleTabSwitch],
+  );
+
+  // Check if the active tab is in the overflow menu
+  const isOverflowTabActive = OVERFLOW_TABS.some((t) => t.id === activeTab);
+
+  // Filter overflow tabs by host capabilities
+  const visibleOverflowTabs = OVERFLOW_TABS.filter(
+    (t) => !t.requiresVideo || hostAppInfo.supportsVideo,
+  );
 
   // Auth gate
   if (isLoading && !authState.isAuthenticated) {
@@ -183,26 +223,45 @@ export const App: React.FC = () => {
 
   return (
     <div className="panel-root">
-      {/* Tab bar */}
+      {/* Tab bar: 3 primary + overflow */}
       <div className="tab-bar">
-        <TabButton id="browse" label="Browse" active={activeTab} onClick={setActiveTab} />
-        <TabButton id="publish" label="Publish" active={activeTab} onClick={setActiveTab} />
-        {hostAppInfo.supportsVideo && (
-          <TabButton id="captions" label="Captions" active={activeTab} onClick={setActiveTab} />
-        )}
-        <TabButton id="review" label="Review" active={activeTab} onClick={setActiveTab} />
-        {hostAppInfo.supportsVideo && (
-          <TabButton id="analytics" label="Analytics" active={activeTab} onClick={setActiveTab} />
-        )}
-        {hostAppInfo.supportsVideo && (
-          <TabButton
-            id="interactive"
-            label="Interactive"
-            active={activeTab}
-            onClick={setActiveTab}
-          />
-        )}
-        <TabButton id="settings" label="Settings" active={activeTab} onClick={setActiveTab} />
+        <TabButton id="browse" label="Browse" active={activeTab} onClick={handleTabSwitch} />
+        <TabButton id="publish" label="Publish" active={activeTab} onClick={handleTabSwitch} />
+        <TabButton id="settings" label="Settings" active={activeTab} onClick={handleTabSwitch} />
+
+        {/* Overflow menu for entry-specific tabs */}
+        <div className="tab-overflow" ref={overflowRef}>
+          <button
+            className={`tab-overflow-trigger${isOverflowTabActive ? " tab-overflow-trigger--active" : ""}`}
+            onClick={() => setShowOverflow((prev) => !prev)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setShowOverflow(false);
+            }}
+            aria-label="More tabs"
+            aria-expanded={showOverflow}
+          >
+            {"\u00B7\u00B7\u00B7"}
+          </button>
+          {showOverflow && (
+            <div className="tab-overflow-menu" role="menu">
+              {visibleOverflowTabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  className={`tab-overflow-item${activeTab === tab.id ? " tab-overflow-item--active" : ""}`}
+                  role="menuitem"
+                  tabIndex={0}
+                  onClick={() => handleOverflowTab(tab.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") handleOverflowTab(tab.id);
+                    if (e.key === "Escape") setShowOverflow(false);
+                  }}
+                >
+                  {tab.label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tab content */}

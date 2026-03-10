@@ -140,7 +140,7 @@ describe("App", () => {
     });
   });
 
-  it("renders tab bar after session restore", async () => {
+  it("renders primary tabs and overflow trigger after session restore", async () => {
     mockRestoreSession = jest.fn().mockResolvedValue({
       ks: "test_ks",
       partnerId: 12345,
@@ -155,12 +155,12 @@ describe("App", () => {
       expect(screen.getByText("Browse")).toBeTruthy();
     });
 
+    // Primary tabs visible directly
     expect(screen.getByText("Publish")).toBeTruthy();
-    expect(screen.getByText("Captions")).toBeTruthy();
-    expect(screen.getByText("Review")).toBeTruthy();
-    expect(screen.getByText("Analytics")).toBeTruthy();
-    expect(screen.getByText("Interactive")).toBeTruthy();
     expect(screen.getByText("Settings")).toBeTruthy();
+
+    // Overflow trigger is present (entry-specific tabs are inside the overflow menu)
+    expect(screen.getByLabelText("More tabs")).toBeTruthy();
   });
 
   it("shows Browse tab content by default when authenticated", async () => {

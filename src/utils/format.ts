@@ -71,3 +71,26 @@ export function formatResolution(width: number, height: number): string {
   if (height >= RESOLUTION_SD) return "480p";
   return `${width}×${height}`;
 }
+
+/**
+ * Clean up a Kaltura category name for display.
+ * Strips internal variable prefixes ($Context.Id, $CourseOffering.sourceId)
+ * and converts path separators (>) to readable breadcrumbs.
+ */
+export function formatCategoryName(fullName: string): string {
+  if (!fullName) return "";
+
+  // Split on > path separator and take the last meaningful segment
+  const segments = fullName.split(">").map((s) => s.trim());
+
+  // Filter out segments that look like internal variables
+  const readable = segments.filter((s) => s && !s.startsWith("$") && !/^[a-f0-9-]{20,}$/i.test(s));
+
+  if (readable.length === 0) {
+    // All segments are internal — show the last one as-is
+    return segments[segments.length - 1] || fullName;
+  }
+
+  // Join remaining segments with a nicer separator
+  return readable.join(" \u203A ");
+}

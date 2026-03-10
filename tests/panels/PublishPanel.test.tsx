@@ -35,35 +35,31 @@ describe("PublishPanel", () => {
     jest.clearAllMocks();
   });
 
-  it("renders publish form with heading", () => {
-    render(<PublishPanel {...defaultProps} />);
-    expect(screen.getByText("Publish to Kaltura")).toBeTruthy();
-  });
-
-  it("shows title label", () => {
-    render(<PublishPanel {...defaultProps} />);
-    expect(screen.getByText("Title *")).toBeTruthy();
-  });
-
-  it("shows publish mode picker options", () => {
+  it("renders publish mode segmented control", () => {
     render(<PublishPanel {...defaultProps} />);
     expect(screen.getByText("New Entry")).toBeTruthy();
-    expect(screen.getByText("Update Existing")).toBeTruthy();
+    expect(screen.getByText("Replace Existing")).toBeTruthy();
   });
 
-  it("shows publish mode label", () => {
+  it("shows Basic Info accordion with title field", () => {
     render(<PublishPanel {...defaultProps} />);
-    expect(screen.getByText("Publish Mode")).toBeTruthy();
+    expect(screen.getByText("BASIC INFO")).toBeTruthy();
+    expect(screen.getByText("Title")).toBeTruthy();
   });
 
-  it("shows description and tags fields", () => {
+  it("shows description and tags fields inside Basic Info", () => {
     render(<PublishPanel {...defaultProps} />);
     expect(screen.getByText("Description")).toBeTruthy();
     expect(screen.getByText("Tags")).toBeTruthy();
   });
 
-  it("shows publish button", () => {
+  it("shows Kaltura-branded publish button", () => {
     render(<PublishPanel {...defaultProps} />);
-    expect(screen.getByText("Publish")).toBeTruthy();
+    expect(screen.getByText("Publish to Kaltura")).toBeTruthy();
+  });
+
+  it("shows Publishing Options accordion for new entries", () => {
+    render(<PublishPanel {...defaultProps} />);
+    expect(screen.getByText("PUBLISHING OPTIONS")).toBeTruthy();
   });
 });

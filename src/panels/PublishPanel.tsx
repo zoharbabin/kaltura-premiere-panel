@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { KalturaMediaEntry, KalturaMediaType, KalturaCategory } from "../types/kaltura";
 import { ExportProgress } from "../types/premiere";
 import { MediaService, UploadService, MetadataService } from "../services";
-import { ProgressBar, ErrorBanner } from "../components";
+import { ProgressBar, ErrorBanner, AccordionSection, SegmentedControl } from "../components";
 import { getUserMessage } from "../utils/errors";
+import { formatCategoryName, formatFileSize } from "../utils/format";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("PublishPanel");
@@ -45,20 +46,30 @@ interface PublishPanelProps {
   onPublished: (entry: KalturaMediaEntry) => void;
 }
 
-type PublishPhase = "form" | "exporting" | "uploading" | "processing" | "complete" | "error";
+type PublishPhase =
+  | "form"
+  | "exporting"
+  | "reading"
+  | "uploading"
+  | "processing"
+  | "complete"
+  | "error";
 type PublishMode = "new" | "update";
 type SourceMode = "sequence" | "file";
+
 interface FileInfo {
   nativePath: string;
   name: string;
   size: number;
 }
 
-/** Read a file from disk using UXP fs module and return its contents as ArrayBuffer */
+/** Total number of steps in the publish pipeline */
+const TOTAL_STEPS = 4;
+
+/** Read a file from disk using UXP fs module */
 async function readFileAsArrayBuffer(nativePath: string): Promise<ArrayBuffer> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require("fs");
-  // UXP fs.readFile without encoding returns ArrayBuffer (binary).
   const data = await fs.readFile(nativePath);
   if (data instanceof ArrayBuffer) return data;
   if (data instanceof Uint8Array)
@@ -66,7 +77,7 @@ async function readFileAsArrayBuffer(nativePath: string): Promise<ArrayBuffer> {
   throw new Error(`Unexpected readFile result type: ${typeof data}`);
 }
 
-/** Open a file picker and return the selected file's native path and name */
+/** Open a file picker via UXP storage API */
 async function pickFile(): Promise<FileInfo | null> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -86,6 +97,19 @@ async function pickFile(): Promise<FileInfo | null> {
   }
 }
 
+/** Build a summary string for collapsed Publishing Options section */
+function buildOptionsSummary(
+  categoryCount: number,
+  scheduledDate: string,
+  accessControlName: string | null,
+): string {
+  const parts: string[] = [];
+  if (categoryCount > 0) parts.push(`${categoryCount} categor${categoryCount === 1 ? "y" : "ies"}`);
+  if (scheduledDate) parts.push("Scheduled");
+  if (accessControlName && accessControlName !== "Default") parts.push(accessControlName);
+  return parts.length > 0 ? parts.join(" \u00B7 ") : "Default settings";
+}
+
 export const PublishPanel: React.FC<PublishPanelProps> = ({
   mediaService,
   uploadService,
@@ -95,6 +119,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   auditService,
   onPublished,
 }) => {
+  // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
@@ -107,19 +132,20 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   const [selectedAccessControlId, setSelectedAccessControlId] = useState<number | null>(null);
   const [publishMode, setPublishMode] = useState<PublishMode>("new");
   const [existingEntryId, setExistingEntryId] = useState("");
-  const [phase, setPhase] = useState<PublishPhase>("form");
-  const [progress, setProgress] = useState<ExportProgress>({
-    progress: 0,
-    phase: "exporting",
-  });
-  const [error, setError] = useState<string | null>(null);
-  const [publishedEntry, setPublishedEntry] = useState<KalturaMediaEntry | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
   const [sourceMode, setSourceMode] = useState<SourceMode>("file");
   const [sequenceName, setSequenceName] = useState("");
+
+  // Progress state
+  const [phase, setPhase] = useState<PublishPhase>("form");
+  const [progress, setProgress] = useState<ExportProgress>({ progress: 0, phase: "exporting" });
+  const [currentStep, setCurrentStep] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+  const [publishedEntry, setPublishedEntry] = useState<KalturaMediaEntry | null>(null);
+
   const canExportSequence = !!premiereService.exportActiveSequence;
 
-  // Detect active sequence name and pre-fill title
+  // Detect active sequence and pre-fill title
   useEffect(() => {
     if (!premiereService.isAvailable()) return;
     premiereService
@@ -129,7 +155,6 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           setSequenceName(seq.name);
           log.info("Active sequence detected", { name: seq.name });
           if (!title) setTitle(seq.name);
-          // Auto-select sequence mode if export is available
           if (canExportSequence) setSourceMode("sequence");
         }
       })
@@ -178,93 +203,106 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     }
   }, []);
 
+  // Derived state
+  const selectedAccessControlName = useMemo(() => {
+    if (!selectedAccessControlId) return null;
+    return accessControlProfiles.find((p) => p.id === selectedAccessControlId)?.name ?? null;
+  }, [selectedAccessControlId, accessControlProfiles]);
+
+  const optionsSummary = useMemo(
+    () => buildOptionsSummary(selectedCategoryIds.length, scheduledDate, selectedAccessControlName),
+    [selectedCategoryIds.length, scheduledDate, selectedAccessControlName],
+  );
+
+  const hasSource = sourceMode === "sequence" || !!selectedFile;
+  const canPublish =
+    !!title.trim() && hasSource && (publishMode === "update" ? !!existingEntryId.trim() : true);
+
   /**
    * Core publish flow:
-   * 1. Get file (export sequence or use selected file)
-   * 2. Read file into ArrayBuffer
-   * 3. Create upload token with file metadata
-   * 4. Upload in chunks with progress
-   * 5. Create entry via media.addFromUploadedFile
-   * 6. Assign categories, schedule, etc.
+   * Step 1: Get file (export sequence or use selected file)
+   * Step 2: Read file into memory
+   * Step 3: Upload in chunks
+   * Step 4: Create/update entry + metadata
    */
   const handlePublish = useCallback(async () => {
     if (!title.trim()) return;
     setError(null);
 
     try {
-      if (publishMode === "new") {
-        let fileInfo: FileInfo;
+      let fileInfo: FileInfo;
 
-        // Step 1: Get the file — either export current sequence or use selected file
-        if (sourceMode === "sequence") {
-          if (!premiereService.exportActiveSequence) {
-            throw new Error("Sequence export is not available in this host application");
-          }
-          setPhase("exporting");
-          setProgress({ progress: 0, phase: "exporting", message: "Exporting sequence..." });
-          log.info("Exporting active sequence for publish");
-
-          fileInfo = await premiereService.exportActiveSequence((percent) => {
-            setProgress({
-              progress: Math.round(percent * 0.3), // 0-30% for export
-              phase: "exporting",
-              message: `Exporting... ${percent}%`,
-            });
-          });
-
-          log.info("Sequence exported", {
-            path: fileInfo.nativePath,
-            size: fileInfo.size,
-          });
-        } else {
-          if (!selectedFile) {
-            setError("Please select a file to upload.");
-            return;
-          }
-          fileInfo = selectedFile;
+      // Step 1: Get the file
+      if (sourceMode === "sequence") {
+        if (!premiereService.exportActiveSequence) {
+          throw new Error("Sequence export is not available in this host application");
         }
-
-        // Step 2: Read the file
         setPhase("exporting");
-        setProgress({
-          progress: sourceMode === "sequence" ? 30 : 0,
-          phase: "exporting",
-          message: "Reading file...",
-        });
+        setCurrentStep(1);
+        setProgress({ progress: 0, phase: "exporting", message: "Rendering sequence..." });
+        log.info("Exporting active sequence for publish");
 
-        const fileData = await readFileAsArrayBuffer(fileInfo.nativePath);
-        log.info("File read complete", { byteLength: fileData.byteLength });
-
-        if (fileData.byteLength === 0) {
-          throw new Error(`File is empty (0 bytes): ${fileInfo.name}`);
-        }
-
-        // Step 3: Create upload token with file metadata (per Kaltura best practices)
-        setPhase("uploading");
-        setProgress({ progress: 35, phase: "uploading", message: "Creating upload token..." });
-
-        const token = await uploadService.createToken(fileInfo.name, fileInfo.size);
-        log.info("Upload token created", { tokenId: token.id });
-
-        // Step 4: Upload file in chunks with progress
-        setProgress({ progress: 38, phase: "uploading", message: "Uploading..." });
-
-        await uploadService.uploadFile(token.id, fileData, (p) => {
-          // Map upload progress to 38-85% range
-          const mappedProgress = 38 + Math.round(p.percent * 0.47);
+        fileInfo = await premiereService.exportActiveSequence((percent) => {
           setProgress({
-            progress: mappedProgress,
-            phase: "uploading",
-            message: `Uploading... ${p.percent}%`,
+            progress: Math.round(percent * 0.3),
+            phase: "exporting",
+            message: `Rendering... ${percent}%`,
           });
         });
+        log.info("Sequence exported", { path: fileInfo.nativePath, size: fileInfo.size });
+      } else {
+        if (!selectedFile) {
+          setError("Please select a file to upload.");
+          return;
+        }
+        fileInfo = selectedFile;
+      }
 
-        log.info("File upload complete", { tokenId: token.id });
+      // Step 2: Read the file
+      setPhase("reading");
+      setCurrentStep(2);
+      setProgress({
+        progress: sourceMode === "sequence" ? 30 : 5,
+        phase: "exporting",
+        message: `Reading file (${formatFileSize(fileInfo.size)})...`,
+      });
 
-        // Step 5: Create entry from uploaded file (single API call per Kaltura best practices)
-        setPhase("processing");
-        setProgress({ progress: 88, phase: "processing", message: "Creating entry..." });
+      const fileData = await readFileAsArrayBuffer(fileInfo.nativePath);
+      log.info("File read complete", { byteLength: fileData.byteLength });
 
+      if (fileData.byteLength === 0) {
+        throw new Error(`File is empty (0 bytes): ${fileInfo.name}`);
+      }
+
+      // Step 3: Upload
+      setPhase("uploading");
+      setCurrentStep(3);
+      setProgress({ progress: 35, phase: "uploading", message: "Creating upload token..." });
+
+      const token = await uploadService.createToken(fileInfo.name, fileInfo.size);
+      log.info("Upload token created", { tokenId: token.id });
+
+      setProgress({ progress: 38, phase: "uploading", message: "Uploading..." });
+      await uploadService.uploadFile(token.id, fileData, (p) => {
+        const mappedProgress = 38 + Math.round(p.percent * 0.47);
+        const uploaded = formatFileSize(p.loaded);
+        const total = formatFileSize(p.total);
+        setProgress({
+          progress: mappedProgress,
+          phase: "uploading",
+          message: `${uploaded} / ${total} uploaded`,
+        });
+      });
+      log.info("File upload complete", { tokenId: token.id });
+
+      // Step 4: Create or update entry
+      setPhase("processing");
+      setCurrentStep(4);
+      setProgress({ progress: 88, phase: "processing", message: "Creating entry..." });
+
+      let entry: KalturaMediaEntry;
+
+      if (publishMode === "new") {
         const entryData: Partial<KalturaMediaEntry> = {
           name: title.trim(),
           description: description.trim(),
@@ -278,97 +316,41 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           entryData.accessControlId = selectedAccessControlId;
         }
 
-        const entry = await mediaService.addFromUploadedFile(entryData, token.id);
+        entry = await mediaService.addFromUploadedFile(entryData, token.id);
         log.info("Entry created with content", { entryId: entry.id, name: entry.name });
 
-        // Step 6: Multi-category assignment
+        // Multi-category assignment
         if (publishWorkflowService && selectedCategoryIds.length > 1) {
           setProgress({ progress: 92, phase: "processing", message: "Assigning categories..." });
           await publishWorkflowService.publishToCategories(entry.id, selectedCategoryIds);
         }
 
-        // Step 7: Schedule if a date is set
+        // Schedule if set
         if (publishWorkflowService && scheduledDate) {
           setProgress({ progress: 96, phase: "processing", message: "Scheduling publish..." });
           const startDate = Math.floor(new Date(scheduledDate).getTime() / 1000);
           await publishWorkflowService.schedulePublish(entry.id, startDate);
         }
 
-        setPhase("complete");
-        setProgress({ progress: 100, phase: "complete", message: "Published!" });
-        setPublishedEntry(entry);
         auditService?.logAction("publish", entry.id, `New entry: ${entry.name}`);
       } else {
-        // Update existing entry — replace its content
-        let fileInfo: FileInfo;
-
-        // Step 1: Get the file
-        if (sourceMode === "sequence") {
-          if (!premiereService.exportActiveSequence) {
-            throw new Error("Sequence export is not available in this host application");
-          }
-          setPhase("exporting");
-          setProgress({ progress: 0, phase: "exporting", message: "Exporting sequence..." });
-
-          fileInfo = await premiereService.exportActiveSequence((percent) => {
-            setProgress({
-              progress: Math.round(percent * 0.3),
-              phase: "exporting",
-              message: `Exporting... ${percent}%`,
-            });
-          });
-        } else {
-          if (!selectedFile) {
-            setError("Please select a file to upload.");
-            return;
-          }
-          fileInfo = selectedFile;
-        }
-
-        // Step 2: Read the file
-        setPhase("exporting");
-        setProgress({ progress: 30, phase: "exporting", message: "Reading file..." });
-        const fileData = await readFileAsArrayBuffer(fileInfo.nativePath);
-
-        if (fileData.byteLength === 0) {
-          throw new Error(`File is empty (0 bytes): ${fileInfo.name}`);
-        }
-
-        // Step 3: Upload
-        setPhase("uploading");
-        setProgress({ progress: 35, phase: "uploading", message: "Creating upload token..." });
-        const token = await uploadService.createToken(fileInfo.name, fileInfo.size);
-
-        setProgress({ progress: 38, phase: "uploading", message: "Uploading..." });
-        await uploadService.uploadFile(token.id, fileData, (p) => {
-          const mappedProgress = 38 + Math.round(p.percent * 0.42);
-          setProgress({
-            progress: mappedProgress,
-            phase: "uploading",
-            message: `Uploading... ${p.percent}%`,
-          });
-        });
-
-        // Step 4: Replace content on the existing entry
-        setPhase("processing");
-        setProgress({ progress: 82, phase: "processing", message: "Replacing content..." });
+        // Update existing entry
+        setProgress({ progress: 88, phase: "processing", message: "Replacing content..." });
         await mediaService.updateContent(existingEntryId, token.id);
-        log.info("Content replaced on existing entry", { entryId: existingEntryId });
 
-        // Step 5: Update metadata if changed
-        setProgress({ progress: 90, phase: "processing", message: "Updating metadata..." });
-        const updated = await mediaService.update(existingEntryId, {
+        setProgress({ progress: 94, phase: "processing", message: "Updating metadata..." });
+        entry = await mediaService.update(existingEntryId, {
           name: title.trim(),
           description: description.trim(),
           tags: tags.trim(),
         });
-
-        setPhase("complete");
-        setProgress({ progress: 100, phase: "complete", message: "Entry updated!" });
-        setPublishedEntry(updated);
-        log.info("Update complete", { entryId: updated.id });
-        auditService?.logAction("update_metadata", updated.id, `Updated: ${updated.name}`);
+        log.info("Update complete", { entryId: entry.id });
+        auditService?.logAction("update_metadata", entry.id, `Updated: ${entry.name}`);
       }
+
+      setPhase("complete");
+      setProgress({ progress: 100, phase: "complete", message: "Published!" });
+      setPublishedEntry(entry);
     } catch (err) {
       setPhase("error");
       setError(getUserMessage(err));
@@ -390,12 +372,12 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     uploadService,
     publishWorkflowService,
     auditService,
-    onPublished,
   ]);
 
   const handleReset = useCallback(() => {
     setPhase("form");
     setProgress({ progress: 0, phase: "exporting" });
+    setCurrentStep(1);
     setError(null);
     setPublishedEntry(null);
     setTitle("");
@@ -415,17 +397,12 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       const uxp = require("uxp");
       uxp.shell.openExternal(url);
     } catch (err) {
-      log.debug("uxp.shell.openExternal unavailable, falling back to window.open", err);
+      log.debug("uxp.shell.openExternal unavailable", err);
       window.open(url, "_blank");
     }
   }, [publishedEntry, mediaService]);
 
-  // Determine if the Publish button should be enabled
-  const hasSource = sourceMode === "sequence" || !!selectedFile;
-  const canPublish =
-    !!title.trim() && hasSource && (publishMode === "update" ? !!existingEntryId.trim() : true);
-
-  // Success view
+  // ---- Success view ----
   if (phase === "complete" && publishedEntry) {
     return (
       <div className="login-container">
@@ -453,8 +430,17 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     );
   }
 
-  // Progress view
+  // ---- Progress view with step indicators ----
   if (phase !== "form" && phase !== "error") {
+    const stepLabel =
+      phase === "exporting"
+        ? "Rendering sequence"
+        : phase === "reading"
+          ? "Reading file"
+          : phase === "uploading"
+            ? "Uploading"
+            : "Creating entry";
+
     return (
       <div
         style={{
@@ -464,51 +450,59 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           justifyContent: "center",
           height: "100%",
           padding: "24px",
-          gap: "24px",
+          gap: "16px",
         }}
       >
-        <sp-heading size="S">
-          {phase === "exporting"
-            ? "Exporting Sequence..."
-            : phase === "uploading"
-              ? "Uploading to Kaltura..."
-              : phase === "processing"
-                ? "Processing..."
-                : "Publishing..."}
-        </sp-heading>
+        {/* Step dots */}
+        <div className="progress-steps">
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => {
+            const step = i + 1;
+            const cls =
+              step < currentStep
+                ? "step-dot step-dot--done"
+                : step === currentStep
+                  ? "step-dot step-dot--active"
+                  : "step-dot";
+            return <div key={step} className={cls} />;
+          })}
+        </div>
+
+        <sp-heading size="S">{stepLabel}</sp-heading>
+
         <div style={{ width: "100%", maxWidth: "320px" }}>
           <ProgressBar value={progress.progress} />
+        </div>
+
+        <div className="progress-detail">
+          Step {currentStep} of {TOTAL_STEPS}
+          {progress.message ? ` \u00B7 ${progress.message}` : ""}
         </div>
       </div>
     );
   }
 
-  // Form view
+  // ---- Form view with progressive disclosure ----
   return (
     <div className="panel-root panel-padding">
-      <sp-heading size="XS" style={{ padding: "8px 0" }}>
-        Publish to Kaltura
-      </sp-heading>
-
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
-      <div className="flex-col gap-12" style={{ flex: 1, overflowY: "auto" }}>
-        {/* Publish mode */}
-        <div>
-          <sp-detail size="S">Publish Mode</sp-detail>
-          <select
+      <div className="flex-col" style={{ flex: 1, overflowY: "auto", gap: "4px" }}>
+        {/* Publish mode toggle */}
+        <div style={{ marginBottom: "8px" }}>
+          <SegmentedControl
+            options={[
+              { value: "new" as PublishMode, label: "New Entry" },
+              { value: "update" as PublishMode, label: "Replace Existing" },
+            ]}
             value={publishMode}
-            onChange={(e) => setPublishMode(e.target.value as PublishMode)}
-            style={{ width: "100%", padding: "6px 8px", fontSize: "13px" }}
-          >
-            <option value="new">New Entry</option>
-            <option value="update">Update Existing</option>
-          </select>
+            onChange={setPublishMode}
+          />
         </div>
 
+        {/* Source section — always visible */}
         {publishMode === "update" && (
-          <div>
-            <sp-detail size="S">Entry ID</sp-detail>
+          <div className="form-group">
+            <label className="form-label form-label--required">Entry ID</label>
             <sp-textfield
               placeholder="Kaltura Entry ID (e.g. 0_abc123)"
               value={existingEntryId}
@@ -518,181 +512,183 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           </div>
         )}
 
-        {/* Source: current sequence or file */}
-        <div>
-          <sp-detail size="S">Source</sp-detail>
-          <select
-            value={sourceMode}
-            onChange={(e) => setSourceMode(e.target.value as SourceMode)}
-            style={{ width: "100%", padding: "6px 8px", fontSize: "13px" }}
-          >
-            {canExportSequence && (
-              <option value="sequence">
-                Current Sequence{sequenceName ? ` — "${sequenceName}"` : ""}
-              </option>
-            )}
-            <option value="file">Select a file...</option>
-          </select>
-        </div>
-
-        {sourceMode === "sequence" && (
-          <div
-            style={{
-              padding: "8px",
-              backgroundColor: "var(--spectrum-global-color-gray-100)",
-              borderRadius: "4px",
-            }}
-          >
-            <sp-body size="XS">
-              {sequenceName
-                ? `The active sequence "${sequenceName}" will be exported and uploaded.`
-                : "The active sequence will be exported and uploaded to Kaltura."}
-            </sp-body>
-          </div>
-        )}
-
-        {sourceMode === "file" && (
-          <div>
-            <div className="flex-row gap-8" style={{ alignItems: "center" }}>
-              <sp-button variant="secondary" onClick={handleSelectFile} size="s">
-                Select File
-              </sp-button>
-              {selectedFile && (
-                <sp-body
-                  size="XS"
-                  style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}
-                >
-                  {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(1)} MB)
-                </sp-body>
-              )}
+        {sourceMode === "sequence" && sequenceName ? (
+          <div className="source-card">
+            <div className="source-card-icon">{"\u25B6"}</div>
+            <div className="source-card-info">
+              <div className="source-card-name">{sequenceName}</div>
+              <div className="source-card-meta">Current sequence will be exported</div>
             </div>
           </div>
-        )}
-
-        <div>
-          <sp-detail size="S">Title *</sp-detail>
-          <sp-textfield
-            placeholder="Video title"
-            value={title}
-            onInput={(e: Event) => setTitle((e.target as HTMLInputElement).value)}
-            style={{ width: "100%" }}
-          />
-        </div>
-
-        <div>
-          <sp-detail size="S">Description</sp-detail>
-          <sp-textarea
-            placeholder="Video description"
-            value={description}
-            onInput={(e: Event) => setDescription((e.target as HTMLTextAreaElement).value)}
-            style={{ width: "100%" }}
-          />
-        </div>
-
-        <div>
-          <sp-detail size="S">Tags</sp-detail>
-          <sp-textfield
-            placeholder="Comma-separated tags"
-            value={tags}
-            onInput={(e: Event) => setTags((e.target as HTMLInputElement).value)}
-            style={{ width: "100%" }}
-          />
-        </div>
-
-        {/* Multi-category selector */}
-        {categories.length > 0 && (
-          <div>
-            <sp-detail size="S">
-              Categories{selectedCategoryIds.length > 0 ? ` (${selectedCategoryIds.length})` : ""}
-            </sp-detail>
-            <div
-              style={{
-                maxHeight: "120px",
-                overflowY: "auto",
-                border: "1px solid var(--spectrum-global-color-gray-300)",
-                borderRadius: "4px",
-                padding: "4px",
-              }}
-            >
-              {categories.map((cat) => (
-                <label
-                  key={cat.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "2px 4px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCategoryIds.includes(cat.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedCategoryIds((prev) => [...prev, cat.id]);
-                      } else {
-                        setSelectedCategoryIds((prev) => prev.filter((id) => id !== cat.id));
-                      }
-                    }}
-                  />
-                  {cat.fullName || cat.name}
-                </label>
-              ))}
+        ) : sourceMode === "file" && selectedFile ? (
+          <div className="source-card">
+            <div className="source-card-icon">{"\uD83D\uDCC4"}</div>
+            <div className="source-card-info">
+              <div className="source-card-name">{selectedFile.name}</div>
+              <div className="source-card-meta">{formatFileSize(selectedFile.size)}</div>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* Scheduled publish */}
-        {publishWorkflowService && (
-          <div>
-            <sp-detail size="S">Schedule (optional)</sp-detail>
+        {/* Source switcher */}
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", margin: "4px 0 8px" }}>
+          {sourceMode === "file" && (
+            <sp-action-button quiet size="s" onClick={handleSelectFile}>
+              {selectedFile ? "Change file" : "Select a file"}
+            </sp-action-button>
+          )}
+          {canExportSequence && sourceMode === "file" && sequenceName && (
+            <sp-action-button quiet size="s" onClick={() => setSourceMode("sequence")}>
+              Use sequence instead
+            </sp-action-button>
+          )}
+          {sourceMode === "sequence" && (
+            <sp-action-button quiet size="s" onClick={() => setSourceMode("file")}>
+              Select a file instead
+            </sp-action-button>
+          )}
+        </div>
+
+        {/* Basic Info — always expanded */}
+        <AccordionSection title="BASIC INFO" defaultExpanded={true}>
+          <div className="form-group">
+            <label className="form-label form-label--required">Title</label>
             <sp-textfield
-              type="datetime-local"
-              value={scheduledDate}
-              onInput={(e: Event) => setScheduledDate((e.target as HTMLInputElement).value)}
+              placeholder="Video title"
+              value={title}
+              onInput={(e: Event) => setTitle((e.target as HTMLInputElement).value)}
               style={{ width: "100%" }}
-              placeholder="Leave empty to publish immediately"
             />
           </div>
-        )}
 
-        {/* Access control profile */}
-        {accessControlProfiles.length > 0 && publishMode === "new" && (
-          <div>
-            <sp-detail size="S">Access Control</sp-detail>
-            <select
-              value={selectedAccessControlId != null ? String(selectedAccessControlId) : ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedAccessControlId(val ? Number(val) : null);
-              }}
-              style={{ width: "100%", padding: "6px 8px", fontSize: "13px" }}
-            >
-              {accessControlProfiles.map((profile) => (
-                <option key={profile.id} value={String(profile.id)}>
-                  {profile.name}
-                  {profile.isDefault ? " (Default)" : ""}
-                </option>
-              ))}
-            </select>
-            <div className="text-muted" style={{ fontSize: 10, marginTop: 4 }}>
-              Controls who can view the published content
-            </div>
+          <div className="form-group">
+            <label className="form-label">Description</label>
+            <sp-textarea
+              placeholder="Video description"
+              value={description}
+              onInput={(e: Event) => setDescription((e.target as HTMLTextAreaElement).value)}
+              style={{ width: "100%" }}
+            />
           </div>
+
+          <div className="form-group">
+            <label className="form-label">Tags</label>
+            <sp-textfield
+              placeholder="Comma-separated tags"
+              value={tags}
+              onInput={(e: Event) => setTags((e.target as HTMLInputElement).value)}
+              style={{ width: "100%" }}
+            />
+          </div>
+        </AccordionSection>
+
+        {/* Publishing Options — collapsed by default */}
+        {publishMode === "new" && (
+          <AccordionSection title="PUBLISHING OPTIONS" summary={optionsSummary}>
+            {/* Categories */}
+            {categories.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">
+                  Categories
+                  {selectedCategoryIds.length > 0 ? ` (${selectedCategoryIds.length})` : ""}
+                </label>
+                <div
+                  style={{
+                    maxHeight: "120px",
+                    overflowY: "auto",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "4px",
+                    padding: "4px",
+                  }}
+                >
+                  {categories.map((cat) => (
+                    <label
+                      key={cat.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "3px 4px",
+                        fontSize: "12px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedCategoryIds.includes(cat.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCategoryIds((prev) => [...prev, cat.id]);
+                          } else {
+                            setSelectedCategoryIds((prev) => prev.filter((id) => id !== cat.id));
+                          }
+                        }}
+                      />
+                      {formatCategoryName(cat.fullName || cat.name)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Schedule */}
+            {publishWorkflowService && (
+              <div className="form-group">
+                <label className="form-label">Schedule</label>
+                <sp-textfield
+                  type="datetime-local"
+                  value={scheduledDate}
+                  onInput={(e: Event) => setScheduledDate((e.target as HTMLInputElement).value)}
+                  style={{ width: "100%" }}
+                  placeholder="Leave empty to publish immediately"
+                />
+                <span className="form-helper">Leave empty to publish immediately</span>
+              </div>
+            )}
+
+            {/* Access control */}
+            {accessControlProfiles.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Access Control</label>
+                <select
+                  value={selectedAccessControlId != null ? String(selectedAccessControlId) : ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedAccessControlId(val ? Number(val) : null);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "7px 8px",
+                    fontSize: "12px",
+                    background: "rgba(255, 255, 255, 0.06)",
+                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                    borderRadius: "4px",
+                    color: "inherit",
+                  }}
+                >
+                  {accessControlProfiles.map((profile) => (
+                    <option key={profile.id} value={String(profile.id)}>
+                      {profile.name}
+                      {profile.isDefault ? " (Default)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <span className="form-helper">Controls who can view the published content</span>
+              </div>
+            )}
+          </AccordionSection>
         )}
       </div>
 
-      <div style={{ padding: "8px 0" }}>
-        <sp-button
-          variant="accent"
-          onClick={handlePublish}
-          disabled={!canPublish || undefined}
-          style={{ width: "100%" }}
+      {/* Publish button — pinned to bottom */}
+      <div style={{ padding: "8px 0", flexShrink: 0 }}>
+        <button
+          className={`btn-kaltura${!canPublish ? " btn-kaltura--disabled" : ""}`}
+          onClick={canPublish ? handlePublish : undefined}
+          disabled={!canPublish}
         >
-          {publishMode === "new" ? "Publish" : "Replace Content"}
-        </sp-button>
+          {publishMode === "new" ? "Publish to Kaltura" : "Replace Content"}
+        </button>
       </div>
     </div>
   );

@@ -18,8 +18,10 @@ import {
   dateRangeToTimestamp,
   QualityPicker,
   MetadataEditor,
+  SkeletonGrid,
 } from "../components";
 import { useDebounce } from "../hooks/useDebounce";
+import { useContainerWidth, getGridColumns, getCardWidth } from "../hooks/useContainerWidth";
 import {
   DEFAULT_PAGE_SIZE,
   SEARCH_DEBOUNCE_MS,
@@ -157,6 +159,10 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
 
   const debouncedSearch = useDebounce(searchText, SEARCH_DEBOUNCE_MS);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(gridRef);
+  const gridColumns = getGridColumns(containerWidth);
+  const cardWidth = getCardWidth(gridColumns);
   const activeFilterCount = countActiveFilters(filters);
 
   const buildFilter = useCallback((): KalturaMediaEntryFilter => {
@@ -381,7 +387,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
           onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
           title={viewMode === "grid" ? "Switch to list view" : "Switch to grid view"}
         >
-          {viewMode === "grid" ? "\u2630" : "\u229E"}
+          {viewMode === "grid" ? "List" : "Grid"}
         </sp-action-button>
       </div>
 
@@ -425,7 +431,9 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       {/* Content */}
       <div ref={scrollRef} onScroll={handleScroll} className="panel-scroll">
         {isLoading ? (
-          <LoadingSpinner label="Loading assets..." />
+          <div ref={gridRef}>
+            <SkeletonGrid count={gridColumns * 2} columnWidth={cardWidth} />
+          </div>
         ) : entries.length === 0 ? (
           <EmptyState
             title={searchText || activeFilterCount > 0 ? "No results found" : "No assets yet"}
@@ -436,16 +444,17 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
             }
           />
         ) : viewMode === "grid" ? (
-          <div className="thumb-grid">
+          <div ref={gridRef} className="thumb-grid">
             {entries.map((entry) => (
               <ThumbnailCard
                 key={entry.id}
                 entry={entry}
                 partnerId={partnerId}
                 imported={isImported(entry.id)}
+                cardWidth={cardWidth}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => {
-                  if (isContentHeld(entry)) return; // Block import for held entries
+                  if (isContentHeld(entry)) return;
                   mediaService
                     .getEntryDetails(entry.id)
                     .then((details) => {
@@ -454,9 +463,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                       if (webFlavor) onImportEntry(entry, webFlavor);
                       else if (ready.length > 0) onImportEntry(entry, ready[0]);
                     })
-                    .catch(() => {
-                      /* detail fetch failed — ignore double-click */
-                    });
+                    .catch(() => {});
                 }}
               />
             ))}
@@ -471,7 +478,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 imported={isImported(entry.id)}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => {
-                  if (isContentHeld(entry)) return; // Block import for held entries
+                  if (isContentHeld(entry)) return;
                   mediaService
                     .getEntryDetails(entry.id)
                     .then((details) => {
@@ -480,9 +487,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                       if (webFlavor) onImportEntry(entry, webFlavor);
                       else if (ready.length > 0) onImportEntry(entry, ready[0]);
                     })
-                    .catch(() => {
-                      /* detail fetch failed — ignore double-click */
-                    });
+                    .catch(() => {});
                 }}
               />
             ))}
@@ -501,6 +506,7 @@ interface ThumbnailCardProps {
   entry: KalturaMediaEntry;
   partnerId: number;
   imported: boolean;
+  cardWidth?: string;
   onClick: () => void;
   onDoubleClick: () => void;
 }
@@ -509,10 +515,17 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
   entry,
   partnerId,
   imported,
+  cardWidth,
   onClick,
   onDoubleClick,
 }) => (
-  <div onClick={onClick} onDoubleClick={onDoubleClick} className="thumb-card" title={entry.name}>
+  <div
+    onClick={onClick}
+    onDoubleClick={onDoubleClick}
+    className="thumb-card"
+    title={entry.name}
+    style={cardWidth ? { width: cardWidth } : undefined}
+  >
     <div className="thumb-card-img-wrap">
       <img src={buildGridThumbnailUrl(partnerId, entry.id)} alt={entry.name} loading="lazy" />
       {entry.duration > 0 && <div className="badge-duration">{formatDuration(entry.duration)}</div>}

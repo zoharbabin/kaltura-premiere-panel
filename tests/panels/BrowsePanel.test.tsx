@@ -91,12 +91,14 @@ describe("BrowsePanel", () => {
 
   // --- Initial render and loading ---
 
-  it("shows loading spinner initially", () => {
+  it("shows skeleton loading grid initially", () => {
     const service = mockMediaService({
       list: jest.fn().mockReturnValue(new Promise(() => {})),
     });
-    render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
-    expect(screen.getByText("Loading assets...")).toBeTruthy();
+    const { container } = render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
+    // SkeletonGrid renders skeleton-card placeholders instead of a spinner
+    const skeletons = container.querySelectorAll(".skeleton-card");
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it("renders asset grid after loading", async () => {

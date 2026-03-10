@@ -164,23 +164,21 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
         />
 
         {authMode === "email" ? (
-          <sp-button
-            variant="accent"
-            onClick={handleSubmit}
-            disabled={!isFormValid || undefined}
-            style={{ width: "100%" }}
+          <button
+            className={`btn-kaltura${!isFormValid ? " btn-kaltura--disabled" : ""}`}
+            onClick={isFormValid ? handleSubmit : undefined}
+            disabled={!isFormValid}
           >
             Sign In
-          </sp-button>
+          </button>
         ) : (
-          <sp-button
-            variant="accent"
-            onClick={handleSsoLogin}
-            disabled={!partnerId || undefined}
-            style={{ width: "100%" }}
+          <button
+            className={`btn-kaltura${!partnerId ? " btn-kaltura--disabled" : ""}`}
+            onClick={partnerId ? handleSsoLogin : undefined}
+            disabled={!partnerId}
           >
             Sign In with SSO
-          </sp-button>
+          </button>
         )}
 
         <div className="login-links">
