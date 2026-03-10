@@ -13,7 +13,7 @@ interface SegmentedControlProps<T extends string> {
 
 /**
  * Segmented control for choosing between 2-4 options.
- * Replaces native <select> for small option sets — styled for Spectrum dark theme.
+ * Uses div[role=button] instead of <button> to avoid UXP native button chrome.
  */
 export function SegmentedControl<T extends string>({
   options,
@@ -23,14 +23,21 @@ export function SegmentedControl<T extends string>({
   return (
     <div className="segmented-control">
       {options.map((opt) => (
-        <button
+        <div
           key={opt.value}
-          className={`segment${opt.value === value ? " segment--active" : ""}`}
+          role="button"
+          tabIndex={0}
+          className={`segment-btn${opt.value === value ? " segment-btn--active" : ""}`}
           onClick={() => onChange(opt.value)}
-          type="button"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onChange(opt.value);
+            }
+          }}
         >
           {opt.label}
-        </button>
+        </div>
       ))}
     </div>
   );

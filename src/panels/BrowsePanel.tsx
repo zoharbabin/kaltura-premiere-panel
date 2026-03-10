@@ -379,7 +379,8 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
           value={searchText}
           onInput={(e: Event) => setSearchText((e.target as HTMLInputElement).value)}
           onSubmit={(e: Event) => e.preventDefault()}
-          style={{ flex: 1 }}
+          style={{ flex: 1, minWidth: 0, width: "100%" }}
+          size="s"
         />
         <sp-action-button
           quiet
@@ -432,7 +433,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       <div ref={scrollRef} onScroll={handleScroll} className="panel-scroll">
         {isLoading ? (
           <div ref={gridRef}>
-            <SkeletonGrid count={gridColumns * 2} columnWidth={cardWidth} />
+            <SkeletonGrid count={(gridColumns || 3) * 2} columnWidth={cardWidth || undefined} />
           </div>
         ) : entries.length === 0 ? (
           <EmptyState
@@ -451,7 +452,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 entry={entry}
                 partnerId={partnerId}
                 imported={isImported(entry.id)}
-                cardWidth={cardWidth}
+                cardWidth={cardWidth || undefined}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => {
                   if (isContentHeld(entry)) return;

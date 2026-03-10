@@ -682,13 +682,18 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
 
       {/* Publish button — pinned to bottom */}
       <div style={{ padding: "8px 0", flexShrink: 0 }}>
-        <button
+        <div
+          role="button"
+          tabIndex={canPublish ? 0 : -1}
           className={`btn-kaltura${!canPublish ? " btn-kaltura--disabled" : ""}`}
           onClick={canPublish ? handlePublish : undefined}
-          disabled={!canPublish}
+          onKeyDown={(e) => {
+            if (canPublish && (e.key === "Enter" || e.key === " ")) handlePublish();
+          }}
+          aria-disabled={!canPublish || undefined}
         >
           {publishMode === "new" ? "Publish to Kaltura" : "Replace Content"}
-        </button>
+        </div>
       </div>
     </div>
   );
