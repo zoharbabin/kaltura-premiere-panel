@@ -61,6 +61,54 @@ export class DownloadService {
   }
 
   /**
+   * Download and import an entry directly (no flavor required).
+   * Used for image and document entries that have no flavor assets.
+   * Uses baseEntry/getDownloadUrl to get the source file.
+   */
+  async downloadAndImportEntry(
+    entryId: string,
+    entryName: string,
+    onProgress?: (progress: DownloadProgress) => void,
+  ): Promise<AssetMapping> {
+    // Extract file extension from entry name, fallback to "jpg"
+    const dotIdx = entryName.lastIndexOf(".");
+    const fileExt = dotIdx > 0 ? entryName.slice(dotIdx + 1).toLowerCase() : "jpg";
+    const fileName = `${entryId}_source.${fileExt}`;
+    const request: DownloadRequest = { entryId, flavorId: "source", fileName };
+
+    if (onProgress) {
+      this.onProgressCallbacks.set(entryId, onProgress);
+    }
+
+    if (this.activeDownloads.size >= MAX_CONCURRENT_DOWNLOADS) {
+      log.info("Download queued (direct)", {
+        entryId,
+        queuePosition: this.downloadQueue.length + 1,
+      });
+      this.downloadQueue.push(request);
+      return new Promise((resolve, reject) => {
+        const check = setInterval(async () => {
+          if (this.activeDownloads.has(entryId)) {
+            clearInterval(check);
+          }
+          const idx = this.downloadQueue.indexOf(request);
+          if (idx === -1 && !this.activeDownloads.has(entryId)) {
+            clearInterval(check);
+            try {
+              const result = await this.executeDirectDownload(request);
+              resolve(result);
+            } catch (err) {
+              reject(err);
+            }
+          }
+        }, 500);
+      });
+    }
+
+    return this.executeDirectDownload(request);
+  }
+
+  /**
    * Download and import a Kaltura asset into Premiere.
    * Returns the local file path of the downloaded asset.
    */
@@ -127,6 +175,74 @@ export class DownloadService {
     this.activeDownloads.clear();
     this.downloadQueue = [];
     this.onProgressCallbacks.clear();
+  }
+
+  private async executeDirectDownload(request: DownloadRequest): Promise<AssetMapping> {
+    const controller = new AbortController();
+    const active: ActiveDownload = { request, controller, startTime: Date.now() };
+    this.activeDownloads.set(request.entryId, active);
+
+    try {
+      log.info("Starting direct entry download", { entryId: request.entryId });
+
+      const downloadUrl = await this.mediaService.getEntryDownloadUrl(request.entryId);
+      log.info("Entry download URL", { url: downloadUrl.substring(0, 150) });
+
+      const response = await fetch(downloadUrl, {
+        signal: controller.signal,
+        redirect: "follow",
+      });
+
+      if (!response.ok) {
+        throw new NetworkError(`Download failed: HTTP ${response.status} ${response.statusText}`);
+      }
+
+      const buf = await response.arrayBuffer();
+      const downloadedData = new Uint8Array(buf);
+
+      log.info("Downloaded entry data", { byteLength: downloadedData.byteLength });
+
+      if (downloadedData.byteLength === 0) {
+        throw new NetworkError(`Download returned 0 bytes for entry ${request.entryId}`);
+      }
+
+      const progressCallback = this.onProgressCallbacks.get(request.entryId);
+      progressCallback?.({
+        entryId: request.entryId,
+        loaded: downloadedData.byteLength,
+        total: downloadedData.byteLength,
+        percent: 100,
+        speed: 0,
+      });
+
+      const tempPath = await this.saveTempFile(request.fileName, downloadedData);
+      log.info("File saved, importing into project", { tempPath, size: downloadedData.byteLength });
+      const importResult = await this.hostService.importFile(tempPath);
+
+      if (!importResult.success) {
+        throw new Error(`Import failed: ${importResult.error || "Unknown error"}`);
+      }
+
+      const mapping: AssetMapping = {
+        entryId: request.entryId,
+        flavorId: "source",
+        localPath: tempPath,
+        importDate: Date.now(),
+        isProxy: false,
+      };
+
+      this.hostService.storeMapping(request.entryId, tempPath);
+      log.info("Direct download and import complete", {
+        entryId: request.entryId,
+        size: downloadedData.byteLength,
+      });
+
+      return mapping;
+    } finally {
+      this.activeDownloads.delete(request.entryId);
+      this.onProgressCallbacks.delete(request.entryId);
+      this.processQueue();
+    }
   }
 
   private async executeDownload(request: DownloadRequest): Promise<AssetMapping> {

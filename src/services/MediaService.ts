@@ -205,6 +205,23 @@ export class MediaService {
   }
 
   /**
+   * Get a direct download URL for an entry's source file.
+   * Works for all entry types including images and documents that have
+   * no flavor assets. Uses baseEntry/getDownloadUrl API.
+   */
+  async getEntryDownloadUrl(entryId: string): Promise<string> {
+    const response = await this.client.request<string>({
+      service: "baseEntry",
+      action: "getDownloadUrl",
+      params: { entryId },
+    });
+
+    const url = typeof response === "string" ? response : String(response);
+    log.info("Entry download URL", { entryId, url: url.substring(0, 120) });
+    return url;
+  }
+
+  /**
    * Get a direct download URL for a specific flavor asset.
    * Uses flavorAsset/getDownloadUrl API which works for all delivery types,
    * including entries with enforce_delivery:static_content where playManifest

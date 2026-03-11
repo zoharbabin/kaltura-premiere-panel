@@ -263,7 +263,7 @@ Enterprise admins can pre-configure the plugin with a JSON config file — see t
 
 ## Testing
 
-**447 tests** across **37 suites** — all passing.
+**452 tests** across **37 suites** — all passing.
 
 ```bash
 npm test                  # Run all tests

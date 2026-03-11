@@ -137,6 +137,23 @@ describe("MediaService", () => {
     });
   });
 
+  describe("getEntryDownloadUrl()", () => {
+    it("returns direct download URL using baseEntry service", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => "https://cdn.kaltura.com/download/entry_source",
+      });
+
+      const url = await service.getEntryDownloadUrl("0_image");
+      expect(url).toBe("https://cdn.kaltura.com/download/entry_source");
+
+      const [fetchUrl, options] = mockFetch.mock.calls[0];
+      expect(fetchUrl).toContain("/service/baseEntry/action/getDownloadUrl");
+      const body = JSON.parse(options.body);
+      expect(body.entryId).toBe("0_image");
+    });
+  });
+
   describe("eSearch()", () => {
     it("calls eSearch endpoint with correct params", async () => {
       mockFetch.mockResolvedValueOnce({

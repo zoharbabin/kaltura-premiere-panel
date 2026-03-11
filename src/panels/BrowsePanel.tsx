@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   KalturaMediaEntry,
   KalturaMediaEntryFilter,
+  KalturaMediaType,
   KalturaFlavorAsset,
   KalturaCaptionAsset,
   KalturaCaptionType,
@@ -132,6 +133,7 @@ interface BrowsePanelProps {
   userId?: string;
   isImported: (entryId: string) => boolean;
   onImportEntry: (entry: KalturaMediaEntry, flavor: KalturaFlavorAsset) => void;
+  onImportDirectEntry?: (entry: KalturaMediaEntry) => void;
   onAttachToClip?: (
     entryId: string,
     segments: CaptionSegment[],
@@ -156,6 +158,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   userId,
   isImported,
   onImportEntry,
+  onImportDirectEntry,
   onAttachToClip,
 }) => {
   const [entries, setEntries] = useState<KalturaMediaEntry[]>([]);
@@ -308,6 +311,11 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
     }
     const readyFlavors = selectedEntry.flavors.filter(isFlavorReady);
     if (readyFlavors.length === 0) {
+      // Image/document entries have no flavors — use direct entry download
+      if (onImportDirectEntry && Number(selectedEntry.entry.mediaType) === KalturaMediaType.IMAGE) {
+        onImportDirectEntry(selectedEntry.entry);
+        return;
+      }
       setImportError("No ready renditions available for this entry.");
       return;
     }
@@ -323,7 +331,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         : readyFlavors[0];
     setSelectedFlavor(defaultFlavor);
     setShowQualityPicker(true);
-  }, [selectedEntry, onImportEntry]);
+  }, [selectedEntry, onImportEntry, onImportDirectEntry]);
 
   const handleQualityConfirm = useCallback(() => {
     if (selectedEntry && selectedFlavor) {
@@ -335,6 +343,11 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   const handleQuickImport = useCallback(
     (entry: KalturaMediaEntry) => {
       if (isContentHeld(entry)) return;
+      // Image entries: direct download (no flavors)
+      if (onImportDirectEntry && Number(entry.mediaType) === KalturaMediaType.IMAGE) {
+        onImportDirectEntry(entry);
+        return;
+      }
       mediaService
         .getEntryDetails(entry.id)
         .then((details) => {
@@ -347,7 +360,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
           log.error("Quick import failed", err);
         });
     },
-    [mediaService, onImportEntry],
+    [mediaService, onImportEntry, onImportDirectEntry],
   );
 
   const handleMetadataSaved = useCallback(

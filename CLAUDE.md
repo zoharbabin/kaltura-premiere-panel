@@ -102,7 +102,7 @@ docs/                         # Documentation
 - Jest + jsdom for unit tests; `tests/` mirrors `src/` directory structure
 - Mock `premierepro` and `uxp` modules globally in `tests/setup.ts` (`aftereffects` and `audition` are NOT mocked — host services test unavailable state)
 - Mock `fetch` globally — never hit live API in CI
-- 447 tests across 37 suites — all passing
+- 452 tests across 37 suites — all passing
 - Panel tests use duck-typed service mocks and React Testing Library
 - Use `renderHook` + `act` for hook tests; `jest.useFakeTimers()` for debounce tests
 - Coverage thresholds enforced (jest.config.js): statements 65%, branches 52%, functions 64%, lines 66%

@@ -106,6 +106,28 @@ export const App: React.FC = () => {
     [authState.partnerId, downloadService, auditService],
   );
 
+  const handleImportDirectEntry = useCallback(
+    async (entry: KalturaMediaEntry) => {
+      if (!authState.partnerId) return;
+      setImportStatus({ message: `Downloading "${entry.name}"...`, isError: false });
+      try {
+        log.info("Importing entry directly (no flavor)", { entryId: entry.id });
+        await downloadService.downloadAndImportEntry(entry.id, entry.name);
+        auditService.logAction("import", entry.id, "Imported source file (no flavor)");
+        setImportStatus({
+          message: `"${entry.name}" imported to "Kaltura Assets" bin in the Project panel.`,
+          isError: false,
+        });
+        setTimeout(() => setImportStatus(null), 4000);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Import failed";
+        log.error("Direct import failed", err);
+        setImportStatus({ message: `Import failed: ${message}`, isError: true });
+      }
+    },
+    [authState.partnerId, downloadService, auditService],
+  );
+
   const handleAttachToClip = useCallback(
     async (entryId: string, segments: CaptionSegment[]) => {
       if (!hostService.importTranscript) {
@@ -178,6 +200,7 @@ export const App: React.FC = () => {
             userId={authState.user?.id}
             isImported={(id) => hostService.isImported(id)}
             onImportEntry={handleImportEntry}
+            onImportDirectEntry={handleImportDirectEntry}
             onAttachToClip={handleAttachToClip}
           />
         )}
