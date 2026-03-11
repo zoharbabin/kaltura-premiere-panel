@@ -31,7 +31,7 @@ const log = createLogger("App");
 const PARTNER_ID = 0; // Set by login
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabId>("browse");
+  const [activeTab, setActiveTab] = useState<TabId | null>("browse");
   const [importStatus, setImportStatus] = useState<{ message: string; isError: boolean } | null>(
     null,
   );
@@ -142,15 +142,30 @@ export const App: React.FC = () => {
     [hostService, auditService],
   );
 
-  const handlePublished = useCallback((_entry: KalturaMediaEntry) => {
-    // Defer tab switch — UXP SWC crash prevention (see docs/UXP_LESSONS_LEARNED.md)
-    setTimeout(() => setActiveTab("browse"), 0);
+  /**
+   * Two-phase tab switch to prevent UXP SWC preCreateCallback assertion crash.
+   * Phase 1: set tab to null (unmounts current panel's SWC elements).
+   * Phase 2: after a frame, mount the new panel.
+   * This gives Spectrum Web Components time to fully tear down before new ones mount.
+   */
+  const safeTabSwitch = useCallback((id: TabId) => {
+    setActiveTab(null);
+    setTimeout(() => setActiveTab(id), 50);
   }, []);
 
-  const handleTabSwitch = useCallback((id: TabId) => {
-    // Defer all tab switches to prevent SWC assertion crashes
-    setTimeout(() => setActiveTab(id), 0);
-  }, []);
+  const handlePublished = useCallback(
+    (_entry: KalturaMediaEntry) => {
+      safeTabSwitch("browse");
+    },
+    [safeTabSwitch],
+  );
+
+  const handleTabSwitch = useCallback(
+    (id: TabId) => {
+      safeTabSwitch(id);
+    },
+    [safeTabSwitch],
+  );
 
   // Auth gate
   if (isLoading && !authState.isAuthenticated) {
@@ -186,7 +201,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Tab content */}
-      <div className="tab-content" role="tabpanel" aria-label={activeTab}>
+      <div className="tab-content" role="tabpanel" aria-label={activeTab ?? undefined}>
         {activeTab === "browse" && authState.partnerId && (
           <BrowsePanel
             mediaService={mediaService}
@@ -263,7 +278,7 @@ export const App: React.FC = () => {
 interface TabButtonProps {
   id: TabId;
   label: string;
-  active: TabId;
+  active: TabId | null;
   onClick: (id: TabId) => void;
 }
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.15.1
+
+### Bug Fixes
+
+- **Fix SWC assertion crash on tab switch** — Switching from the Publish success screen back to Browse caused a UXP Spectrum Web Components `preCreateCallback` assertion (`false == true`) crash. Root cause: simultaneous SWC element unmount/mount during view transitions. Fixed with a two-phase tab switch that unmounts the current panel first, waits 50ms for SWC teardown, then mounts the new panel.
+
 ## 1.15.0
 
 ### Features
