@@ -245,7 +245,7 @@ export class CaptionService {
     >({
       service: "caption_captionAsset",
       action: "serveAsJson",
-      params: { id: captionAssetId },
+      params: { captionAssetId },
     });
 
     const url = typeof urlResponse === "string" ? urlResponse : String(urlResponse);
