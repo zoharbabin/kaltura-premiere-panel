@@ -6,7 +6,7 @@ import { createLogger } from "../utils/logger";
 const log = createLogger("AuditionHost");
 
 /** Type declarations for UXP audition module */
-// eslint-disable-next-line @typescript-eslint/no-namespace
+// eslint-disable-next-line @typescript-eslint/no-namespace, @typescript-eslint/no-unused-vars
 declare namespace audition {
   class Application {
     static get version(): string;

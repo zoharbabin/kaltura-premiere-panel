@@ -6,7 +6,7 @@ import { createLogger } from "../utils/logger";
 const log = createLogger("AfterEffectsHost");
 
 /** Type declarations for UXP aftereffects module */
-// eslint-disable-next-line @typescript-eslint/no-namespace
+// eslint-disable-next-line @typescript-eslint/no-namespace, @typescript-eslint/no-unused-vars
 declare namespace aftereffects {
   class Application {
     static get version(): string;
