@@ -473,18 +473,63 @@ export class PremiereService {
       const clipItem = pp.ClipProjectItem.cast(projectItem);
       console.error("[DEBUG] clipItem cast done", !!clipItem);
 
-      const textSegmentsJson = JSON.stringify(
-        segments.map((s) => ({
-          startTimeInMicroseconds: Math.round(s.startTime * 1_000_000),
-          endTimeInMicroseconds: Math.round(s.endTime * 1_000_000),
-          text: s.text,
-        })),
-      );
+      // Build Adobe Premiere transcript JSON per the official schema:
+      // https://github.com/AdobeDocs/uxp-premiere-pro-samples (transcript_format_spec.json)
+      const defaultSpeakerId = "00000000-0000-4000-8000-000000000001";
+      // Map Kaltura speaker IDs to UUID v4 format required by Premiere
+      const speakerIdToUuid = new Map<string, string>();
+      const speakerNames = new Map<string, string>();
+      speakerNames.set(defaultSpeakerId, "Speaker 1");
+
+      let speakerCounter = 1;
+      for (const s of segments) {
+        if (s.speakerId && !speakerIdToUuid.has(s.speakerId)) {
+          speakerCounter++;
+          const uuid = `00000000-0000-4000-8000-${String(speakerCounter).padStart(12, "0")}`;
+          speakerIdToUuid.set(s.speakerId, uuid);
+          speakerNames.set(uuid, `Speaker ${speakerCounter}`);
+        }
+      }
+
+      const adobeSegments = segments.map((s) => {
+        const duration = s.endTime - s.startTime;
+        const speakerUuid = (s.speakerId && speakerIdToUuid.get(s.speakerId)) || defaultSpeakerId;
+        const words = s.text
+          .trim()
+          .split(/\s+/)
+          .filter((w) => w.length > 0);
+        const wordDuration = words.length > 0 ? duration / words.length : duration;
+
+        return {
+          duration,
+          language: "en-us",
+          speaker: speakerUuid,
+          start: s.startTime,
+          words: words.map((word, i) => ({
+            confidence: 1.0,
+            duration: wordDuration,
+            eos: i === words.length - 1,
+            start: s.startTime + i * wordDuration,
+            tags: [] as string[],
+            text: word,
+            type: "word" as const,
+          })),
+        };
+      });
+
+      const speakers = Array.from(speakerNames.entries()).map(([id, name]) => ({ id, name }));
+      const transcriptObj = {
+        language: "en-us",
+        segments: adobeSegments,
+        speakers,
+      };
+
+      const textSegmentsJson = JSON.stringify(transcriptObj);
       console.error(
         "[DEBUG] textSegmentsJson length",
         textSegmentsJson.length,
         "preview:",
-        textSegmentsJson.substring(0, 200),
+        textSegmentsJson.substring(0, 300),
       );
 
       const textSegments = pp.Transcript.importFromJSON(textSegmentsJson);
