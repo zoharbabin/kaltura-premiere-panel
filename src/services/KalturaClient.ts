@@ -66,11 +66,7 @@ export class KalturaClient {
     const url = `${this.serviceUrl}${API_BASE_PATH}/${config.service}/action/${config.action}`;
     const body = this.buildRequestBody(config.params);
 
-    console.error(
-      `[DEBUG] API → ${config.service}.${config.action}`,
-      url,
-      JSON.stringify(config.params),
-    );
+    log.debug(`${config.service}.${config.action}`, body);
 
     const response = await this.doFetch(url, body);
     return this.handleResponse<T>(response);
@@ -178,15 +174,8 @@ export class KalturaClient {
   ): Promise<T> {
     const data = (await response.json()) as KalturaObjectBase | string;
 
-    log.info("API response", {
-      type: typeof data,
-      preview:
-        typeof data === "string" ? data.substring(0, 200) : JSON.stringify(data).substring(0, 300),
-    });
-
     if (typeof data === "object" && data?.objectType === "KalturaAPIException") {
       const err = data as KalturaApiException;
-      log.error("API error", { code: err.code, message: err.message, args: err.args });
       throw new KalturaApiError(err.message, err.code, err.args);
     }
 

@@ -1015,24 +1015,8 @@ const CaptionSection: React.FC<{
       setError(null);
       setSuccessMsg(null);
       try {
-        console.error(
-          "[DEBUG] Attach to clip started",
-          JSON.stringify({
-            entryId,
-            captionId: caption.id,
-            captionFormat: caption.format,
-            captionLabel: caption.label,
-            captionKeys: Object.keys(caption),
-          }),
-        );
         const jsonSegments = await captionService.downloadCaptionAsJson(caption.id);
-        console.error(
-          "[DEBUG] JSON segments received",
-          jsonSegments?.length,
-          JSON.stringify(jsonSegments?.[0])?.substring(0, 200),
-        );
         const segments = captionService.parseKalturaJson(jsonSegments);
-        console.error("[DEBUG] Parsed segments", segments.length);
 
         if (segments.length === 0) {
           setError("No transcript segments found in this caption track.");
@@ -1040,7 +1024,6 @@ const CaptionSection: React.FC<{
         }
 
         const result = await onAttachToClip(entryId, segments);
-        console.error("[DEBUG] Attach result", JSON.stringify(result));
         if (result.success) {
           setSuccessMsg("Transcript attached \u2014 open the Transcript panel to view.");
           setTimeout(() => setSuccessMsg(null), 6000);
@@ -1048,11 +1031,7 @@ const CaptionSection: React.FC<{
           setError(`Attach failed: ${result.error}. Use "Import SRT" as an alternative.`);
         }
       } catch (err) {
-        console.error(
-          "[DEBUG] Attach to clip FAILED",
-          String(err),
-          err instanceof Error ? err.stack : "no stack",
-        );
+        log.error("Attach to clip failed", err);
         setError(`Attach failed: ${getUserMessage(err)}. Use "Import SRT" as an alternative.`);
       } finally {
         setBusyId(null);

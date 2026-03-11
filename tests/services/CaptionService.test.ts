@@ -224,18 +224,13 @@ Second line`;
   });
 
   describe("downloadCaptionAsJson()", () => {
-    it("fetches JSON transcript from Kaltura serveAsJson endpoint", async () => {
-      const jsonData = {
+    it("returns transcript segments from serveAsJson response", async () => {
+      mockRequest.mockResolvedValue({
         objects: [
           { startTime: 1000, endTime: 4500, content: [{ text: "Hello world" }] },
           { startTime: 5000, endTime: 8200, content: [{ text: "Second line" }] },
         ],
-      };
-      mockRequest.mockResolvedValue("https://example.com/transcript.json");
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(jsonData),
-      }) as jest.Mock;
+      });
 
       const result = await service.downloadCaptionAsJson("cap1");
       expect(result).toHaveLength(2);
@@ -251,26 +246,10 @@ Second line`;
     });
 
     it("returns empty array when no objects in response", async () => {
-      mockRequest.mockResolvedValue("https://example.com/transcript.json");
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({}),
-      }) as jest.Mock;
+      mockRequest.mockResolvedValue({});
 
       const result = await service.downloadCaptionAsJson("cap1");
       expect(result).toEqual([]);
-    });
-
-    it("throws on HTTP error", async () => {
-      mockRequest.mockResolvedValue("https://example.com/transcript.json");
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-      }) as jest.Mock;
-
-      await expect(service.downloadCaptionAsJson("cap1")).rejects.toThrow(
-        "Failed to fetch JSON transcript: HTTP 404",
-      );
     });
   });
 
