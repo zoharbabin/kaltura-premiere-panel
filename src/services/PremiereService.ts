@@ -995,27 +995,48 @@ export class PremiereService {
     parent: premierepro.FolderItem,
     localPath: string,
   ): premierepro.ProjectItem | null {
+    console.error("[DEBUG] findItemByPath", {
+      hasChildren: !!parent.children,
+      childrenType: typeof parent.children,
+      isArray: Array.isArray(parent.children),
+      childCount: parent.children ? (parent.children as unknown[]).length : 0,
+      parentName: (parent as unknown as { name?: string }).name,
+    });
     if (!parent.children) return null;
+
     const pp = getPremiere();
     const normalizedTarget = localPath.replace(/\\/g, "/").toLowerCase();
-    for (const child of parent.children) {
+    const children = parent.children;
+    const count = (children as unknown[]).length;
+
+    for (let i = 0; i < count; i++) {
+      const child = (children as unknown[])[i] as premierepro.ProjectItem;
+      console.error(
+        "[DEBUG] child",
+        i,
+        "type:",
+        child.type,
+        "name:",
+        (child as unknown as { name?: string }).name,
+      );
+
       // type 1 = clip
       if (child.type === 1) {
         try {
           const clip = pp.ClipProjectItem.cast(child);
           const clipPath = clip.getMediaFilePath();
-          console.error("[DEBUG] findItemByPath comparing", clipPath, "vs", localPath);
+          console.error("[DEBUG] clip path:", clipPath);
           if (clipPath === localPath) return child;
           // Fallback: case-insensitive + normalized separators
           if (clipPath && clipPath.replace(/\\/g, "/").toLowerCase() === normalizedTarget)
             return child;
           // Fallback: match by filename only
           if (clipPath && clipPath.split("/").pop() === localPath.split("/").pop()) {
-            console.error("[DEBUG] findItemByPath matched by filename", clipPath);
+            console.error("[DEBUG] matched by filename", clipPath);
             return child;
           }
-        } catch {
-          // Not castable — skip
+        } catch (err) {
+          console.error("[DEBUG] cast error for child", i, String(err));
         }
       }
       // type 2 = bin — recurse
