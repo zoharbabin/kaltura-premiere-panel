@@ -239,7 +239,7 @@ export class CaptionService {
    * Returns an array of time-stamped segments with text content.
    */
   async downloadCaptionAsJson(captionAssetId: string): Promise<KalturaTranscriptSegment[]> {
-    log.info("Downloading caption as JSON", { captionAssetId });
+    console.error("[DEBUG] downloadCaptionAsJson called", captionAssetId);
     const urlResponse = await this.client.request<
       { objectType?: string } & Record<string, unknown>
     >({
@@ -248,21 +248,24 @@ export class CaptionService {
       params: { captionAssetId },
     });
 
-    log.info("serveAsJson API response", {
-      type: typeof urlResponse,
-      value: JSON.stringify(urlResponse).substring(0, 300),
-    });
+    console.error(
+      "[DEBUG] serveAsJson API response",
+      typeof urlResponse,
+      JSON.stringify(urlResponse).substring(0, 500),
+    );
 
     const url = typeof urlResponse === "string" ? urlResponse : String(urlResponse);
+    console.error("[DEBUG] Fetching URL", url.substring(0, 300));
     const response = await fetch(url);
-    log.info("serveAsJson fetch result", { ok: response.ok, status: response.status });
+    console.error("[DEBUG] Fetch result", response.ok, response.status);
     if (!response.ok) throw new Error(`Failed to fetch JSON transcript: HTTP ${response.status}`);
     const data = await response.json();
-    log.info("serveAsJson JSON data", {
-      hasObjects: !!data.objects,
-      objectCount: data.objects?.length,
-      keys: Object.keys(data),
-    });
+    console.error(
+      "[DEBUG] JSON data keys",
+      Object.keys(data),
+      "objects count:",
+      data.objects?.length,
+    );
     return (data.objects as KalturaTranscriptSegment[]) || [];
   }
 

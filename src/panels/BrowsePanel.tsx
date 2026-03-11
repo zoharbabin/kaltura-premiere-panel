@@ -1015,19 +1015,24 @@ const CaptionSection: React.FC<{
       setError(null);
       setSuccessMsg(null);
       try {
-        log.info("Attach to clip started", {
-          entryId,
-          captionId: caption.id,
-          captionFormat: caption.format,
-          captionLabel: caption.label,
-        });
+        console.error(
+          "[DEBUG] Attach to clip started",
+          JSON.stringify({
+            entryId,
+            captionId: caption.id,
+            captionFormat: caption.format,
+            captionLabel: caption.label,
+            captionKeys: Object.keys(caption),
+          }),
+        );
         const jsonSegments = await captionService.downloadCaptionAsJson(caption.id);
-        log.info("JSON segments received", {
-          count: jsonSegments.length,
-          first: jsonSegments[0],
-        });
+        console.error(
+          "[DEBUG] JSON segments received",
+          jsonSegments?.length,
+          JSON.stringify(jsonSegments?.[0])?.substring(0, 200),
+        );
         const segments = captionService.parseKalturaJson(jsonSegments);
-        log.info("Parsed segments", { count: segments.length, first: segments[0] });
+        console.error("[DEBUG] Parsed segments", segments.length);
 
         if (segments.length === 0) {
           setError("No transcript segments found in this caption track.");
@@ -1035,7 +1040,7 @@ const CaptionSection: React.FC<{
         }
 
         const result = await onAttachToClip(entryId, segments);
-        log.info("Attach result", result);
+        console.error("[DEBUG] Attach result", JSON.stringify(result));
         if (result.success) {
           setSuccessMsg("Transcript attached \u2014 open the Transcript panel to view.");
           setTimeout(() => setSuccessMsg(null), 6000);
@@ -1043,7 +1048,11 @@ const CaptionSection: React.FC<{
           setError(`Attach failed: ${result.error}. Use "Import SRT" as an alternative.`);
         }
       } catch (err) {
-        log.error("Attach to clip failed", err);
+        console.error(
+          "[DEBUG] Attach to clip FAILED",
+          String(err),
+          err instanceof Error ? err.stack : "no stack",
+        );
         setError(`Attach failed: ${getUserMessage(err)}. Use "Import SRT" as an alternative.`);
       } finally {
         setBusyId(null);
