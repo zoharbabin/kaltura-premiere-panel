@@ -536,8 +536,26 @@ export class PremiereService {
         textSegmentsJson.substring(0, 300),
       );
 
-      const textSegments = pp.Transcript.importFromJSON(textSegmentsJson);
-      console.error("[DEBUG] importFromJSON done", !!textSegments);
+      // importFromJSON may return a Promise at runtime despite types saying sync
+      let textSegments = pp.Transcript.importFromJSON(textSegmentsJson);
+      console.error(
+        "[DEBUG] importFromJSON raw type:",
+        typeof textSegments,
+        Object.prototype.toString.call(textSegments),
+        textSegments instanceof Promise ? "IS_PROMISE" : "NOT_PROMISE",
+      );
+      if (
+        textSegments instanceof Promise ||
+        (textSegments && typeof (textSegments as unknown as Promise<unknown>).then === "function")
+      ) {
+        console.error("[DEBUG] importFromJSON returned Promise — awaiting...");
+        textSegments = await (textSegments as unknown as Promise<premierepro.TextSegments>);
+        console.error(
+          "[DEBUG] importFromJSON awaited result:",
+          typeof textSegments,
+          !!textSegments,
+        );
+      }
 
       // Use lockedAccess + executeTransaction with compoundAction per Adobe's official sample
       const success = project.lockedAccess(() => {
@@ -550,13 +568,13 @@ export class PremiereService {
 
       console.error("[DEBUG] Transcript attached successfully, lockedAccess returned:", success);
 
-      // Verify the transcript was actually stored
+      // Verify the transcript was actually stored (exportToJSON is async)
       try {
-        const exported = pp.Transcript.exportToJSON(clipItem);
+        const exported = await (pp.Transcript.exportToJSON(clipItem) as unknown as Promise<string>);
         console.error(
           "[DEBUG] exportToJSON verification:",
           typeof exported,
-          exported ? String(exported).substring(0, 300) : "null/empty",
+          exported ? String(exported).substring(0, 500) : "null/empty",
         );
       } catch (verifyErr) {
         console.error("[DEBUG] exportToJSON verify failed:", verifyErr);
