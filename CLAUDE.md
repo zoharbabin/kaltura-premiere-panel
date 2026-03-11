@@ -105,7 +105,7 @@ docs/                         # Documentation
 - 452 tests across 37 suites — all passing
 - Panel tests use duck-typed service mocks and React Testing Library
 - Use `renderHook` + `act` for hook tests; `jest.useFakeTimers()` for debounce tests
-- Coverage thresholds enforced (jest.config.js): statements 65%, branches 51%, functions 64%, lines 66%
+- Coverage thresholds enforced (jest.config.js): statements 65%, branches 50%, functions 64%, lines 66%
 
 ### Quality
 
