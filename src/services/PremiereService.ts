@@ -460,7 +460,44 @@ export class PremiereService {
     try {
       const project = await pp.Project.getActiveProject();
       const rootItem = await project.getRootItem();
-      const projectItem = this.findItemByPath(rootItem, mapping.localPath);
+
+      // Try multiple approaches to find the clip in the project
+      let projectItem: premierepro.ProjectItem | null = null;
+
+      // Approach 1: findItemsMatchingMediaPath on root (may exist at runtime)
+      const rootAny = rootItem as unknown as Record<string, unknown>;
+      console.error("[DEBUG] rootItem keys:", Object.getOwnPropertyNames(rootAny));
+      console.error(
+        "[DEBUG] rootItem proto:",
+        Object.getOwnPropertyNames(Object.getPrototypeOf(rootAny)),
+      );
+      if (typeof rootAny.findItemsMatchingMediaPath === "function") {
+        const matches = (
+          rootAny.findItemsMatchingMediaPath as (path: string) => premierepro.ProjectItem[]
+        )(mapping.localPath);
+        console.error("[DEBUG] findItemsMatchingMediaPath result:", matches?.length);
+        if (matches && matches.length > 0) {
+          projectItem = matches[0];
+        }
+      }
+
+      // Approach 2: Try filename-based search
+      if (!projectItem && typeof rootAny.findItemsMatchingMediaPath === "function") {
+        const fileName = mapping.localPath.split("/").pop() || "";
+        const matches = (
+          rootAny.findItemsMatchingMediaPath as (path: string) => premierepro.ProjectItem[]
+        )(fileName);
+        console.error("[DEBUG] filename search result:", matches?.length, "for:", fileName);
+        if (matches && matches.length > 0) {
+          projectItem = matches[0];
+        }
+      }
+
+      // Approach 3: Tree traversal fallback
+      if (!projectItem) {
+        projectItem = this.findItemByPath(rootItem, mapping.localPath);
+      }
+
       console.error("[DEBUG] projectItem found?", !!projectItem);
 
       if (!projectItem) {
