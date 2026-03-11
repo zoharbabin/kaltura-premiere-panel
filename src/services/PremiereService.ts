@@ -27,7 +27,11 @@ declare namespace premierepro {
       targetBin?: ProjectItem,
       asNumberedStills?: boolean,
     ): Promise<boolean>;
-    executeTransaction(fn: () => Promise<void>, name: string): Promise<void>;
+    executeTransaction(
+      fn: (() => Promise<void>) | ((compoundAction: CompoundAction) => void),
+      name: string,
+    ): void;
+    lockedAccess(fn: () => void): boolean;
   }
   interface ProjectItem {
     name: string;
@@ -146,7 +150,7 @@ declare namespace premierepro {
     static createImportTextSegmentsAction(
       textSegments: TextSegments,
       clipProjectItem: ClipProjectItem,
-    ): Promise<Action>;
+    ): Action;
     static exportToJSON(clipProjectItem: ClipProjectItem): string;
     static importFromJSON(jsonString: string): TextSegments;
   }
@@ -534,14 +538,17 @@ export class PremiereService {
 
       const textSegments = pp.Transcript.importFromJSON(textSegmentsJson);
       console.error("[DEBUG] importFromJSON done", !!textSegments);
-      const action = await pp.Transcript.createImportTextSegmentsAction(textSegments, clipItem);
-      console.error("[DEBUG] createImportTextSegmentsAction done", !!action);
 
-      await project.executeTransaction(async () => {
-        await action.execute();
-      }, "Kaltura: Import Transcript");
+      // Use lockedAccess + executeTransaction with compoundAction per Adobe's official sample
+      const success = project.lockedAccess(() => {
+        project.executeTransaction((compoundAction) => {
+          const action = pp.Transcript.createImportTextSegmentsAction(textSegments, clipItem);
+          console.error("[DEBUG] createImportTextSegmentsAction done", !!action);
+          compoundAction.addAction(action);
+        }, "Kaltura: Import Transcript");
+      });
 
-      console.error("[DEBUG] Transcript attached successfully");
+      console.error("[DEBUG] Transcript attached successfully, lockedAccess returned:", success);
       return { success: true };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
