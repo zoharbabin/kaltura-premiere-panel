@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.15.3
+
+### Cleanup
+
+- Removed internal strategy/research document (`Kaltura_Adobe_Premiere_Integration_Research.md`) from public repository
+
 ## 1.15.2
 
 ### Improvements

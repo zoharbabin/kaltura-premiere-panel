@@ -216,7 +216,6 @@ kaltura-premiere-panel/
   docs/                       # Documentation
     enterprise-deployment.md  #   Admin Console, UPIA, pre-configuration guide
     UXP_LESSONS_LEARNED.md    #   Hard-won UXP patterns and workarounds
-    Kaltura_Adobe_Premiere_Integration_Research.md  # Market analysis, personas, roadmap
 ```
 
 ### Service Layer
@@ -346,7 +345,6 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for development workflow, coding standa
 ## Further Reading
 
 - [UXP Lessons Learned](./docs/UXP_LESSONS_LEARNED.md) — hard-won patterns for UXP plugin development, Kaltura upload API, Premiere Pro export API
-- [Research & Strategy Document](./docs/Kaltura_Adobe_Premiere_Integration_Research.md) — market analysis, personas, competitive landscape, phased roadmap
 - [Enterprise Deployment Guide](./docs/enterprise-deployment.md) — Admin Console, UPIA, pre-configuration
 - [Adobe UXP for Premiere Pro](https://developer.adobe.com/premiere-pro/uxp/) — official API reference
 - [Kaltura Developer Portal](https://developer.kaltura.com/) — API docs, test console, client libraries
