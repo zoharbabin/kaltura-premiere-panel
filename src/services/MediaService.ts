@@ -21,6 +21,11 @@ const log = createLogger("MediaService");
 export class MediaService {
   constructor(private client: KalturaClient) {}
 
+  /** Get the configured service URL (for constructing KMC links) */
+  getServerUrl(): string {
+    return this.client.getServiceUrl();
+  }
+
   /** List media entries with optional filter and pager */
   async list(
     filter: KalturaMediaEntryFilter = {},

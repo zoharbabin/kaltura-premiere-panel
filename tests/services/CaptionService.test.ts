@@ -1,6 +1,6 @@
 import { CaptionService } from "../../src/services/CaptionService";
 import { KalturaClient } from "../../src/services/KalturaClient";
-import { KalturaCaptionType, KalturaVendorTaskStatus } from "../../src/types/kaltura";
+import { KalturaCaptionType } from "../../src/types/kaltura";
 
 // Mock KalturaClient
 const mockRequest = jest.fn();
@@ -186,46 +186,122 @@ Second line`;
     });
   });
 
-  describe("triggerCaptioning()", () => {
-    it("sends REACH captioning request", async () => {
-      const task = { id: 1, entryId: "0_abc", status: KalturaVendorTaskStatus.PENDING };
-      mockRequest.mockResolvedValue(task);
+  describe("downloadCaptionAsSrt()", () => {
+    it("returns SRT content directly for SRT captions", async () => {
+      const srtContent = "1\n00:00:01,000 --> 00:00:02,000\nHello";
+      mockRequest.mockResolvedValue("https://example.com/caption.srt");
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(srtContent),
+      }) as jest.Mock;
 
-      const result = await service.triggerCaptioning("0_abc", 42, "en");
-      expect(result).toEqual(task);
+      const caption = {
+        id: "cap1",
+        format: KalturaCaptionType.SRT,
+      } as any;
+
+      const result = await service.downloadCaptionAsSrt(caption);
+      expect(result).toBe(srtContent);
+    });
+
+    it("converts WebVTT to SRT", async () => {
+      const vttContent = "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello";
+      mockRequest.mockResolvedValue("https://example.com/caption.vtt");
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve(vttContent),
+      }) as jest.Mock;
+
+      const caption = {
+        id: "cap1",
+        format: KalturaCaptionType.WEBVTT,
+      } as any;
+
+      const result = await service.downloadCaptionAsSrt(caption);
+      expect(result).toContain("00:00:01,000 --> 00:00:02,000");
+      expect(result).toContain("Hello");
+    });
+  });
+
+  describe("downloadCaptionAsJson()", () => {
+    it("fetches JSON transcript from Kaltura serveAsJson endpoint", async () => {
+      const jsonData = {
+        objects: [
+          { startTime: 1000, endTime: 4500, content: [{ text: "Hello world" }] },
+          { startTime: 5000, endTime: 8200, content: [{ text: "Second line" }] },
+        ],
+      };
+      mockRequest.mockResolvedValue("https://example.com/transcript.json");
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(jsonData),
+      }) as jest.Mock;
+
+      const result = await service.downloadCaptionAsJson("cap1");
+      expect(result).toHaveLength(2);
+      expect(result[0].startTime).toBe(1000);
+      expect(result[0].content[0].text).toBe("Hello world");
       expect(mockRequest).toHaveBeenCalledWith(
         expect.objectContaining({
-          service: "reach_entryVendorTask",
-          action: "add",
-          params: expect.objectContaining({
-            entryVendorTask: expect.objectContaining({
-              entryId: "0_abc",
-              catalogItemId: 42,
-              sourceLanguage: "en",
-            }),
-          }),
+          service: "caption_captionAsset",
+          action: "serveAsJson",
         }),
+      );
+    });
+
+    it("returns empty array when no objects in response", async () => {
+      mockRequest.mockResolvedValue("https://example.com/transcript.json");
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({}),
+      }) as jest.Mock;
+
+      const result = await service.downloadCaptionAsJson("cap1");
+      expect(result).toEqual([]);
+    });
+
+    it("throws on HTTP error", async () => {
+      mockRequest.mockResolvedValue("https://example.com/transcript.json");
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+      }) as jest.Mock;
+
+      await expect(service.downloadCaptionAsJson("cap1")).rejects.toThrow(
+        "Failed to fetch JSON transcript: HTTP 404",
       );
     });
   });
 
-  describe("triggerTranslation()", () => {
-    it("sends REACH translation request with target language", async () => {
-      const task = { id: 2, entryId: "0_abc", status: KalturaVendorTaskStatus.PENDING };
-      mockRequest.mockResolvedValue(task);
+  describe("parseKalturaJson()", () => {
+    it("converts Kaltura JSON segments to CaptionSegments", () => {
+      const segments = [
+        { startTime: 1000, endTime: 4500, content: [{ text: "Hello world" }] },
+        { startTime: 5000, endTime: 8200, content: [{ text: "Second line" }] },
+      ];
 
-      const result = await service.triggerTranslation("0_abc", 43, "en", "es");
-      expect(result).toEqual(task);
-      expect(mockRequest).toHaveBeenCalledWith(
-        expect.objectContaining({
-          params: expect.objectContaining({
-            entryVendorTask: expect.objectContaining({
-              sourceLanguage: "en",
-              targetLanguage: "es",
-            }),
-          }),
-        }),
-      );
+      const result = service.parseKalturaJson(segments);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({ startTime: 1.0, endTime: 4.5, text: "Hello world" });
+      expect(result[1]).toEqual({ startTime: 5.0, endTime: 8.2, text: "Second line" });
+    });
+
+    it("joins multiple content items with newlines", () => {
+      const segments = [
+        {
+          startTime: 0,
+          endTime: 1000,
+          content: [{ text: "Line one" }, { text: "Line two" }],
+        },
+      ];
+
+      const result = service.parseKalturaJson(segments);
+      expect(result[0].text).toBe("Line one\nLine two");
+    });
+
+    it("handles empty segments array", () => {
+      const result = service.parseKalturaJson([]);
+      expect(result).toEqual([]);
     });
   });
 
@@ -255,62 +331,8 @@ Second line`;
         format: KalturaCaptionType.SRT,
       });
 
-      // Should only call setContent, not add
       expect(mockRequest).toHaveBeenCalledTimes(1);
       expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({ action: "setContent" }));
-    });
-  });
-
-  describe("listReachCatalogItems()", () => {
-    it("returns catalog items", async () => {
-      const items = [{ id: 1, name: "Machine Captioning", serviceFeature: 1 }];
-      mockRequest.mockResolvedValue({ objects: items });
-
-      const result = await service.listReachCatalogItems();
-      expect(result).toEqual(items);
-    });
-
-    it("returns empty array on failure", async () => {
-      mockRequest.mockRejectedValue(new Error("REACH not enabled"));
-      const result = await service.listReachCatalogItems();
-      expect(result).toEqual([]);
-    });
-  });
-
-  describe("getTaskStatusLabel()", () => {
-    it("returns correct labels for each status", () => {
-      expect(service.getTaskStatusLabel(KalturaVendorTaskStatus.PENDING)).toBe("Pending");
-      expect(service.getTaskStatusLabel(KalturaVendorTaskStatus.READY)).toBe("Complete");
-      expect(service.getTaskStatusLabel(KalturaVendorTaskStatus.PROCESSING)).toBe("Processing");
-      expect(service.getTaskStatusLabel(KalturaVendorTaskStatus.ERROR)).toBe("Error");
-      expect(service.getTaskStatusLabel(99 as KalturaVendorTaskStatus)).toBe("Unknown");
-    });
-  });
-
-  describe("listTasks()", () => {
-    it("returns vendor tasks for an entry", async () => {
-      const tasks = [{ id: 1, entryId: "0_abc", status: KalturaVendorTaskStatus.PROCESSING }];
-      mockRequest.mockResolvedValue({ objects: tasks, totalCount: 1 });
-
-      const result = await service.listTasks("0_abc");
-      expect(result).toEqual(tasks);
-    });
-  });
-
-  describe("getTaskStatus()", () => {
-    it("returns single task by ID", async () => {
-      const task = { id: 1, status: KalturaVendorTaskStatus.READY };
-      mockRequest.mockResolvedValue(task);
-
-      const result = await service.getTaskStatus(1);
-      expect(result).toEqual(task);
-      expect(mockRequest).toHaveBeenCalledWith(
-        expect.objectContaining({
-          service: "reach_entryVendorTask",
-          action: "get",
-          params: { id: 1 },
-        }),
-      );
     });
   });
 });

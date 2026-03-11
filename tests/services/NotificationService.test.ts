@@ -142,18 +142,6 @@ describe("NotificationService", () => {
       expect(handler).toHaveBeenCalledWith(expect.objectContaining({ type: "entryReady" }));
     });
 
-    it("maps KalturaEntryVendorTask to reachTaskComplete", () => {
-      const handler = jest.fn();
-      service.on("reachTaskComplete", handler);
-
-      mockWsInstance.simulateMessage({
-        objectType: "KalturaEntryVendorTask",
-        entryId: "0_abc",
-      });
-
-      expect(handler).toHaveBeenCalledWith(expect.objectContaining({ type: "reachTaskComplete" }));
-    });
-
     it("maps KalturaAnnotation to annotationAdded", () => {
       const handler = jest.fn();
       service.on("annotationAdded", handler);

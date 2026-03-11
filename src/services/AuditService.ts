@@ -16,7 +16,8 @@ export type AuditAction =
   | "caption_order"
   | "download"
   | "set_hold"
-  | "remove_hold";
+  | "remove_hold"
+  | "attachTranscript";
 
 /** Audit log entry stored locally and sent to Kaltura */
 export interface AuditLogEntry {
@@ -290,7 +291,7 @@ export class AuditService {
   }
 
   /** Get DRM policy info for an entry's flavor assets */
-  async getEntryDrmPolicy(entryId: string): Promise<DrmPolicy[]> {
+  async getEntryDrmPolicy(_entryId: string): Promise<DrmPolicy[]> {
     try {
       const response = await this.client.request<
         KalturaListResponse<{

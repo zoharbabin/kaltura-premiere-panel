@@ -20,6 +20,8 @@ function setupPlugin(): void {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { entrypoints } = require("uxp");
 
+    let panelRoot: ReturnType<typeof createRoot> | null = null;
+
     entrypoints.setup({
       plugin: {
         create() {
@@ -33,8 +35,8 @@ function setupPlugin(): void {
         kalturaMainPanel: {
           create(rootNode: HTMLElement) {
             log.info("Panel created");
-            const root = createRoot(rootNode);
-            root.render(
+            panelRoot = createRoot(rootNode);
+            panelRoot.render(
               <ErrorBoundary>
                 <App />
               </ErrorBoundary>,
@@ -48,6 +50,8 @@ function setupPlugin(): void {
           },
           destroy() {
             log.info("Panel destroyed");
+            panelRoot?.unmount();
+            panelRoot = null;
           },
         },
       },

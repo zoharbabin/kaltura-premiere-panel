@@ -232,7 +232,10 @@ export class AuthService {
     const { id: tokenId, loginUrl } = tokenResponse;
     log.info("SSO token created, opening browser", { tokenId });
 
-    // Step 2: Open system browser to IdP
+    // Step 2: Open system browser to IdP (validate URL is HTTPS to prevent open-redirect attacks)
+    if (!/^https:\/\//i.test(loginUrl)) {
+      throw new AuthenticationError("SSO login URL must use HTTPS", "SSO_INVALID_URL");
+    }
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");

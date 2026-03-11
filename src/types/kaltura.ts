@@ -51,28 +51,6 @@ export enum KalturaCaptionType {
   SCC = 5,
 }
 
-/** REACH vendor task status */
-export enum KalturaVendorTaskStatus {
-  PENDING = 1,
-  READY = 2,
-  PROCESSING = 3,
-  ERROR = 5,
-}
-
-/** REACH service feature */
-export enum KalturaVendorServiceFeature {
-  CAPTIONS = 1,
-  TRANSLATION = 2,
-  ALIGNMENT = 3,
-  AUDIO_DESCRIPTION = 4,
-}
-
-/** REACH service type */
-export enum KalturaVendorServiceType {
-  HUMAN = 1,
-  MACHINE = 2,
-}
-
 /** Base Kaltura object with objectType identifier */
 export interface KalturaObjectBase {
   objectType?: string;
@@ -184,29 +162,6 @@ export interface KalturaAnnotation extends KalturaObjectBase {
   depth?: number;
   childrenCount?: number;
   tags?: string;
-}
-
-/** REACH vendor task */
-export interface KalturaEntryVendorTask extends KalturaObjectBase {
-  id: number;
-  entryId: string;
-  status: KalturaVendorTaskStatus;
-  serviceType: KalturaVendorServiceType;
-  serviceFeature: KalturaVendorServiceFeature;
-  sourceLanguage?: string;
-  targetLanguage?: string;
-  createdAt: number;
-  updatedAt: number;
-  expectedFinishTime?: number;
-}
-
-/** App token for secure auth */
-export interface KalturaAppToken extends KalturaObjectBase {
-  id: string;
-  token: string;
-  partnerId: number;
-  sessionType: KalturaSessionType;
-  expiry?: number;
 }
 
 /** List response wrapper */

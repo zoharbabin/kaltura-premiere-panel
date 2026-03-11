@@ -1,9 +1,4 @@
-import {
-  buildThumbnailUrl,
-  buildGridThumbnailUrl,
-  buildListThumbnailUrl,
-  buildHoverScrubUrls,
-} from "../../src/utils/thumbnail";
+import { buildThumbnailUrl, buildGridThumbnailUrl } from "../../src/utils/thumbnail";
 
 const PARTNER_ID = 12345;
 const ENTRY_ID = "0_abc123";
@@ -35,35 +30,5 @@ describe("buildGridThumbnailUrl", () => {
   it("uses grid dimensions", () => {
     const url = buildGridThumbnailUrl(PARTNER_ID, ENTRY_ID);
     expect(url).toContain("/width/200/height/120/");
-  });
-});
-
-describe("buildListThumbnailUrl", () => {
-  it("uses list dimensions", () => {
-    const url = buildListThumbnailUrl(PARTNER_ID, ENTRY_ID);
-    expect(url).toContain("/width/80/height/45/");
-  });
-});
-
-describe("buildHoverScrubUrls", () => {
-  it("generates correct number of scrub URLs", () => {
-    const urls = buildHoverScrubUrls(PARTNER_ID, ENTRY_ID, 120, 10);
-    expect(urls).toHaveLength(10);
-  });
-
-  it("spaces frames evenly across duration", () => {
-    const urls = buildHoverScrubUrls(PARTNER_ID, ENTRY_ID, 100, 5);
-    expect(urls).toHaveLength(5);
-    // With duration=100 and 5 frames: interval = 100/6 ≈ 16.67
-    // Frames at seconds: 17, 33, 50, 67, 83
-    urls.forEach((url) => {
-      expect(url).toContain("/vid_sec/");
-    });
-  });
-
-  it("returns empty array for invalid input", () => {
-    expect(buildHoverScrubUrls(PARTNER_ID, ENTRY_ID, 0, 10)).toEqual([]);
-    expect(buildHoverScrubUrls(PARTNER_ID, ENTRY_ID, 100, 0)).toEqual([]);
-    expect(buildHoverScrubUrls(PARTNER_ID, ENTRY_ID, -5, 10)).toEqual([]);
   });
 });

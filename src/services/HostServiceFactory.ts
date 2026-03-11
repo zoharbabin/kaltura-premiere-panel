@@ -2,7 +2,8 @@ import { HostService, HostAppInfo, detectHostApp, HostAppId } from "./HostServic
 import { PremiereService } from "./PremiereService";
 import { AfterEffectsHostService } from "./AfterEffectsHostService";
 import { AuditionHostService } from "./AuditionHostService";
-import { SequenceInfo, ImportResult, MarkerData } from "../types/premiere";
+import { SequenceInfo, ImportResult, MarkerData, TranscriptImportResult } from "../types/premiere";
+import type { CaptionSegment } from "./CaptionService";
 
 /**
  * Adapter that wraps PremiereService to conform to the HostService interface.
@@ -87,6 +88,10 @@ class PremiereHostAdapter implements HostService {
 
   async syncWithProject(): Promise<void> {
     return this.premiere.syncWithProject();
+  }
+
+  importTranscript(entryId: string, segments: CaptionSegment[]): Promise<TranscriptImportResult> {
+    return this.premiere.importTranscriptToClip(entryId, segments);
   }
 }
 

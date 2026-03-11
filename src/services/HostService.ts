@@ -1,4 +1,5 @@
-import { SequenceInfo, ImportResult, MarkerData } from "../types/premiere";
+import { SequenceInfo, ImportResult, MarkerData, TranscriptImportResult } from "../types/premiere";
+import type { CaptionSegment } from "./CaptionService";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("HostService");
@@ -63,6 +64,9 @@ export interface HostService {
 
   /** Sync mappings with the current project (no-op for hosts without project concept) */
   syncWithProject?(): Promise<void>;
+
+  /** Attach transcript/caption data to an imported clip (Premiere-only) */
+  importTranscript?(entryId: string, segments: CaptionSegment[]): Promise<TranscriptImportResult>;
 }
 
 /** Detect which host app we're running in */

@@ -4,9 +4,14 @@ import {
   KalturaMediaEntryFilter,
   KalturaFlavorAsset,
   KalturaCaptionAsset,
+  KalturaCaptionType,
 } from "../types/kaltura";
 import { MediaService } from "../services/MediaService";
 import { MetadataService } from "../services/MetadataService";
+import { CaptionService, CaptionSegment } from "../services/CaptionService";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("BrowsePanel");
 import {
   LoadingSpinner,
   EmptyState,
@@ -20,8 +25,7 @@ import {
   MetadataEditor,
   SkeletonGrid,
 } from "../components";
-import { useDebounce } from "../hooks/useDebounce";
-import { useContainerWidth, getGridColumns, getCardWidth } from "../hooks/useContainerWidth";
+import { useDebounce, useContainerWidth, getGridColumns, getCardWidth } from "../hooks";
 import {
   DEFAULT_PAGE_SIZE,
   SEARCH_DEBOUNCE_MS,
@@ -64,6 +68,23 @@ function getLicenseStatus(entry: KalturaMediaEntry): "expired" | "expiring" | "a
   return "active";
 }
 
+function formatCaptionFormat(format: KalturaCaptionType): string {
+  switch (format) {
+    case KalturaCaptionType.SRT:
+      return "SRT";
+    case KalturaCaptionType.DFXP:
+      return "DFXP/TTML";
+    case KalturaCaptionType.WEBVTT:
+      return "WebVTT";
+    case KalturaCaptionType.CAP:
+      return "CAP";
+    case KalturaCaptionType.SCC:
+      return "SCC";
+    default:
+      return "Unknown";
+  }
+}
+
 /** Duck-typed SearchService for enhanced transcript/in-video search */
 interface SearchServiceLike {
   searchTranscripts(
@@ -89,13 +110,6 @@ interface AuditServiceLike {
   } | null>;
 }
 
-/** Duck-typed ProxyService for proxy editing workflow */
-interface ProxyServiceLike {
-  isProxyLoaded(entryId: string): boolean;
-  downloadProxy(entryId: string, onProgress?: (percent: number) => void): Promise<unknown>;
-  reconnectToOriginal(entryId: string): Promise<unknown>;
-}
-
 /** Duck-typed OfflineService for caching */
 interface OfflineServiceLike {
   getIsOnline(): boolean;
@@ -113,12 +127,15 @@ interface BrowsePanelProps {
   batchService?: BatchServiceLike;
   auditService?: AuditServiceLike;
   offlineService?: OfflineServiceLike;
-  proxyService?: ProxyServiceLike;
+  captionService: CaptionService;
   partnerId: number;
   userId?: string;
   isImported: (entryId: string) => boolean;
-  onSelectEntry: (entry: KalturaMediaEntry) => void;
   onImportEntry: (entry: KalturaMediaEntry, flavor: KalturaFlavorAsset) => void;
+  onAttachToClip?: (
+    entryId: string,
+    segments: CaptionSegment[],
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 interface EntryDetails {
@@ -134,12 +151,12 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   batchService,
   auditService,
   offlineService,
-  proxyService: _proxyService,
+  captionService,
   partnerId,
   userId,
   isImported,
-  onSelectEntry,
   onImportEntry,
+  onAttachToClip,
 }) => {
   const [entries, setEntries] = useState<KalturaMediaEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -219,7 +236,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         setIsLoadingMore(false);
       }
     },
-    [buildFilter, mediaService],
+    [buildFilter, mediaService, offlineService],
   );
 
   // Subscribe to offline status changes
@@ -259,7 +276,6 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
 
   const handleEntryClick = useCallback(
     async (entry: KalturaMediaEntry) => {
-      onSelectEntry(entry);
       try {
         const details = await mediaService.getEntryDetails(entry.id);
         setSelectedEntry(details);
@@ -269,8 +285,10 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         setShowDetail(true);
       }
     },
-    [mediaService, onSelectEntry],
+    [mediaService],
   );
+
+  const [importError, setImportError] = useState<string | null>(null);
 
   const handleBackToGrid = useCallback(() => {
     setShowDetail(false);
@@ -280,8 +298,6 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
     setIsEditing(false);
     setImportError(null);
   }, []);
-
-  const [importError, setImportError] = useState<string | null>(null);
 
   const handleImportClick = useCallback(() => {
     setImportError(null);
@@ -316,6 +332,24 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
     }
   }, [selectedEntry, selectedFlavor, onImportEntry]);
 
+  const handleQuickImport = useCallback(
+    (entry: KalturaMediaEntry) => {
+      if (isContentHeld(entry)) return;
+      mediaService
+        .getEntryDetails(entry.id)
+        .then((details) => {
+          const ready = details.flavors.filter(isFlavorReady);
+          const webFlavor = ready.find((f) => f.isWeb);
+          if (webFlavor) onImportEntry(entry, webFlavor);
+          else if (ready.length > 0) onImportEntry(entry, ready[0]);
+        })
+        .catch((err) => {
+          log.error("Quick import failed", err);
+        });
+    },
+    [mediaService, onImportEntry],
+  );
+
   const handleMetadataSaved = useCallback(
     (updated: KalturaMediaEntry) => {
       setIsEditing(false);
@@ -346,6 +380,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       <AssetDetail
         details={selectedEntry}
         partnerId={partnerId}
+        captionService={captionService}
         onBack={handleBackToGrid}
         onImport={handleImportClick}
         onEdit={() => setIsEditing(true)}
@@ -366,6 +401,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         onQualityCancel={() => setShowQualityPicker(false)}
         onQualityConfirm={handleQualityConfirm}
         auditService={auditService}
+        onAttachToClip={onAttachToClip}
       />
     );
   }
@@ -454,18 +490,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 imported={isImported(entry.id)}
                 cardWidth={cardWidth || undefined}
                 onClick={() => handleEntryClick(entry)}
-                onDoubleClick={() => {
-                  if (isContentHeld(entry)) return;
-                  mediaService
-                    .getEntryDetails(entry.id)
-                    .then((details) => {
-                      const ready = details.flavors.filter(isFlavorReady);
-                      const webFlavor = ready.find((f) => f.isWeb);
-                      if (webFlavor) onImportEntry(entry, webFlavor);
-                      else if (ready.length > 0) onImportEntry(entry, ready[0]);
-                    })
-                    .catch(() => {});
-                }}
+                onDoubleClick={() => handleQuickImport(entry)}
               />
             ))}
           </div>
@@ -478,18 +503,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 partnerId={partnerId}
                 imported={isImported(entry.id)}
                 onClick={() => handleEntryClick(entry)}
-                onDoubleClick={() => {
-                  if (isContentHeld(entry)) return;
-                  mediaService
-                    .getEntryDetails(entry.id)
-                    .then((details) => {
-                      const ready = details.flavors.filter(isFlavorReady);
-                      const webFlavor = ready.find((f) => f.isWeb);
-                      if (webFlavor) onImportEntry(entry, webFlavor);
-                      else if (ready.length > 0) onImportEntry(entry, ready[0]);
-                    })
-                    .catch(() => {});
-                }}
+                onDoubleClick={() => handleQuickImport(entry)}
               />
             ))}
           </div>
@@ -592,7 +606,7 @@ const ListRow: React.FC<ListRowProps> = ({
         {formatDuration(entry.duration)} {"\u00B7"} {formatDate(entry.createdAt)}
         {isContentHeld(entry) && (
           <span className="text-error" style={{ marginLeft: 4 }}>
-            {getHoldReason(entry) ? `Hold: ${getHoldReason(entry)}` : "Content held"}
+            {`Hold: ${getHoldReason(entry) || "Content held"}`}
           </span>
         )}
         {getLicenseStatus(entry) === "expired" && (
@@ -610,9 +624,14 @@ const ListRow: React.FC<ListRowProps> = ({
   </div>
 );
 
+// --- Asset Detail View ---
+
+type DetailSection = "info" | "captions";
+
 interface AssetDetailProps {
   details: EntryDetails;
   partnerId: number;
+  captionService: CaptionService;
   onBack: () => void;
   onImport: () => void;
   onEdit: () => void;
@@ -625,11 +644,16 @@ interface AssetDetailProps {
   onQualityCancel: () => void;
   onQualityConfirm: () => void;
   auditService?: AuditServiceLike;
+  onAttachToClip?: (
+    entryId: string,
+    segments: CaptionSegment[],
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AssetDetail: React.FC<AssetDetailProps> = ({
   details,
   partnerId,
+  captionService,
   onBack,
   onImport,
   onEdit,
@@ -642,9 +666,11 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
   onQualityCancel,
   onQualityConfirm,
   auditService,
+  onAttachToClip,
 }) => {
-  const { entry, flavors, captions } = details;
+  const { entry, flavors } = details;
   const readyFlavors = flavors.filter(isFlavorReady);
+  const [activeSection, setActiveSection] = useState<DetailSection>("info");
 
   const [accessControl, setAccessControl] = useState<{
     name: string;
@@ -676,145 +702,60 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         </div>
       </div>
 
+      {/* Hero */}
+      <div className="detail-hero">
+        <img
+          src={buildGridThumbnailUrl(partnerId, entry.id)}
+          alt={entry.name}
+          className="detail-hero-img"
+        />
+        <div className="detail-hero-overlay">
+          <div className="detail-hero-title">{entry.name}</div>
+          <div className="detail-hero-subtitle">
+            {formatDuration(entry.duration)} {"\u00B7"} {formatDate(entry.createdAt)}
+          </div>
+        </div>
+      </div>
+
+      {/* Section tabs */}
+      <div className="sub-tabs" style={{ padding: "4px 8px", margin: "0" }}>
+        <button
+          className={`sub-tab${activeSection === "info" ? " sub-tab--active" : ""}`}
+          onClick={() => setActiveSection("info")}
+        >
+          Info
+        </button>
+        <button
+          className={`sub-tab${activeSection === "captions" ? " sub-tab--active" : ""}`}
+          onClick={() => setActiveSection("captions")}
+        >
+          Captions
+        </button>
+      </div>
+
+      {/* Quality picker overlay */}
+      {showQualityPicker && (
+        <QualityPicker
+          flavors={readyFlavors}
+          selectedFlavorId={selectedFlavor?.id ?? null}
+          onSelect={onFlavorSelect}
+          onCancel={onQualityCancel}
+          onConfirm={onQualityConfirm}
+        />
+      )}
+
       <div className="detail-scroll">
-        {/* Thumbnail with title overlay */}
-        <div className="detail-hero">
-          <img
-            src={buildGridThumbnailUrl(partnerId, entry.id)}
-            alt={entry.name}
-            className="detail-hero-img"
+        {activeSection === "info" && (
+          <InfoSection entry={entry} readyFlavors={readyFlavors} accessControl={accessControl} />
+        )}
+        {activeSection === "captions" && (
+          <CaptionSection
+            entryId={entry.id}
+            captionService={captionService}
+            initialCaptions={details.captions}
+            isVideoImported={isImported}
+            onAttachToClip={onAttachToClip}
           />
-          <div className="detail-hero-overlay">
-            <div className="detail-hero-title">{entry.name}</div>
-            <div className="detail-hero-subtitle">
-              {formatDuration(entry.duration)} {"\u00B7"} {formatDate(entry.createdAt)}
-            </div>
-          </div>
-        </div>
-
-        {/* Quality picker overlay */}
-        {showQualityPicker && (
-          <QualityPicker
-            flavors={readyFlavors}
-            selectedFlavorId={selectedFlavor?.id ?? null}
-            onSelect={onFlavorSelect}
-            onCancel={onQualityCancel}
-            onConfirm={onQualityConfirm}
-          />
-        )}
-
-        {/* Governance warnings */}
-        {isContentHeld(entry) && (
-          <div className="section-info section-info-error">
-            <strong>Content Hold</strong>
-            <div style={{ marginTop: 4 }}>
-              {getHoldReason(entry)
-                ? `Reason: ${getHoldReason(entry)}`
-                : "This entry is under content hold and cannot be imported."}
-            </div>
-          </div>
-        )}
-        {(getLicenseStatus(entry) === "expired" || getLicenseStatus(entry) === "expiring") && (
-          <div
-            className={`section-info ${getLicenseStatus(entry) === "expired" ? "section-info-error" : "section-info-warning"}`}
-          >
-            <strong>
-              {getLicenseStatus(entry) === "expired" ? "License Expired" : "License Expiring Soon"}
-            </strong>
-            <div style={{ marginTop: 4 }}>
-              {getLicenseStatus(entry) === "expired"
-                ? `This content's license expired on ${formatDate(entry.endDate!)}.`
-                : `This content's license expires on ${formatDate(entry.endDate!)}. Review usage rights before importing.`}
-            </div>
-          </div>
-        )}
-
-        {/* Details card */}
-        <div className="detail-section">
-          <div className="detail-section-title">Details</div>
-          {entry.description && (
-            <div className="detail-field">
-              <span className="detail-field-value">{entry.description}</span>
-            </div>
-          )}
-          <div className="detail-fields-grid">
-            {entry.tags && (
-              <div className="detail-field">
-                <span className="detail-field-label">Tags</span>
-                <span className="detail-field-value">{entry.tags}</span>
-              </div>
-            )}
-            {entry.categories && (
-              <div className="detail-field">
-                <span className="detail-field-label">Categories</span>
-                <span className="detail-field-value">{entry.categories}</span>
-              </div>
-            )}
-            <div className="detail-field">
-              <span className="detail-field-label">Entry ID</span>
-              <span className="detail-field-value text-mono">{entry.id}</span>
-            </div>
-            {entry.userId && (
-              <div className="detail-field">
-                <span className="detail-field-label">Owner</span>
-                <span className="detail-field-value">{entry.userId}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Access control card */}
-        {accessControl && (
-          <div className="detail-section">
-            <div className="detail-section-title">Access Control</div>
-            <div className="detail-field">
-              <span className="detail-field-label">Profile</span>
-              <span className="detail-field-value">{accessControl.name}</span>
-            </div>
-            {accessControl.restrictions.length > 0 &&
-              accessControl.restrictions.map((r, i) => (
-                <div key={i} className="detail-field">
-                  <span className="detail-field-label">{r.type}</span>
-                  <span className="detail-field-value">{r.description}</span>
-                </div>
-              ))}
-          </div>
-        )}
-
-        {/* Available qualities card */}
-        {readyFlavors.length > 0 && (
-          <div className="detail-section">
-            <div className="detail-section-title">Available Qualities ({readyFlavors.length})</div>
-            {readyFlavors.map((f) => (
-              <div key={f.id} className="quality-item">
-                <span className="quality-resolution">
-                  {f.width}
-                  {"\u00D7"}
-                  {f.height}
-                </span>
-                <span className="quality-meta">
-                  {f.fileExt} {"\u00B7"} {formatFileSize(f.size * 1024)}
-                </span>
-                {(f.isOriginal || f.isWeb) && (
-                  <span className="quality-badge">{f.isOriginal ? "Original" : "Web"}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Caption tracks card */}
-        {captions.length > 0 && (
-          <div className="detail-section">
-            <div className="detail-section-title">Caption Tracks ({captions.length})</div>
-            {captions.map((c) => (
-              <div key={c.id} className="caption-item">
-                <span className="caption-lang">{c.language}</span>
-                <span className="caption-label">{c.label}</span>
-                {c.isDefault && <span className="quality-badge">Default</span>}
-              </div>
-            ))}
-          </div>
         )}
       </div>
 
@@ -878,6 +819,300 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
                 : "Import to Project"}
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Info Section ---
+
+const InfoSection: React.FC<{
+  entry: KalturaMediaEntry;
+  readyFlavors: KalturaFlavorAsset[];
+  accessControl: { name: string; restrictions: { type: string; description: string }[] } | null;
+}> = ({ entry, readyFlavors, accessControl }) => {
+  const holdReason = getHoldReason(entry);
+  const licenseStatus = getLicenseStatus(entry);
+
+  return (
+    <>
+      {/* Governance warnings */}
+      {isContentHeld(entry) && (
+        <div className="section-info section-info-error">
+          <strong>Content Hold</strong>
+          <div style={{ marginTop: 4 }}>
+            {holdReason
+              ? `Reason: ${holdReason}`
+              : "This entry is under content hold and cannot be imported."}
+          </div>
+        </div>
+      )}
+      {(licenseStatus === "expired" || licenseStatus === "expiring") && (
+        <div
+          className={`section-info ${licenseStatus === "expired" ? "section-info-error" : "section-info-warning"}`}
+        >
+          <strong>
+            {licenseStatus === "expired" ? "License Expired" : "License Expiring Soon"}
+          </strong>
+          <div style={{ marginTop: 4 }}>
+            {licenseStatus === "expired"
+              ? `This content's license expired on ${formatDate(entry.endDate!)}.`
+              : `This content's license expires on ${formatDate(entry.endDate!)}. Review usage rights before importing.`}
+          </div>
+        </div>
+      )}
+
+      {/* Details */}
+      <div className="detail-section">
+        <div className="detail-section-title">Details</div>
+        {entry.description && (
+          <div className="detail-field">
+            <span className="detail-field-value">{entry.description}</span>
+          </div>
+        )}
+        <div className="detail-fields-grid">
+          {entry.tags && (
+            <div className="detail-field">
+              <span className="detail-field-label">Tags</span>
+              <span className="detail-field-value">{entry.tags}</span>
+            </div>
+          )}
+          {entry.categories && (
+            <div className="detail-field">
+              <span className="detail-field-label">Categories</span>
+              <span className="detail-field-value">{entry.categories}</span>
+            </div>
+          )}
+          <div className="detail-field">
+            <span className="detail-field-label">Entry ID</span>
+            <span className="detail-field-value text-mono">{entry.id}</span>
+          </div>
+          {entry.userId && (
+            <div className="detail-field">
+              <span className="detail-field-label">Owner</span>
+              <span className="detail-field-value">{entry.userId}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Access control */}
+      {accessControl && (
+        <div className="detail-section">
+          <div className="detail-section-title">Access Control</div>
+          <div className="detail-field">
+            <span className="detail-field-label">Profile</span>
+            <span className="detail-field-value">{accessControl.name}</span>
+          </div>
+          {accessControl.restrictions.length > 0 &&
+            accessControl.restrictions.map((r, i) => (
+              <div key={i} className="detail-field">
+                <span className="detail-field-label">{r.type}</span>
+                <span className="detail-field-value">{r.description}</span>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {/* Available qualities */}
+      {readyFlavors.length > 0 && (
+        <div className="detail-section">
+          <div className="detail-section-title">Available Qualities ({readyFlavors.length})</div>
+          {readyFlavors.map((f) => (
+            <div key={f.id} className="quality-item">
+              <span className="quality-resolution">
+                {f.width}
+                {"\u00D7"}
+                {f.height}
+              </span>
+              <span className="quality-meta">
+                {f.fileExt} {"\u00B7"} {formatFileSize(f.size * 1024)}
+              </span>
+              {(f.isOriginal || f.isWeb) && (
+                <span className="quality-badge">{f.isOriginal ? "Original" : "Web"}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
+// --- Caption Section ---
+
+const CaptionSection: React.FC<{
+  entryId: string;
+  captionService: CaptionService;
+  initialCaptions: KalturaCaptionAsset[];
+  isVideoImported: boolean;
+  onAttachToClip?: (
+    entryId: string,
+    segments: CaptionSegment[],
+  ) => Promise<{ success: boolean; error?: string }>;
+}> = ({ entryId, captionService, initialCaptions, isVideoImported, onAttachToClip }) => {
+  const [captions, setCaptions] = useState<KalturaCaptionAsset[]>(initialCaptions);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsLoading(true);
+    setError(null);
+    captionService
+      .listCaptions(entryId)
+      .then(setCaptions)
+      .catch((err) => {
+        setCaptions(initialCaptions);
+        setError(getUserMessage(err));
+      })
+      .finally(() => setIsLoading(false));
+  }, [entryId, captionService, initialCaptions]);
+
+  const handleImportSrt = useCallback(
+    async (caption: KalturaCaptionAsset) => {
+      setBusyId(caption.id);
+      setError(null);
+      setSuccessMsg(null);
+      try {
+        const srtContent = await captionService.downloadCaptionAsSrt(caption);
+        const fileName = `${caption.label || caption.language}.srt`;
+
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const fs = require("fs");
+        const filePath = `plugin-data:/${fileName}`;
+        await fs.writeFile(filePath, srtContent);
+
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const uxp = require("uxp");
+        const fileEntry = await uxp.storage.localFileSystem.getEntryWithUrl(filePath);
+        const nativePath = fileEntry.nativePath;
+
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const ppro = require("premierepro");
+        const project = await ppro.Project.getActiveProject();
+        await project.importFiles([nativePath], true);
+        setSuccessMsg("SRT imported to project panel.");
+        setTimeout(() => setSuccessMsg(null), 4000);
+      } catch (err) {
+        setError(getUserMessage(err));
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [captionService],
+  );
+
+  const handleAttachToClip = useCallback(
+    async (caption: KalturaCaptionAsset) => {
+      if (!onAttachToClip) return;
+      if (!isVideoImported) {
+        setError("Import the video first before attaching captions.");
+        return;
+      }
+      setBusyId(caption.id);
+      setError(null);
+      setSuccessMsg(null);
+      try {
+        const jsonSegments = await captionService.downloadCaptionAsJson(caption.id);
+        const segments = captionService.parseKalturaJson(jsonSegments);
+
+        if (segments.length === 0) {
+          setError("No transcript segments found in this caption track.");
+          return;
+        }
+
+        const result = await onAttachToClip(entryId, segments);
+        if (result.success) {
+          setSuccessMsg("Transcript attached \u2014 open the Transcript panel to view.");
+          setTimeout(() => setSuccessMsg(null), 6000);
+        } else {
+          setError(`Attach failed: ${result.error}. Use "Import SRT" as an alternative.`);
+        }
+      } catch (err) {
+        setError(`Attach failed: ${getUserMessage(err)}. Use "Import SRT" as an alternative.`);
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [captionService, entryId, isVideoImported, onAttachToClip],
+  );
+
+  if (isLoading) {
+    return <LoadingSpinner label="Loading captions..." size="small" />;
+  }
+
+  return (
+    <div style={{ padding: "0 8px" }}>
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+      {successMsg && (
+        <div
+          className="import-banner import-banner--success"
+          style={{ marginBottom: 8, padding: "4px 8px", fontSize: 10 }}
+        >
+          {successMsg}
+        </div>
+      )}
+
+      <div className="flex-col gap-8">
+        {captions.map((caption) => (
+          <div key={caption.id} className="card-item">
+            <div className="card-item-header">
+              <div>
+                <strong>
+                  {caption.language.toUpperCase()} — {caption.label}
+                </strong>
+                {caption.isDefault && (
+                  <span className="text-success" style={{ marginLeft: 4, fontSize: 10 }}>
+                    Default
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="text-muted" style={{ marginTop: 2 }}>
+              {formatCaptionFormat(caption.format)} {"\u00B7"} {formatDate(caption.createdAt)}
+              {caption.accuracy && ` \u00B7 ${caption.accuracy}% accuracy`}
+            </div>
+            <div style={{ display: "flex", marginTop: 4 }}>
+              <div
+                role="button"
+                tabIndex={0}
+                className="detail-btn detail-btn--secondary"
+                style={{ padding: "2px 8px", fontSize: 10, marginRight: 6 }}
+                onClick={() => handleImportSrt(caption)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") handleImportSrt(caption);
+                }}
+              >
+                {busyId === caption.id ? "Working..." : "Import SRT"}
+              </div>
+              {onAttachToClip && isVideoImported && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="detail-btn"
+                  style={{ padding: "2px 8px", fontSize: 10 }}
+                  onClick={() => handleAttachToClip(caption)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") handleAttachToClip(caption);
+                  }}
+                >
+                  {busyId === caption.id ? "Working..." : "Attach to Clip"}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {captions.length === 0 && (
+          <div
+            className="text-muted-light"
+            style={{ padding: 16, textAlign: "center", fontSize: 11 }}
+          >
+            No caption tracks available for this entry.
+          </div>
+        )}
       </div>
     </div>
   );

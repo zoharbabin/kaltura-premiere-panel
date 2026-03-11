@@ -158,7 +158,9 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           if (canExportSequence) setSourceMode("sequence");
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        log.debug("Could not detect active sequence", err);
+      });
   }, [premiereService, canExportSequence, title, publishMode]);
 
   // Load categories on mount
@@ -396,7 +398,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
 
   const handleViewInKaltura = useCallback(() => {
     if (!publishedEntry) return;
-    const url = `${mediaService["client"]["serviceUrl"]}/index.php/kmcng/content/entries/entry/${publishedEntry.id}`;
+    const url = `${mediaService.getServerUrl()}/index.php/kmcng/content/entries/entry/${publishedEntry.id}`;
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
@@ -572,17 +574,23 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           style={{ width: "100%", marginBottom: 12 }}
         />
 
-        <div className="form-label">Description</div>
+        <div className="form-label">
+          {publishMode === "new" ? "Description" : "Description (optional)"}
+        </div>
         <sp-textarea
-          placeholder="Video description"
+          placeholder={
+            publishMode === "new" ? "Video description" : "Leave empty to keep current description"
+          }
           value={description}
           onInput={(e: Event) => setDescription((e.target as HTMLTextAreaElement).value)}
           style={{ width: "100%", marginBottom: 12 }}
         />
 
-        <div className="form-label">Tags</div>
+        <div className="form-label">{publishMode === "new" ? "Tags" : "Tags (optional)"}</div>
         <sp-textfield
-          placeholder="Comma-separated tags"
+          placeholder={
+            publishMode === "new" ? "Comma-separated tags" : "Leave empty to keep current tags"
+          }
           value={tags}
           onInput={(e: Event) => setTags((e.target as HTMLInputElement).value)}
           style={{ width: "100%", marginBottom: 12 }}

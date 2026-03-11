@@ -1,6 +1,4 @@
 import { KalturaClient } from "./KalturaClient";
-import { MediaService } from "./MediaService";
-import { CaptionService } from "./CaptionService";
 import { KalturaMediaEntry, KalturaListResponse } from "../types/kaltura";
 import { CONTENT_HOLD_TAG, HOLD_REASON_PREFIX } from "../utils/constants";
 import { createLogger } from "../utils/logger";
@@ -42,17 +40,13 @@ const CACHE_STORAGE_KEY = "kaltura_batch_cache";
 
 /**
  * Batch operations for bulk management of Kaltura entries:
- * metadata updates, category publishing, REACH captioning, and deletion.
+ * metadata updates, category publishing, and deletion.
  * Also provides offline caching and enterprise governance features.
  */
 export class BatchService {
   private cache: Map<string, CachedEntry> = new Map();
 
-  constructor(
-    private client: KalturaClient,
-    private mediaService: MediaService,
-    private captionService: CaptionService,
-  ) {
+  constructor(private client: KalturaClient) {
     this.loadCacheFromStorage();
   }
 
@@ -152,57 +146,6 @@ export class BatchService {
     }
 
     log.info("Batch publish complete", {
-      successful: result.successful,
-      failed: result.failed.length,
-    });
-    return result;
-  }
-
-  /** Trigger REACH captioning for multiple entries using multiRequest */
-  async batchOrderCaptioning(
-    entryIds: string[],
-    catalogItemId: number,
-    sourceLanguage: string,
-  ): Promise<BatchResult> {
-    log.info("Batch order captioning", { count: entryIds.length, catalogItemId, sourceLanguage });
-
-    const result: BatchResult = { total: entryIds.length, successful: 0, failed: [] };
-
-    const requests = entryIds.map((entryId) => ({
-      service: "reach_entryVendorTask",
-      action: "add",
-      params: {
-        entryVendorTask: {
-          objectType: "KalturaEntryVendorTask",
-          entryId,
-          catalogItemId,
-          sourceLanguage,
-        },
-      },
-    }));
-
-    try {
-      const responses = await this.client.multiRequest(requests);
-      for (let i = 0; i < responses.length; i++) {
-        const resp = responses[i];
-        if (resp?.objectType === "KalturaAPIException") {
-          const err = resp as unknown as { message: string };
-          result.failed.push({ entryId: entryIds[i], error: err.message });
-        } else {
-          result.successful++;
-        }
-      }
-    } catch (error) {
-      log.error("Batch captioning order failed", error);
-      for (const entryId of entryIds) {
-        result.failed.push({
-          entryId,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-    }
-
-    log.info("Batch captioning order complete", {
       successful: result.successful,
       failed: result.failed.length,
     });

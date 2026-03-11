@@ -19,6 +19,7 @@ interface State {
  */
 export class ErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false, errorMessage: "" };
+  private recoverRef = React.createRef<HTMLDivElement>();
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, errorMessage: error.message || "Unknown error" };
@@ -32,6 +33,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
     });
   }
 
+  componentDidUpdate(_prevProps: Props, prevState: State): void {
+    if (this.state.hasError && !prevState.hasError) {
+      this.recoverRef.current?.focus();
+    }
+  }
+
   private handleRecover = () => {
     this.setState({ hasError: false, errorMessage: "" });
   };
@@ -40,6 +47,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div
+          role="alert"
           style={{
             display: "flex",
             flexDirection: "column",
@@ -53,9 +61,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
         >
           <sp-heading size="S">Something went wrong</sp-heading>
           <sp-body size="S">{this.state.errorMessage}</sp-body>
-          <sp-button variant="primary" onClick={this.handleRecover}>
-            Recover
-          </sp-button>
+          <div ref={this.recoverRef} tabIndex={-1} style={{ outline: "none" }}>
+            <sp-button variant="primary" onClick={this.handleRecover}>
+              Recover
+            </sp-button>
+          </div>
         </div>
       );
     }

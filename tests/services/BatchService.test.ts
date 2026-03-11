@@ -1,7 +1,5 @@
 import { BatchService } from "../../src/services/BatchService";
 import { KalturaClient } from "../../src/services/KalturaClient";
-import { MediaService } from "../../src/services/MediaService";
-import { CaptionService } from "../../src/services/CaptionService";
 
 const mockRequest = jest.fn();
 const mockMultiRequest = jest.fn();
@@ -10,16 +8,11 @@ const client = {
   multiRequest: mockMultiRequest,
 } as unknown as KalturaClient;
 
-const mediaService = {} as unknown as MediaService;
-const captionService = {
-  triggerCaptioning: jest.fn(),
-} as unknown as CaptionService;
-
 describe("BatchService", () => {
   let service: BatchService;
 
   beforeEach(() => {
-    service = new BatchService(client, mediaService, captionService);
+    service = new BatchService(client);
     jest.clearAllMocks();
   });
 
@@ -67,16 +60,6 @@ describe("BatchService", () => {
       expect(result.successful).toBe(2);
       expect(result.failed).toHaveLength(1);
       expect(result.failed[0].entryId).toBe("0_b");
-    });
-  });
-
-  describe("batchOrderCaptioning()", () => {
-    it("triggers captioning for multiple entries via multiRequest", async () => {
-      mockMultiRequest.mockResolvedValue([{ id: 1 }, { id: 2 }]);
-
-      const result = await service.batchOrderCaptioning(["0_a", "0_b"], 42, "en");
-      expect(result.total).toBe(2);
-      expect(result.successful).toBe(2);
     });
   });
 

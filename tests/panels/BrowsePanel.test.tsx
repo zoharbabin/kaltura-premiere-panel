@@ -75,12 +75,19 @@ function simulateInput(element: Element, value: string) {
   element.dispatchEvent(event);
 }
 
+function mockCaptionService() {
+  return {
+    listCaptions: jest.fn().mockResolvedValue([]),
+    downloadCaptionAsSrt: jest.fn().mockResolvedValue("1\n00:00:01,000 --> 00:00:02,000\nHi"),
+  };
+}
+
 const defaultProps = {
   mediaService: mockMediaService() as never,
   metadataService: mockMetadataService() as never,
+  captionService: mockCaptionService() as never,
   partnerId: 123,
   isImported: jest.fn().mockReturnValue(false),
-  onSelectEntry: jest.fn(),
   onImportEntry: jest.fn(),
 };
 
@@ -201,20 +208,6 @@ describe("BrowsePanel", () => {
       expect(screen.getByText("Import to Project")).toBeTruthy();
       expect(screen.getByText("Edit Metadata")).toBeTruthy();
     });
-  });
-
-  it("calls onSelectEntry when entry is clicked", async () => {
-    const onSelectEntry = jest.fn();
-    render(<BrowsePanel {...defaultProps} onSelectEntry={onSelectEntry} />);
-    await waitFor(() => {
-      expect(screen.getByText("Video One")).toBeTruthy();
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText("Video One"));
-    });
-
-    expect(onSelectEntry).toHaveBeenCalledWith(entries[0]);
   });
 
   it("returns to grid from detail flyout via Back button", async () => {
@@ -419,27 +412,36 @@ describe("BrowsePanel", () => {
     });
   });
 
-  it("shows caption tracks in detail flyout", async () => {
+  it("shows captions tab in detail flyout with tracks", async () => {
+    const captionData = [
+      {
+        id: "cap-1",
+        entryId: "0_entry1",
+        label: "English",
+        language: "en",
+        format: 1,
+        status: 2,
+        isDefault: true,
+        createdAt: 1700000000,
+        updatedAt: 1700000000,
+      },
+    ];
     const service = mockMediaService({
       getEntryDetails: jest.fn().mockResolvedValue({
         entry: entries[0],
         flavors: [makeFlavor()],
-        captions: [
-          {
-            id: "cap-1",
-            entryId: "0_entry1",
-            label: "English",
-            language: "en",
-            format: 1,
-            status: 2,
-            isDefault: true,
-            createdAt: 1700000000,
-            updatedAt: 1700000000,
-          },
-        ],
+        captions: captionData,
       }),
     });
-    render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
+    const capService = mockCaptionService();
+    capService.listCaptions = jest.fn().mockResolvedValue(captionData);
+    render(
+      <BrowsePanel
+        {...defaultProps}
+        mediaService={service as never}
+        captionService={capService as never}
+      />,
+    );
     await waitFor(() => {
       expect(screen.getByText("Video One")).toBeTruthy();
     });
@@ -449,10 +451,15 @@ describe("BrowsePanel", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Caption Tracks \(1\)/)).toBeTruthy();
-      expect(screen.getByText("en")).toBeTruthy();
-      expect(screen.getByText("English")).toBeTruthy();
+      expect(screen.getByText("Captions")).toBeTruthy();
+    });
+
+    // Click the Captions tab
+    fireEvent.click(screen.getByText("Captions"));
+
+    await waitFor(() => {
       expect(screen.getByText("Default")).toBeTruthy();
+      expect(screen.getByText("Import SRT")).toBeTruthy();
     });
   });
 

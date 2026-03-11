@@ -7,7 +7,6 @@ const log = createLogger("NotificationService");
 export type NotificationEventType =
   | "entryReady"
   | "captionReady"
-  | "reachTaskComplete"
   | "entryUpdated"
   | "annotationAdded";
 
@@ -172,7 +171,6 @@ export class NotificationService {
 
     if (objectType === "KalturaMediaEntry" && eventType === "statusChanged") return "entryReady";
     if (objectType === "KalturaCaptionAsset") return "captionReady";
-    if (objectType === "KalturaEntryVendorTask") return "reachTaskComplete";
     if (objectType === "KalturaAnnotation") return "annotationAdded";
     if (objectType === "KalturaMediaEntry" && eventType === "updated") return "entryUpdated";
     return null;
