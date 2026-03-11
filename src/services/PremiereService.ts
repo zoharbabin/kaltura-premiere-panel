@@ -36,7 +36,7 @@ declare namespace premierepro {
   class FolderItem implements ProjectItem {
     name: string;
     type: number;
-    children: ProjectItem[];
+    getItems(): Promise<ProjectItem[]>;
     createBinAction(name: string): Promise<Action>;
   }
   class Sequence {
@@ -293,7 +293,7 @@ export class PremiereService {
 
       // Step 1: Ensure the "Kaltura Assets" bin exists
       const rootItem = await project.getRootItem();
-      let bin = this.findBinByName(rootItem, KALTURA_BIN_NAME);
+      let bin = await this.findBinByName(rootItem, KALTURA_BIN_NAME);
 
       if (!bin) {
         log.info("Creating Kaltura Assets bin");
@@ -307,7 +307,7 @@ export class PremiereService {
         }
         // Re-fetch root to get updated children
         const updatedRoot = await project.getRootItem();
-        bin = this.findBinByName(updatedRoot, KALTURA_BIN_NAME);
+        bin = await this.findBinByName(updatedRoot, KALTURA_BIN_NAME);
         log.info("Bin lookup after create", { found: !!bin });
       }
 
@@ -460,44 +460,7 @@ export class PremiereService {
     try {
       const project = await pp.Project.getActiveProject();
       const rootItem = await project.getRootItem();
-
-      // Try multiple approaches to find the clip in the project
-      let projectItem: premierepro.ProjectItem | null = null;
-
-      // Approach 1: findItemsMatchingMediaPath on root (may exist at runtime)
-      const rootAny = rootItem as unknown as Record<string, unknown>;
-      console.error("[DEBUG] rootItem keys:", Object.getOwnPropertyNames(rootAny));
-      console.error(
-        "[DEBUG] rootItem proto:",
-        Object.getOwnPropertyNames(Object.getPrototypeOf(rootAny)),
-      );
-      if (typeof rootAny.findItemsMatchingMediaPath === "function") {
-        const matches = (
-          rootAny.findItemsMatchingMediaPath as (path: string) => premierepro.ProjectItem[]
-        )(mapping.localPath);
-        console.error("[DEBUG] findItemsMatchingMediaPath result:", matches?.length);
-        if (matches && matches.length > 0) {
-          projectItem = matches[0];
-        }
-      }
-
-      // Approach 2: Try filename-based search
-      if (!projectItem && typeof rootAny.findItemsMatchingMediaPath === "function") {
-        const fileName = mapping.localPath.split("/").pop() || "";
-        const matches = (
-          rootAny.findItemsMatchingMediaPath as (path: string) => premierepro.ProjectItem[]
-        )(fileName);
-        console.error("[DEBUG] filename search result:", matches?.length, "for:", fileName);
-        if (matches && matches.length > 0) {
-          projectItem = matches[0];
-        }
-      }
-
-      // Approach 3: Tree traversal fallback
-      if (!projectItem) {
-        projectItem = this.findItemByPath(rootItem, mapping.localPath);
-      }
-
+      const projectItem = await this.findItemByPath(rootItem, mapping.localPath);
       console.error("[DEBUG] projectItem found?", !!projectItem);
 
       if (!projectItem) {
@@ -1014,12 +977,13 @@ export class PremiereService {
     this.persistMappings();
   }
 
-  private findBinByName(
+  private async findBinByName(
     parent: premierepro.FolderItem,
     name: string,
-  ): premierepro.FolderItem | null {
-    if (!parent.children) return null;
-    for (const child of parent.children) {
+  ): Promise<premierepro.FolderItem | null> {
+    const children = await parent.getItems();
+    if (!children) return null;
+    for (const child of children) {
       if (child.name === name && child.type === 2) {
         return child as unknown as premierepro.FolderItem;
       }
@@ -1028,34 +992,19 @@ export class PremiereService {
   }
 
   /** Find a clip project item by its local media file path (recursive bin search) */
-  private findItemByPath(
+  private async findItemByPath(
     parent: premierepro.FolderItem,
     localPath: string,
-  ): premierepro.ProjectItem | null {
-    console.error("[DEBUG] findItemByPath", {
-      hasChildren: !!parent.children,
-      childrenType: typeof parent.children,
-      isArray: Array.isArray(parent.children),
-      childCount: parent.children ? (parent.children as unknown[]).length : 0,
-      parentName: (parent as unknown as { name?: string }).name,
-    });
-    if (!parent.children) return null;
+  ): Promise<premierepro.ProjectItem | null> {
+    const children = await parent.getItems();
+    console.error("[DEBUG] findItemByPath", parent.name, "children:", children?.length);
+    if (!children) return null;
 
     const pp = getPremiere();
-    const normalizedTarget = localPath.replace(/\\/g, "/").toLowerCase();
-    const children = parent.children;
-    const count = (children as unknown[]).length;
+    const targetFileName = localPath.split("/").pop() || "";
 
-    for (let i = 0; i < count; i++) {
-      const child = (children as unknown[])[i] as premierepro.ProjectItem;
-      console.error(
-        "[DEBUG] child",
-        i,
-        "type:",
-        child.type,
-        "name:",
-        (child as unknown as { name?: string }).name,
-      );
+    for (const child of children) {
+      console.error("[DEBUG] child type:", child.type, "name:", child.name);
 
       // type 1 = clip
       if (child.type === 1) {
@@ -1064,21 +1013,18 @@ export class PremiereService {
           const clipPath = clip.getMediaFilePath();
           console.error("[DEBUG] clip path:", clipPath);
           if (clipPath === localPath) return child;
-          // Fallback: case-insensitive + normalized separators
-          if (clipPath && clipPath.replace(/\\/g, "/").toLowerCase() === normalizedTarget)
-            return child;
-          // Fallback: match by filename only
-          if (clipPath && clipPath.split("/").pop() === localPath.split("/").pop()) {
-            console.error("[DEBUG] matched by filename", clipPath);
-            return child;
-          }
+          // Fallback: match by filename
+          if (clipPath && clipPath.split("/").pop() === targetFileName) return child;
         } catch (err) {
-          console.error("[DEBUG] cast error for child", i, String(err));
+          console.error("[DEBUG] cast error", String(err));
         }
       }
       // type 2 = bin — recurse
       if (child.type === 2) {
-        const found = this.findItemByPath(child as unknown as premierepro.FolderItem, localPath);
+        const found = await this.findItemByPath(
+          child as unknown as premierepro.FolderItem,
+          localPath,
+        );
         if (found) return found;
       }
     }

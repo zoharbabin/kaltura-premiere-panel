@@ -69,7 +69,7 @@ describe("PremiereService", () => {
   describe("importFiles", () => {
     it("returns success when import completes", async () => {
       const mockRootItem = {
-        children: [],
+        getItems: jest.fn().mockResolvedValue([]),
         createBinAction: jest.fn().mockResolvedValue({
           execute: jest.fn().mockResolvedValue(undefined),
         }),
@@ -106,9 +106,13 @@ describe("PremiereService", () => {
     });
 
     it("retries to root when bin import fails", async () => {
-      const mockBin = { name: "Kaltura Assets", type: 2, children: [] };
+      const mockBin = {
+        name: "Kaltura Assets",
+        type: 2,
+        getItems: jest.fn().mockResolvedValue([]),
+      };
       const mockRootItem = {
-        children: [mockBin],
+        getItems: jest.fn().mockResolvedValue([mockBin]),
         createBinAction: jest.fn(),
       };
       const importFiles = jest
@@ -132,9 +136,13 @@ describe("PremiereService", () => {
     });
 
     it("falls back to minimal importFiles call when all retries fail", async () => {
-      const mockBin = { name: "Kaltura Assets", type: 2, children: [] };
+      const mockBin = {
+        name: "Kaltura Assets",
+        type: 2,
+        getItems: jest.fn().mockResolvedValue([]),
+      };
       const mockRootItem = {
-        children: [mockBin],
+        getItems: jest.fn().mockResolvedValue([mockBin]),
         createBinAction: jest.fn(),
       };
       const importFiles = jest
@@ -160,7 +168,7 @@ describe("PremiereService", () => {
 
     it("returns failure with error message when all import attempts throw", async () => {
       const mockRootItem = {
-        children: [],
+        getItems: jest.fn().mockResolvedValue([]),
         createBinAction: jest.fn().mockResolvedValue({
           execute: jest.fn().mockResolvedValue(undefined),
         }),
