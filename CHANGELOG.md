@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.15.2
+
+### Improvements
+
+- **README rewritten for public release** — added "What is this?" intro for newcomers, prominent download link at top, reordered install instructions (manual download first, `gh` CLI second), added download table to release notes
+- **Release notes install section updated** — matches new README ordering with clearer steps
+- Removed hardcoded test counts from CONTRIBUTING.md (won't go stale)
+- Fixed coverage threshold mismatch in README (branches 50%, not 52%)
+
 ## 1.15.1
 
 ### Bug Fixes

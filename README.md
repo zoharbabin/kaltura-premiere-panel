@@ -1,8 +1,14 @@
 # Kaltura for Adobe Creative Cloud
 
-> **From Timeline to Audience.** A native [Adobe UXP](https://developer.adobe.com/premiere-pro/uxp/) panel integrating [Kaltura's](https://developer.kaltura.com/) enterprise video platform with Adobe Premiere Pro, After Effects, and Audition.
+> **From Timeline to Audience.** A native [Adobe UXP](https://developer.adobe.com/premiere-pro/uxp/) panel integrating [Kaltura's](https://corp.kaltura.com/) enterprise video platform with Adobe Premiere Pro, After Effects, and Audition.
 
 Browse, search, import, and publish video content — all without leaving your Adobe app.
+
+**[Download Latest Release](../../releases/latest)** | [Enterprise Deployment Guide](./docs/enterprise-deployment.md) | [Contributing](./CONTRIBUTING.md)
+
+### What is this?
+
+[Kaltura](https://corp.kaltura.com/) is an enterprise video platform used by Fortune 500 companies, universities, and media organizations for video management, hosting, and streaming. This open-source plugin brings Kaltura directly into Adobe's creative tools — editors can browse their organization's video library, import assets, attach AI-generated captions, and publish finished work back to Kaltura, all from within Premiere Pro (or After Effects / Audition).
 
 ## Features
 
@@ -26,9 +32,30 @@ Browse, search, import, and publish video content — all without leaving your A
 
 ### Install (End Users)
 
-#### One-Click Install (recommended)
+#### Option A — Download & Install (recommended)
 
-Requires [GitHub CLI](https://cli.github.com/) (`gh`). Open Terminal (macOS) or PowerShell (Windows) and paste:
+1. Go to the **[Latest Release](../../releases/latest)** page
+2. Download the `.ccx` file for your app and the installer script for your OS:
+
+   | Download                               | Purpose                  |
+   | -------------------------------------- | ------------------------ |
+   | `kaltura-panel-x.x.x-premierepro.ccx`  | Plugin for Premiere Pro  |
+   | `kaltura-panel-x.x.x-aftereffects.ccx` | Plugin for After Effects |
+   | `kaltura-panel-x.x.x-audition.ccx`     | Plugin for Audition      |
+   | `install-mac.sh`                       | macOS installer          |
+   | `install-win.bat`                      | Windows installer        |
+
+3. Place the `.ccx` and installer script in the same folder
+4. Run the installer:
+   - **macOS:** Open Terminal, `cd` to that folder, run `chmod +x install-mac.sh && ./install-mac.sh`
+   - **Windows:** Double-click `install-win.bat`
+5. Open your Adobe app > **Window > UXP Plugins > Kaltura**
+
+> **Why not double-click the `.ccx`?** Adobe only supports `.ccx` double-click install for Photoshop. For Premiere Pro, After Effects, and Audition, the installer scripts use Adobe's UPIA (Unified Plugin Installer Agent) under the hood.
+
+#### Option B — One-Click Install via GitHub CLI
+
+If you have the [GitHub CLI](https://cli.github.com/) (`gh`) installed:
 
 **macOS:**
 
@@ -42,32 +69,7 @@ gh release download --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-in
 gh release download --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.ps1' --dir $env:TEMP; & "$env:TEMP\quick-install.ps1"
 ```
 
-This downloads the latest release, runs the installer, and opens the plugin in your Adobe app.
-
 > **For After Effects or Audition:** set `KALTURA_HOST_APP=aftereffects` (or `audition`) before running.
-
-#### Manual Install
-
-Go to [**Releases**](../../releases/latest) and download the files for your platform.
-
-**macOS:**
-
-1. Download `install-mac.sh` and the `.ccx` for your app (e.g. `kaltura-panel-x.x.x-premierepro.ccx`)
-2. Place both files in the same folder
-3. Open **Terminal**, `cd` to that folder, and run:
-   ```bash
-   chmod +x install-mac.sh && ./install-mac.sh
-   ```
-4. Open Premiere Pro > **Window > UXP Plugins > Kaltura**
-
-**Windows:**
-
-1. Download `install-win.bat` and the `.ccx` for your app
-2. Place both files in the same folder
-3. **Double-click** `install-win.bat`
-4. Open Premiere Pro > **Window > UXP Plugins > Kaltura**
-
-> **Why not double-click the `.ccx`?** Adobe's Creative Cloud Desktop only recognizes `.ccx` double-click install for Photoshop. For Premiere Pro, After Effects, and Audition, the installer scripts use Adobe's UPIA (Unified Plugin Installer Agent) to install the plugin correctly.
 
 ### Development Setup
 
@@ -271,7 +273,7 @@ npm run test:coverage     # Run with coverage report
 ```
 
 - **Framework:** Jest + jsdom + React Testing Library
-- **Coverage thresholds** (enforced in CI): statements 65%, branches 52%, functions 64%, lines 66%
+- **Coverage thresholds** (enforced in CI): statements 65%, branches 50%, functions 64%, lines 66%
 - **Test structure** mirrors `src/`: panels, components, services, hooks, utils
 - **Mocking:** UXP and host app modules mocked globally in `tests/setup.ts`; `fetch` mocked globally — no live API calls in CI
 
