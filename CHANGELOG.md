@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.15.4
+
+### Documentation
+
+- **README audit against actual implementation** — removed REACH/AI captioning ordering claim (not implemented), fixed service counts (12 instantiated, not 13), removed unused NotificationService/ProxyService from project tree and service tables, removed WebSocket network requirement and UXP constraint (not wired up), clarified governance and offline cache descriptions
+
 ## 1.15.3
 
 ### Cleanup

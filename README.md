@@ -8,7 +8,7 @@ Browse, search, import, and publish video content — all without leaving your A
 
 ### What is this?
 
-[Kaltura](https://corp.kaltura.com/) is an enterprise video platform used by Fortune 500 companies, universities, and media organizations for video management, hosting, and streaming. This open-source plugin brings Kaltura directly into Adobe's creative tools — editors can browse their organization's video library, import assets, attach AI-generated captions, and publish finished work back to Kaltura, all from within Premiere Pro (or After Effects / Audition).
+[Kaltura](https://corp.kaltura.com/) is an enterprise video platform used by Fortune 500 companies, universities, and media organizations for video management, hosting, and streaming. This open-source plugin brings Kaltura directly into Adobe's creative tools — editors can browse their organization's video library, import assets, attach captions to timeline clips, and publish finished work back to Kaltura, all from within Premiere Pro (or After Effects / Audition).
 
 ## Features
 
@@ -17,9 +17,9 @@ Browse, search, import, and publish video content — all without leaving your A
 | **Browse & Search** | Search your Kaltura library with [eSearch](https://developer.kaltura.com/api-docs/service/eSearch) across titles, tags, and metadata. Grid or list view with filters, infinite scroll, and keyboard navigation. |
 | **Import**          | Download Kaltura assets and import them into your project with quality picker and proxy/original workflow                                                                                                       |
 | **Publish**         | Export sequences or pick a file, upload to Kaltura with chunked resumable uploads, set metadata, categories, and access controls                                                                                |
-| **AI Captioning**   | Order [REACH](https://corp.kaltura.com/products/video-accessibility-reach/) captioning (machine, human-reviewed, or professional) in 60+ languages; attach transcripts to timeline clips                        |
-| **Governance**      | Content holds, audit trail logging, license expiry warnings, access control profiles                                                                                                                            |
-| **Offline Cache**   | Browse cached asset metadata offline; queue operations for sync when reconnected                                                                                                                                |
+| **Captions**        | List, download, and parse caption tracks (SRT, VTT, DFXP, JSON); attach transcripts directly to timeline clips via Premiere's native Transcript API                                                             |
+| **Governance**      | Content hold detection, license expiry warnings, access control profiles, local audit trail                                                                                                                     |
+| **Offline Cache**   | LRU cache for browsing asset metadata offline; operation queue syncs when reconnected                                                                                                                           |
 | **Multi-App**       | Runs in Premiere Pro, After Effects, and Audition with host-specific adapters                                                                                                                                   |
 
 ## Quick Start
@@ -170,20 +170,18 @@ kaltura-premiere-panel/
       SegmentedControl.tsx    #   Grid/list view toggle
       SkeletonGrid.tsx        #   Loading placeholder grid
       EmptyState.tsx          #   Empty search results / no content guidance
-    services/                 # 19 service modules
+    services/                 # Service modules
       KalturaClient.ts        #   Low-level HTTP: single/multi-request, KS injection, HTTPS validation
       AuthService.ts          #   Email/password, App Token, SSO (three-party OAuth), session refresh
       MediaService.ts         #   Media CRUD, eSearch, batched detail fetching, download URLs
       UploadService.ts        #   Chunked resumable uploads (5 MB chunks, XHR for progress)
       DownloadService.ts      #   Download flavors + import into host app with progress tracking
       MetadataService.ts      #   Standard/custom metadata, tags, category hierarchy
-      CaptionService.ts       #   REACH captioning: order, translate, parse JSON/SRT/VTT transcripts
+      CaptionService.ts       #   List, download, parse JSON/SRT/VTT/DFXP captions, attach transcripts
       SearchService.ts        #   eSearch: transcript, visual, in-video content search with highlights
-      NotificationService.ts  #   WebSocket push notifications with HTTP polling fallback
       PublishWorkflowService.ts # Multi-destination publish, approval, versioning, scheduling
       BatchService.ts         #   Multi-entry operations, offline cache integration, governance tags
-      ProxyService.ts         #   Proxy download for editing, reconnect to original for export
-      AuditService.ts         #   Audit trail, access control profiles, DRM, license expiry
+      AuditService.ts         #   Audit trail, access control profiles, license expiry
       OfflineService.ts       #   LRU cache (200 entries / 50 MB), operation queue for offline sync
       PremiereService.ts      #   UXP Premiere API: sequences, import, markers, export
       HostService.ts          #   Abstract host interface definition
@@ -220,7 +218,7 @@ kaltura-premiere-panel/
 
 ### Service Layer
 
-13 services are instantiated in `App.tsx` via `useMemo`:
+12 services are instantiated in `App.tsx` via `useMemo`:
 
 | Service                  | Purpose                                                                     |
 | ------------------------ | --------------------------------------------------------------------------- |
@@ -230,21 +228,13 @@ kaltura-premiere-panel/
 | `UploadService`          | Chunked resumable uploads (5 MB chunks, `XMLHttpRequest` for progress)      |
 | `DownloadService`        | Download flavors + import into host app with progress tracking              |
 | `MetadataService`        | Standard/custom metadata fields, tags, category hierarchy                   |
-| `CaptionService`         | REACH captioning: order, translate, parse SRT/VTT/JSON, transcript attach   |
+| `CaptionService`         | List, download, parse SRT/VTT/DFXP/JSON captions, transcript attach         |
 | `SearchService`          | eSearch: transcript, visual, in-video content search with highlights        |
 | `PublishWorkflowService` | Multi-destination publish, approval, versioning, scheduling                 |
 | `BatchService`           | Multi-entry operations, offline cache integration, governance tags          |
-| `AuditService`           | Audit trail logging, access control profiles, DRM, license expiry           |
+| `AuditService`           | Audit trail logging, access control profiles, license expiry                |
 | `OfflineService`         | LRU cache (200 entries / 50 MB), operation queue for offline-to-online sync |
 | `HostService` (factory)  | Auto-detects host app, returns PremiereHostAdapter / AE / Audition adapter  |
-
-Additional services available but not directly instantiated in App.tsx:
-
-| Service               | Purpose                                                 |
-| --------------------- | ------------------------------------------------------- |
-| `NotificationService` | WebSocket push notifications with HTTP polling fallback |
-| `ProxyService`        | Proxy download for editing, reconnect to original       |
-| `PremiereService`     | UXP Premiere API (wrapped by `PremiereHostAdapter`)     |
 
 Panels consume services through duck-typed interfaces for loose coupling — no panel imports a concrete service class directly.
 
@@ -304,11 +294,10 @@ See the [Enterprise Deployment Guide](./docs/enterprise-deployment.md) for Admin
 
 The plugin requires access to these domains (configure in corporate firewalls):
 
-| Domain                | Purpose                             |
-| --------------------- | ----------------------------------- |
-| `*.kaltura.com`       | Kaltura REST API and CDN            |
-| `*.kaltura.cloud`     | Kaltura cloud endpoints             |
-| `wss://*.kaltura.com` | Real-time notifications (WebSocket) |
+| Domain            | Purpose                  |
+| ----------------- | ------------------------ |
+| `*.kaltura.com`   | Kaltura REST API and CDN |
+| `*.kaltura.cloud` | Kaltura cloud endpoints  |
 
 ## CI/CD
 
@@ -332,7 +321,6 @@ Adobe UXP is not a full browser. Key limitations to be aware of when contributin
 - **`FormData` + `Blob` unreliable for binary uploads** — build multipart bodies manually with `Uint8Array`
 - **`fs.readFile(path)` without encoding returns `ArrayBuffer`** — do NOT pass `{ encoding: "buffer" }`
 - **`fetch()` available**; `XMLHttpRequest` needed for upload progress tracking
-- **`WebSocket` available** in UXP runtime
 - **Spectrum Web Components crash on rapid create/destroy** — defer view transitions with `setTimeout(0)`
 - **Uncaught exceptions corrupt UXP scripting engine** — always use a React ErrorBoundary at the app root
 
