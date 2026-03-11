@@ -154,7 +154,12 @@ declare namespace premierepro {
     static exportToJSON(clipProjectItem: ClipProjectItem): string;
     static importFromJSON(jsonString: string): TextSegments;
   }
-  class TextSegments {}
+  class TextSegments {
+    static importFromJSON(
+      json: string,
+      callback: (importedTranscription: TextSegments) => void,
+    ): boolean;
+  }
 }
 
 /** Check if the premierepro module is available (false in test/standalone environments) */
@@ -536,39 +541,48 @@ export class PremiereService {
         textSegmentsJson.substring(0, 300),
       );
 
-      // importFromJSON may return a Promise at runtime despite types saying sync
-      let textSegments = pp.Transcript.importFromJSON(textSegmentsJson);
-      console.error(
-        "[DEBUG] importFromJSON raw type:",
-        typeof textSegments,
-        Object.prototype.toString.call(textSegments),
-        textSegments instanceof Promise ? "IS_PROMISE" : "NOT_PROMISE",
-      );
-      if (
-        textSegments instanceof Promise ||
-        (textSegments && typeof (textSegments as unknown as Promise<unknown>).then === "function")
-      ) {
-        console.error("[DEBUG] importFromJSON returned Promise — awaiting...");
-        textSegments = await (textSegments as unknown as Promise<premierepro.TextSegments>);
-        console.error(
-          "[DEBUG] importFromJSON awaited result:",
-          typeof textSegments,
-          !!textSegments,
-        );
-      }
-
-      // Use lockedAccess + executeTransaction with compoundAction per Adobe's official sample
-      const success = project.lockedAccess(() => {
-        project.executeTransaction((compoundAction) => {
-          const action = pp.Transcript.createImportTextSegmentsAction(textSegments, clipItem);
-          console.error("[DEBUG] createImportTextSegmentsAction done", !!action);
-          compoundAction.addAction(action);
-        }, "Kaltura: Import Transcript");
+      // Use TextSegments.importFromJSON with callback (per Adobe types.d.ts)
+      // Transcript.importFromJSON returns TextSegments but the data may not be fully initialized.
+      // TextSegments.importFromJSON uses a callback that fires once parsing is complete.
+      const importResult = await new Promise<boolean>((resolve) => {
+        try {
+          const ok = pp.TextSegments.importFromJSON(textSegmentsJson, (importedTextSegments) => {
+            console.error(
+              "[DEBUG] TextSegments.importFromJSON callback fired:",
+              typeof importedTextSegments,
+              Object.prototype.toString.call(importedTextSegments),
+            );
+            try {
+              const txnSuccess = project.lockedAccess(() => {
+                project.executeTransaction((compoundAction) => {
+                  const action = pp.Transcript.createImportTextSegmentsAction(
+                    importedTextSegments,
+                    clipItem,
+                  );
+                  console.error("[DEBUG] createImportTextSegmentsAction done", !!action);
+                  compoundAction.addAction(action);
+                }, "Kaltura: Import Transcript");
+              });
+              console.error("[DEBUG] lockedAccess returned:", txnSuccess);
+              resolve(true);
+            } catch (txnErr) {
+              console.error("[DEBUG] Transaction failed in callback:", txnErr);
+              resolve(false);
+            }
+          });
+          console.error("[DEBUG] TextSegments.importFromJSON returned:", ok);
+          // If callback is synchronous and already resolved, this is fine
+          // If it doesn't fire, resolve after a timeout
+          setTimeout(() => resolve(false), 5000);
+        } catch (err) {
+          console.error("[DEBUG] TextSegments.importFromJSON threw:", err);
+          resolve(false);
+        }
       });
 
-      console.error("[DEBUG] Transcript attached successfully, lockedAccess returned:", success);
+      console.error("[DEBUG] Import result:", importResult);
 
-      // Verify the transcript was actually stored (exportToJSON is async)
+      // Verify with exportToJSON
       try {
         const exported = await (pp.Transcript.exportToJSON(clipItem) as unknown as Promise<string>);
         console.error(
