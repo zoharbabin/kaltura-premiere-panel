@@ -48,9 +48,7 @@ jest.mock("../src/services", () => {
     })),
     CaptionService: jest.fn().mockImplementation(() => ({
       listCaptions: jest.fn().mockResolvedValue([]),
-      listTasks: jest.fn().mockResolvedValue([]),
-      listReachCatalogItems: jest.fn().mockResolvedValue([]),
-      getTaskStatusLabel: jest.fn().mockReturnValue("Unknown"),
+      downloadCaptionAsSrt: jest.fn().mockResolvedValue(""),
     })),
     NotificationService: jest.fn().mockImplementation(() => ({
       connect: jest.fn(),
@@ -140,7 +138,7 @@ describe("App", () => {
     });
   });
 
-  it("renders primary tabs and overflow trigger after session restore", async () => {
+  it("renders tabs after session restore", async () => {
     mockRestoreSession = jest.fn().mockResolvedValue({
       ks: "test_ks",
       partnerId: 12345,
@@ -155,12 +153,8 @@ describe("App", () => {
       expect(screen.getByText("Browse")).toBeTruthy();
     });
 
-    // Primary tabs visible directly
     expect(screen.getByText("Publish")).toBeTruthy();
     expect(screen.getByText("Settings")).toBeTruthy();
-
-    // Overflow trigger is present (entry-specific tabs are inside the overflow menu)
-    expect(screen.getByLabelText("More tabs")).toBeTruthy();
   });
 
   it("shows Browse tab content by default when authenticated", async () => {

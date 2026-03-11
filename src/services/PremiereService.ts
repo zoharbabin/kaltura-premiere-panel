@@ -1,4 +1,11 @@
-import { SequenceInfo, ImportResult, MarkerData, AssetMapping } from "../types/premiere";
+import {
+  SequenceInfo,
+  ImportResult,
+  MarkerData,
+  AssetMapping,
+  TranscriptImportResult,
+} from "../types/premiere";
+import type { CaptionSegment } from "./CaptionService";
 import { PremiereApiError } from "../utils/errors";
 import { KALTURA_BIN_NAME, STORAGE_KEY_ASSET_MAPPINGS } from "../utils/constants";
 import { createLogger } from "../utils/logger";
@@ -127,6 +134,23 @@ declare namespace premierepro {
   interface Action {
     execute(): Promise<void>;
   }
+  class ClipProjectItem implements ProjectItem {
+    name: string;
+    type: number;
+    static cast(projectItem: ProjectItem): ClipProjectItem;
+    getMediaFilePath(): string;
+    getContentType(): number;
+    findItemsMatchingMediaPath(matchString: string, ignoreSubclips?: boolean): ProjectItem[];
+  }
+  class Transcript {
+    static createImportTextSegmentsAction(
+      textSegments: TextSegments,
+      clipProjectItem: ClipProjectItem,
+    ): Promise<Action>;
+    static exportToJSON(clipProjectItem: ClipProjectItem): string;
+    static importFromJSON(jsonString: string): TextSegments;
+  }
+  class TextSegments {}
 }
 
 /** Check if the premierepro module is available (false in test/standalone environments) */
@@ -415,6 +439,70 @@ export class PremiereService {
   }
 
   /**
+   * Attach transcript/caption data to an imported video clip via the Transcript API.
+   * This makes the captions appear in Premiere's native Transcript panel.
+   *
+   * Requires Premiere Pro 25.0+ and that the video has been imported first
+   * (so we have an AssetMapping with the local file path).
+   */
+  async importTranscriptToClip(
+    entryId: string,
+    segments: CaptionSegment[],
+  ): Promise<TranscriptImportResult> {
+    const pp = getPremiere();
+    const mapping = this.getMapping(entryId);
+    if (!mapping) {
+      return { success: false, error: "Video not imported — import the video first" };
+    }
+
+    log.info("Attaching transcript to clip", {
+      entryId,
+      localPath: mapping.localPath,
+      segmentCount: segments.length,
+    });
+
+    try {
+      const project = await pp.Project.getActiveProject();
+      const rootItem = await project.getRootItem();
+      const projectItem = this.findItemByPath(rootItem, mapping.localPath);
+
+      if (!projectItem) {
+        return {
+          success: false,
+          error: "Could not find the video clip in the project. Try re-importing it.",
+        };
+      }
+
+      const clipItem = pp.ClipProjectItem.cast(projectItem);
+
+      // Build TextSegments JSON — Premiere expects the format produced by
+      // Transcript.exportToJSON(). Based on the API, importFromJSON takes a
+      // JSON string and returns a TextSegments object.
+      const textSegmentsJson = JSON.stringify(
+        segments.map((s) => ({
+          startTimeInMicroseconds: Math.round(s.startTime * 1_000_000),
+          endTimeInMicroseconds: Math.round(s.endTime * 1_000_000),
+          text: s.text,
+        })),
+      );
+
+      const textSegments = pp.Transcript.importFromJSON(textSegmentsJson);
+      const action = await pp.Transcript.createImportTextSegmentsAction(textSegments, clipItem);
+
+      await project.executeTransaction(async () => {
+        await action.execute();
+      }, "Kaltura: Import Transcript");
+
+      log.info("Transcript attached successfully", { entryId, segmentCount: segments.length });
+      return { success: true };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error("Failed to attach transcript", { entryId, error: msg });
+      return { success: false, error: msg };
+    }
+  }
+
+  /**
    * Export the active sequence to a file via EncoderManager.
    *
    * Based on Adobe's official sample (AdobeDocs/uxp-premiere-pro-samples):
@@ -487,7 +575,6 @@ export class PremiereService {
     //   2. OperationCompleteEvent.EVENT_EXPORT_MEDIA_COMPLETE — for direct export
     let exportDone = false;
     let exportError: string | null = null;
-    let lastChangeTime = Date.now(); // tracks any activity (file changes OR events)
     const eventCleanups: (() => void)[] = [];
 
     const markDone = (source: string) => {
@@ -511,7 +598,6 @@ export class PremiereService {
       markError("EVENT_RENDER_ERROR", msg);
     };
     const onRenderProgress = (event?: unknown) => {
-      lastChangeTime = Date.now(); // event = activity
       if (event && typeof event === "object" && "progress" in event) {
         const pct = Number((event as { progress: unknown }).progress);
         if (!isNaN(pct)) {
@@ -643,7 +729,6 @@ export class PremiereService {
     const POLL_INTERVAL_MS = 3000;
     const FILE_STABLE_FOR_DONE_MS = 30_000; // 30s stability = done (file-only fallback)
     let lastSize = -1;
-    lastChangeTime = Date.now(); // reset idle timer at start of polling
     let maxSizeSeen = 0;
     let stableSince = 0;
     let pollCount = 0;
@@ -676,7 +761,6 @@ export class PremiereService {
       if (currentSize > maxSizeSeen) maxSizeSeen = currentSize;
 
       if (currentSize !== lastSize) {
-        lastChangeTime = Date.now();
         stableSince = 0;
         if (currentSize > 0) {
           log.debug("Export file size", {
@@ -894,6 +978,32 @@ export class PremiereService {
     for (const child of parent.children) {
       if (child.name === name && child.type === 2) {
         return child as unknown as premierepro.FolderItem;
+      }
+    }
+    return null;
+  }
+
+  /** Find a clip project item by its local media file path (recursive bin search) */
+  private findItemByPath(
+    parent: premierepro.FolderItem,
+    localPath: string,
+  ): premierepro.ProjectItem | null {
+    if (!parent.children) return null;
+    const pp = getPremiere();
+    for (const child of parent.children) {
+      // type 1 = clip
+      if (child.type === 1) {
+        try {
+          const clip = pp.ClipProjectItem.cast(child);
+          if (clip.getMediaFilePath() === localPath) return child;
+        } catch {
+          // Not castable — skip
+        }
+      }
+      // type 2 = bin — recurse
+      if (child.type === 2) {
+        const found = this.findItemByPath(child as unknown as premierepro.FolderItem, localPath);
+        if (found) return found;
       }
     }
     return null;

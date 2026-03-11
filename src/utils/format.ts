@@ -36,18 +36,6 @@ export function formatDate(unixTimestamp: number): string {
   });
 }
 
-/** Format a Unix timestamp to a locale date+time string */
-export function formatDateTime(unixTimestamp: number): string {
-  if (!unixTimestamp) return "—";
-  return new Date(unixTimestamp * 1000).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 /** Truncate text with ellipsis */
 export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;

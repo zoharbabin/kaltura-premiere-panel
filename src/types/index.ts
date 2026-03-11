@@ -31,14 +31,7 @@ export interface PluginSettings {
 }
 
 /** Tab identifiers */
-export type TabId =
-  | "browse"
-  | "publish"
-  | "captions"
-  | "review"
-  | "analytics"
-  | "interactive"
-  | "settings";
+export type TabId = "browse" | "publish" | "settings";
 
 /** Notification severity */
 export enum NotificationSeverity {

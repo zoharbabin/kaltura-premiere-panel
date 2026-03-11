@@ -27,6 +27,22 @@ describe("KalturaClient", () => {
       client.configure({ partnerId: 99999 });
       expect(client.getPartnerId()).toBe(99999);
     });
+
+    it("accepts HTTPS service URLs", () => {
+      client.configure({ serviceUrl: "https://custom.kaltura.com" });
+      expect(client.getServiceUrl()).toBe("https://custom.kaltura.com");
+    });
+
+    it("strips trailing slashes from service URL", () => {
+      client.configure({ serviceUrl: "https://custom.kaltura.com///" });
+      expect(client.getServiceUrl()).toBe("https://custom.kaltura.com");
+    });
+
+    it("rejects non-HTTPS service URLs", () => {
+      expect(() => client.configure({ serviceUrl: "http://insecure.com" })).toThrow(
+        "Service URL must use HTTPS",
+      );
+    });
   });
 
   describe("request()", () => {

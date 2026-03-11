@@ -58,6 +58,12 @@ export interface SequenceInfo {
   height: number;
 }
 
+/** Result of attaching a transcript to a clip */
+export interface TranscriptImportResult {
+  success: boolean;
+  error?: string;
+}
+
 /** Asset mapping — tracks imported Kaltura assets in the local project */
 export interface AssetMapping {
   entryId: string;

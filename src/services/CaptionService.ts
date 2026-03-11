@@ -1,13 +1,5 @@
 import { KalturaClient } from "./KalturaClient";
-import {
-  KalturaCaptionAsset,
-  KalturaCaptionType,
-  KalturaListResponse,
-  KalturaVendorServiceFeature,
-  KalturaVendorServiceType,
-  KalturaVendorTaskStatus,
-  KalturaEntryVendorTask,
-} from "../types/kaltura";
+import { KalturaCaptionAsset, KalturaCaptionType, KalturaListResponse } from "../types/kaltura";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("CaptionService");
@@ -19,19 +11,15 @@ export interface CaptionSegment {
   speakerId?: string;
 }
 
-export interface ReachCatalogItem {
-  id: number;
-  name: string;
-  serviceType: KalturaVendorServiceType;
-  serviceFeature: KalturaVendorServiceFeature;
-  sourceLanguage: string;
-  targetLanguage?: string;
-  turnAroundTime: number;
-  pricing?: { pricePerUnit: number };
+/** Raw segment from Kaltura's serveAsJson endpoint */
+export interface KalturaTranscriptSegment {
+  startTime: number; // milliseconds
+  endTime: number; // milliseconds
+  content: { text: string }[];
 }
 
 /**
- * Manages Kaltura captions: REACH captioning, import/export, translation.
+ * Manages Kaltura captions: listing, downloading, parsing, and uploading.
  */
 export class CaptionService {
   constructor(private client: KalturaClient) {}
@@ -65,6 +53,32 @@ export class CaptionService {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Failed to download caption: HTTP ${response.status}`);
     return response.text();
+  }
+
+  /**
+   * Download a caption track and convert to SRT format.
+   * SRT is the universal format supported by Premiere Pro for import.
+   */
+  async downloadCaptionAsSrt(caption: KalturaCaptionAsset): Promise<string> {
+    log.info("Downloading caption as SRT", { id: caption.id, format: caption.format });
+    const content = await this.downloadCaptionContent(caption.id);
+
+    if (caption.format === KalturaCaptionType.SRT) {
+      return content;
+    }
+
+    // Convert other formats to SRT via parse → serialize
+    const segments =
+      caption.format === KalturaCaptionType.WEBVTT
+        ? this.parseVtt(content)
+        : this.parseSrt(content);
+
+    if (segments.length === 0) {
+      log.warn("No parseable segments found, returning raw content");
+      return content;
+    }
+
+    return this.toSrt(segments);
   }
 
   /** Parse SRT content into segments */
@@ -105,13 +119,11 @@ export class CaptionService {
   /** Parse WebVTT content into segments */
   parseVtt(vtt: string): CaptionSegment[] {
     const segments: CaptionSegment[] = [];
-    // Strip WEBVTT header line(s)
     const content = vtt.replace(/^WEBVTT[^\n]*\n\n?/, "");
     const blocks = content.trim().split(/\n\n+/);
 
     for (const block of blocks) {
       const lines = block.split("\n");
-      // Find the line with the timecode
       let timeLineIndex = -1;
       for (let i = 0; i < lines.length; i++) {
         if (lines[i].includes("-->")) {
@@ -220,107 +232,34 @@ export class CaptionService {
     });
   }
 
-  /** List available REACH catalog items for captioning/translation */
-  async listReachCatalogItems(): Promise<ReachCatalogItem[]> {
-    try {
-      const response = await this.client.request<KalturaListResponse<ReachCatalogItem>>({
-        service: "reach_vendorCatalogItem",
-        action: "list",
-        params: {
-          filter: {
-            objectType: "KalturaVendorCatalogItemFilter",
-          },
-        },
-      });
-      return response.objects || [];
-    } catch {
-      log.warn("REACH catalog items not available");
-      return [];
-    }
-  }
-
-  /** Trigger REACH captioning job */
-  async triggerCaptioning(
-    entryId: string,
-    catalogItemId: number,
-    sourceLanguage: string,
-  ): Promise<KalturaEntryVendorTask> {
-    log.info("Triggering REACH captioning", { entryId, catalogItemId, sourceLanguage });
-    return this.client.request<KalturaEntryVendorTask>({
-      service: "reach_entryVendorTask",
-      action: "add",
-      params: {
-        entryVendorTask: {
-          objectType: "KalturaEntryVendorTask",
-          entryId,
-          catalogItemId,
-          sourceLanguage,
-        },
-      },
+  /**
+   * Download a caption asset as structured JSON via Kaltura's serveAsJson endpoint.
+   * Returns an array of time-stamped segments with text content.
+   */
+  async downloadCaptionAsJson(captionAssetId: string): Promise<KalturaTranscriptSegment[]> {
+    log.info("Downloading caption as JSON", { id: captionAssetId });
+    const urlResponse = await this.client.request<
+      { objectType?: string } & Record<string, unknown>
+    >({
+      service: "caption_captionAsset",
+      action: "serveAsJson",
+      params: { id: captionAssetId },
     });
+
+    const url = typeof urlResponse === "string" ? urlResponse : String(urlResponse);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch JSON transcript: HTTP ${response.status}`);
+    const data = await response.json();
+    return (data.objects as KalturaTranscriptSegment[]) || [];
   }
 
-  /** Trigger REACH translation job */
-  async triggerTranslation(
-    entryId: string,
-    catalogItemId: number,
-    sourceLanguage: string,
-    targetLanguage: string,
-  ): Promise<KalturaEntryVendorTask> {
-    log.info("Triggering REACH translation", { entryId, targetLanguage });
-    return this.client.request<KalturaEntryVendorTask>({
-      service: "reach_entryVendorTask",
-      action: "add",
-      params: {
-        entryVendorTask: {
-          objectType: "KalturaEntryVendorTask",
-          entryId,
-          catalogItemId,
-          sourceLanguage,
-          targetLanguage,
-        },
-      },
-    });
-  }
-
-  /** Get REACH task status */
-  async getTaskStatus(taskId: number): Promise<KalturaEntryVendorTask> {
-    return this.client.request<KalturaEntryVendorTask>({
-      service: "reach_entryVendorTask",
-      action: "get",
-      params: { id: taskId },
-    });
-  }
-
-  /** List REACH tasks for an entry */
-  async listTasks(entryId: string): Promise<KalturaEntryVendorTask[]> {
-    const response = await this.client.request<KalturaListResponse<KalturaEntryVendorTask>>({
-      service: "reach_entryVendorTask",
-      action: "list",
-      params: {
-        filter: {
-          objectType: "KalturaEntryVendorTaskFilter",
-          entryIdEqual: entryId,
-        },
-      },
-    });
-    return response.objects || [];
-  }
-
-  /** Get human-readable task status */
-  getTaskStatusLabel(status: KalturaVendorTaskStatus): string {
-    switch (status) {
-      case KalturaVendorTaskStatus.PENDING:
-        return "Pending";
-      case KalturaVendorTaskStatus.READY:
-        return "Complete";
-      case KalturaVendorTaskStatus.PROCESSING:
-        return "Processing";
-      case KalturaVendorTaskStatus.ERROR:
-        return "Error";
-      default:
-        return "Unknown";
-    }
+  /** Convert Kaltura JSON transcript segments to CaptionSegments (ms → seconds) */
+  parseKalturaJson(segments: KalturaTranscriptSegment[]): CaptionSegment[] {
+    return segments.map((seg) => ({
+      startTime: seg.startTime / 1000,
+      endTime: seg.endTime / 1000,
+      text: seg.content.map((c) => c.text).join("\n"),
+    }));
   }
 
   private formatSrtTime(seconds: number): string {

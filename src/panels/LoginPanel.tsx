@@ -61,12 +61,14 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   }, [partnerId, serverUrl, onSsoLogin, onClearError]);
 
   const handleForgotPassword = useCallback(() => {
+    const url = `${serverUrl}/index.php/kmcng/login`;
+    if (!/^https:\/\//i.test(url)) return;
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
-      uxp.shell.openExternal(`${serverUrl}/index.php/kmcng/login`);
+      uxp.shell.openExternal(url);
     } catch {
-      window.open(`${serverUrl}/index.php/kmcng/login`, "_blank");
+      window.open(url, "_blank");
     }
   }, [serverUrl]);
 
@@ -145,6 +147,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
           <>
             <sp-textfield
               placeholder="Email"
+              aria-label="Email address"
               value={email}
               onInput={(e: Event) => setEmail((e.target as HTMLInputElement).value)}
               onKeyDown={handleKeyDown}
@@ -153,6 +156,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
             />
             <sp-textfield
               placeholder="Password"
+              aria-label="Password"
               value={password}
               onInput={(e: Event) => setPassword((e.target as HTMLInputElement).value)}
               onKeyDown={handleKeyDown}
@@ -164,6 +168,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
 
         <sp-textfield
           placeholder="Partner ID"
+          aria-label="Partner ID"
           value={partnerId}
           onInput={(e: Event) => {
             const val = (e.target as HTMLInputElement).value.replace(/\D/g, "");
@@ -216,6 +221,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
         {showAdvanced && (
           <sp-textfield
             placeholder="Server URL"
+            aria-label="Kaltura server URL"
             value={serverUrl}
             onInput={(e: Event) => handleServerUrlChange((e.target as HTMLInputElement).value)}
             style={{ width: "100%" }}

@@ -8,6 +8,7 @@ import {
   PLUGIN_NAME,
   STORAGE_KEY_SETTINGS,
   STORAGE_KEY_ASSET_MAPPINGS,
+  ISSUES_URL,
 } from "../utils/constants";
 import { formatFileSize } from "../utils/format";
 import { ConfirmDialog } from "../components";
@@ -43,7 +44,6 @@ interface SettingsPanelProps {
   offlineService?: OfflineServiceLike;
   auditService?: AuditServiceLike;
   onLogout: () => void;
-  onServerUrlChange?: (url: string) => void;
 }
 
 const defaultSettings: PluginSettings = {
@@ -104,7 +104,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   offlineService,
   auditService,
   onLogout,
-  onServerUrlChange: _onServerUrlChange,
 }) => {
   const [settings, setSettings] = useState<PluginSettings>(loadSettings);
   const [hostAppInfo, setHostAppInfo] = useState<HostAppInfo | null>(null);
@@ -152,7 +151,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   }, [onLogout]);
 
   const handleSupportLink = useCallback(() => {
-    const url = "https://github.com/zoharbabin/kaltura-premiere-panel/issues";
+    const url = ISSUES_URL;
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");

@@ -28,7 +28,7 @@ node scripts/build-ccx.js
 
 This outputs one `.ccx` per host app (Premiere Pro, After Effects, Audition) into the `release/` directory, each with a single-host manifest.
 
-Alternatively, push a version tag (e.g. `git tag v1.1.0 && git push --tags`) to trigger the automated [Release workflow](./../.github/workflows/release.yml) which builds and publishes `.ccx` files and installer scripts as GitHub Release assets.
+Alternatively, push a version tag (e.g. `git tag v1.14.0 && git push --tags`) to trigger the automated [Release workflow](../.github/workflows/release.yml) which builds and publishes `.ccx` files and installer scripts as GitHub Release assets.
 
 > **Important:** `.ccx` double-click install only works for Photoshop. For Premiere Pro, After Effects, and Audition, use the provided installer scripts (`install-mac.sh` / `install-win.bat`) or the UPIA command-line tool described below.
 

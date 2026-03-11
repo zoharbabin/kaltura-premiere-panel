@@ -1,7 +1,7 @@
 /** Plugin identity */
 export const PLUGIN_ID = "com.kaltura.premiere.panel";
 export const PLUGIN_NAME = "Kaltura for Adobe Creative Cloud";
-export const PLUGIN_VERSION = "1.9.5";
+export const PLUGIN_VERSION = "1.14.0";
 export const CLIENT_TAG = `kaltura-premiere-panel:v${PLUGIN_VERSION}`;
 
 /** Default Kaltura service URL */
@@ -49,15 +49,13 @@ export const RESOLUTION_SD = 480;
 
 /** Premiere panel */
 export const KALTURA_BIN_NAME = "Kaltura Assets";
-export const HOVER_PREVIEW_FRAME_COUNT = 10;
-export const HOVER_PREVIEW_DELAY_MS = 500;
-
 /** Thumbnail URL construction */
 export const THUMBNAIL_GRID_WIDTH = 200;
 export const THUMBNAIL_GRID_HEIGHT = 120;
 export const THUMBNAIL_GRID_QUALITY = 75;
-export const THUMBNAIL_LIST_WIDTH = 80;
-export const THUMBNAIL_LIST_HEIGHT = 45;
+
+/** Support */
+export const ISSUES_URL = "https://github.com/zoharbabin/kaltura-premiere-panel/issues";
 
 /** Storage keys */
 export const STORAGE_KEY_CONFIG = "kaltura_config";

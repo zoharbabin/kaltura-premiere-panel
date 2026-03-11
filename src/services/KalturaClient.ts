@@ -48,7 +48,13 @@ export class KalturaClient {
 
   /** Update configuration */
   configure(config: Partial<KalturaClientConfig>): void {
-    if (config.serviceUrl) this.serviceUrl = config.serviceUrl;
+    if (config.serviceUrl) {
+      const normalized = config.serviceUrl.replace(/\/+$/, "");
+      if (!/^https:\/\/.+/i.test(normalized)) {
+        throw new Error("Service URL must use HTTPS");
+      }
+      this.serviceUrl = normalized;
+    }
     if (config.partnerId) this.partnerId = config.partnerId;
     if (config.clientTag) this.clientTag = config.clientTag;
   }
