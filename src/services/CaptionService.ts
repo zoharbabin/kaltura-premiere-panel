@@ -239,7 +239,7 @@ export class CaptionService {
    * Returns an array of time-stamped segments with text content.
    */
   async downloadCaptionAsJson(captionAssetId: string): Promise<KalturaTranscriptSegment[]> {
-    log.info("Downloading caption as JSON", { id: captionAssetId });
+    log.info("Downloading caption as JSON", { captionAssetId });
     const urlResponse = await this.client.request<
       { objectType?: string } & Record<string, unknown>
     >({
@@ -248,10 +248,21 @@ export class CaptionService {
       params: { captionAssetId },
     });
 
+    log.info("serveAsJson API response", {
+      type: typeof urlResponse,
+      value: JSON.stringify(urlResponse).substring(0, 300),
+    });
+
     const url = typeof urlResponse === "string" ? urlResponse : String(urlResponse);
     const response = await fetch(url);
+    log.info("serveAsJson fetch result", { ok: response.ok, status: response.status });
     if (!response.ok) throw new Error(`Failed to fetch JSON transcript: HTTP ${response.status}`);
     const data = await response.json();
+    log.info("serveAsJson JSON data", {
+      hasObjects: !!data.objects,
+      objectCount: data.objects?.length,
+      keys: Object.keys(data),
+    });
     return (data.objects as KalturaTranscriptSegment[]) || [];
   }
 

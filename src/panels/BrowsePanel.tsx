@@ -1015,8 +1015,19 @@ const CaptionSection: React.FC<{
       setError(null);
       setSuccessMsg(null);
       try {
+        log.info("Attach to clip started", {
+          entryId,
+          captionId: caption.id,
+          captionFormat: caption.format,
+          captionLabel: caption.label,
+        });
         const jsonSegments = await captionService.downloadCaptionAsJson(caption.id);
+        log.info("JSON segments received", {
+          count: jsonSegments.length,
+          first: jsonSegments[0],
+        });
         const segments = captionService.parseKalturaJson(jsonSegments);
+        log.info("Parsed segments", { count: segments.length, first: segments[0] });
 
         if (segments.length === 0) {
           setError("No transcript segments found in this caption track.");
@@ -1024,6 +1035,7 @@ const CaptionSection: React.FC<{
         }
 
         const result = await onAttachToClip(entryId, segments);
+        log.info("Attach result", result);
         if (result.success) {
           setSuccessMsg("Transcript attached \u2014 open the Transcript panel to view.");
           setTimeout(() => setSuccessMsg(null), 6000);
@@ -1031,6 +1043,7 @@ const CaptionSection: React.FC<{
           setError(`Attach failed: ${result.error}. Use "Import SRT" as an alternative.`);
         }
       } catch (err) {
+        log.error("Attach to clip failed", err);
         setError(`Attach failed: ${getUserMessage(err)}. Use "Import SRT" as an alternative.`);
       } finally {
         setBusyId(null);
