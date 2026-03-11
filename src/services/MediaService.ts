@@ -205,21 +205,20 @@ export class MediaService {
   }
 
   /**
-   * Get download URL for a specific flavor asset via playManifest.
-   * Per Kaltura docs: /p/{pid}/sp/0/playManifest/entryId/{eid}/format/url/protocol/https/flavorId/{fid}/ks/{ks}/video.mp4
+   * Get a direct download URL for a specific flavor asset.
+   * Uses flavorAsset/getDownloadUrl API which works for all delivery types,
+   * including entries with enforce_delivery:static_content where playManifest
+   * with format/url returns 404.
    */
-  getFlavorDownloadUrl(entryId: string, flavorId: string): string {
-    const serviceUrl = this.client.getServiceUrl();
-    const ks = this.client.getKs();
-    const partnerId = this.client.getPartnerId();
+  async getFlavorDownloadUrl(entryId: string, flavorId: string): Promise<string> {
+    const response = await this.client.request<string>({
+      service: "flavorAsset",
+      action: "getDownloadUrl",
+      params: { id: flavorId, useCdn: true },
+    });
 
-    const url =
-      `${serviceUrl}/p/${partnerId}/sp/0/playManifest` +
-      `/entryId/${entryId}/flavorId/${flavorId}` +
-      `/format/url/protocol/https` +
-      `/ks/${encodeURIComponent(ks || "")}` +
-      `/video.mp4`;
-    log.info("Download URL", { flavorId, url: url.substring(0, 120) });
+    const url = typeof response === "string" ? response : String(response);
+    log.info("Download URL", { entryId, flavorId, url: url.substring(0, 120) });
     return url;
   }
 
