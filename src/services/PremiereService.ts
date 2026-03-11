@@ -997,12 +997,23 @@ export class PremiereService {
   ): premierepro.ProjectItem | null {
     if (!parent.children) return null;
     const pp = getPremiere();
+    const normalizedTarget = localPath.replace(/\\/g, "/").toLowerCase();
     for (const child of parent.children) {
       // type 1 = clip
       if (child.type === 1) {
         try {
           const clip = pp.ClipProjectItem.cast(child);
-          if (clip.getMediaFilePath() === localPath) return child;
+          const clipPath = clip.getMediaFilePath();
+          console.error("[DEBUG] findItemByPath comparing", clipPath, "vs", localPath);
+          if (clipPath === localPath) return child;
+          // Fallback: case-insensitive + normalized separators
+          if (clipPath && clipPath.replace(/\\/g, "/").toLowerCase() === normalizedTarget)
+            return child;
+          // Fallback: match by filename only
+          if (clipPath && clipPath.split("/").pop() === localPath.split("/").pop()) {
+            console.error("[DEBUG] findItemByPath matched by filename", clipPath);
+            return child;
+          }
         } catch {
           // Not castable — skip
         }
