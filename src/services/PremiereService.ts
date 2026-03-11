@@ -138,7 +138,7 @@ declare namespace premierepro {
     name: string;
     type: number;
     static cast(projectItem: ProjectItem): ClipProjectItem;
-    getMediaFilePath(): string;
+    getMediaFilePath(): Promise<string>;
     getContentType(): number;
     findItemsMatchingMediaPath(matchString: string, ignoreSubclips?: boolean): ProjectItem[];
   }
@@ -1008,12 +1008,17 @@ export class PremiereService {
 
       // type 1 = clip
       if (child.type === 1) {
+        // Fast path: match by item name (filename)
+        if (child.name === targetFileName) {
+          console.error("[DEBUG] matched by name:", child.name);
+          return child;
+        }
         try {
           const clip = pp.ClipProjectItem.cast(child);
-          const clipPath = clip.getMediaFilePath();
+          const clipPath = await clip.getMediaFilePath();
           console.error("[DEBUG] clip path:", clipPath);
           if (clipPath === localPath) return child;
-          // Fallback: match by filename
+          // Fallback: match by filename from path
           if (clipPath && clipPath.split("/").pop() === targetFileName) return child;
         } catch (err) {
           console.error("[DEBUG] cast error", String(err));
