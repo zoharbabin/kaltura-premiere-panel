@@ -34,13 +34,13 @@ src/
     UploadService.ts          # Chunked resumable uploads (5 MB chunks, XHR for progress)
     DownloadService.ts        # Download + import with progress tracking
     MetadataService.ts        # Metadata, tags, categories, custom schemas
-    CaptionService.ts         # REACH captioning/translation, JSON/SRT/VTT parsing
+    CaptionService.ts         # REACH captioning/translation, JSON/SRT/VTT parsing, serveAsJson transcript
     NotificationService.ts    # WebSocket push notifications with polling fallback
     SearchService.ts          # eSearch-powered transcript/visual/in-video search
     ProxyService.ts           # Proxy download for editing, reconnect to original
     PublishWorkflowService.ts # Multi-destination, approval, versioning, scheduling
     BatchService.ts           # Multi-request batch ops, offline cache, governance
-    PremiereService.ts        # UXP API: sequence, import, markers, export
+    PremiereService.ts        # UXP API: sequence, import, markers, transcript attach, export
     AuditService.ts           # Audit trail, access control, DRM, license expiry
     OfflineService.ts         # LRU cache, operation queue, offline/online detection
     HostService.ts            # Host app abstraction interface

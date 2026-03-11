@@ -234,6 +234,139 @@ await project.importFiles([fileEntry], suppressUI, targetBin);
 
 If bin import fails, retry with `null` as the target bin (imports to project root).
 
+### `FolderItem.getItems()` — Not `.children`
+
+UXP's `FolderItem` does **not** have a `.children` property. Use the async `getItems()` method to enumerate child project items:
+
+```typescript
+const children = await folderItem.getItems(); // Returns ProjectItem[]
+```
+
+`children` (the property) is `undefined` at runtime even though some type stubs may declare it.
+
+### `ClipProjectItem.getMediaFilePath()` is Async
+
+Despite type declarations that may show it as synchronous, `getMediaFilePath()` returns a `Promise<string>` at runtime:
+
+```typescript
+const clip = pp.ClipProjectItem.cast(item);
+const path = await clip.getMediaFilePath(); // Must await!
+// Without await you get "[object Promise]" as a string
+```
+
+### Transcript Import: `TextSegments.importFromJSON` vs `Transcript.importFromJSON`
+
+There are two `importFromJSON` methods. Only one actually persists transcript data:
+
+```typescript
+// BAD — returns a valid TextSegments object but data does NOT persist after transaction
+const textSegments = pp.Transcript.importFromJSON(jsonString);
+// Using this with createImportTextSegmentsAction appears to succeed but
+// the Transcript panel still shows "not transcribed"
+
+// GOOD — callback-based, data DOES persist
+pp.TextSegments.importFromJSON(jsonString, (importedTextSegments) => {
+  project.lockedAccess(() => {
+    project.executeTransaction((compoundAction) => {
+      const action = pp.Transcript.createImportTextSegmentsAction(importedTextSegments, clipItem);
+      compoundAction.addAction(action);
+    }, "Import Transcript");
+  });
+});
+```
+
+The callback fires synchronously. The `importedTextSegments` object from the callback contains properly initialized data that survives the transaction.
+
+### Transcript JSON Schema
+
+Premiere Pro's transcript API requires a specific JSON schema with word-level timing. Passing a flat array of `{startTime, text}` segments will throw "Failed to parse input string into JSON".
+
+Required structure (per `AdobeDocs/uxp-premiere-pro-samples/transcript_format_spec.json`):
+
+```json
+{
+  "language": "en-us",
+  "segments": [
+    {
+      "duration": 5.0,
+      "language": "en-us",
+      "speaker": "00000000-0000-4000-8000-000000000001",
+      "start": 0.0,
+      "words": [
+        {
+          "confidence": 1.0,
+          "duration": 1.0,
+          "eos": false,
+          "start": 0.0,
+          "tags": [],
+          "text": "Hello",
+          "type": "word"
+        }
+      ]
+    }
+  ],
+  "speakers": [{ "id": "00000000-0000-4000-8000-000000000001", "name": "Speaker 1" }]
+}
+```
+
+Speaker IDs must be UUID v4 format. Words must include `confidence`, `duration`, `eos` (end of sentence), `start`, `tags`, `text`, and `type`.
+
+### `Transcript.exportToJSON()` is Async at Runtime
+
+The type declaration shows `exportToJSON` returning `string`, but it returns a `Promise<string>` at runtime. Always `await` it:
+
+```typescript
+const exported = await (pp.Transcript.exportToJSON(clipItem) as unknown as Promise<string>);
+```
+
+This is useful for verifying that transcript data was actually persisted after import.
+
+### `lockedAccess` + `executeTransaction` Pattern
+
+Modifying project data (like importing transcripts) requires the `lockedAccess` → `executeTransaction` → `compoundAction` pattern:
+
+```typescript
+const success = project.lockedAccess(() => {
+  project.executeTransaction((compoundAction) => {
+    const action = pp.Transcript.createImportTextSegmentsAction(textSegments, clipItem);
+    compoundAction.addAction(action);
+  }, "Transaction Name");
+});
+```
+
+- `lockedAccess` returns `boolean` — check it for failure
+- `executeTransaction` receives a `compoundAction` parameter — add actions to it instead of calling `action.execute()` directly
+- Calling `action.execute()` outside a transaction throws "Script action failed to execute"
+
+---
+
+## Kaltura Caption API
+
+### `serveAsJson` Returns Data Directly
+
+The `caption_captionAsset.serveAsJson` endpoint returns the transcript JSON data directly in the API response body — it does **not** return a URL to fetch. The parameter name is `captionAssetId` (not `id`):
+
+```typescript
+const data = await client.request({
+  service: "caption_captionAsset",
+  action: "serveAsJson",
+  params: { captionAssetId: captionId }, // NOT "id"
+});
+// data.objects is the array of transcript segments
+```
+
+### Enum Values Returned as Strings
+
+Kaltura's API returns enum fields as strings (e.g., `"3"` for WebVTT) even though the TypeScript enum values are numbers. Always coerce with `Number()`:
+
+```typescript
+// BAD — fails because caption.format is "3" (string) not 3 (number)
+if (caption.format === KalturaCaptionType.WEBVTT) { ... }
+
+// GOOD
+if (Number(caption.format) === KalturaCaptionType.WEBVTT) { ... }
+```
+
 ---
 
 ## General Patterns

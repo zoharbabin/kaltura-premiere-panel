@@ -118,6 +118,22 @@ jest.mock(
     EncoderManager: {
       getInstance: jest.fn(),
     },
+    ClipProjectItem: {
+      cast: jest.fn((item: unknown) => item),
+    },
+    Transcript: {
+      createImportTextSegmentsAction: jest.fn().mockReturnValue({ execute: jest.fn() }),
+      exportToJSON: jest.fn().mockResolvedValue("{}"),
+      importFromJSON: jest.fn().mockReturnValue({}),
+    },
+    TextSegments: {
+      importFromJSON: jest
+        .fn()
+        .mockImplementation((_json: string, callback: (ts: unknown) => void) => {
+          callback({});
+          return true;
+        }),
+    },
   }),
   { virtual: true },
 );

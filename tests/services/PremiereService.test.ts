@@ -261,6 +261,159 @@ describe("PremiereService", () => {
     });
   });
 
+  describe("importTranscriptToClip", () => {
+    const mapping = {
+      entryId: "entry-abc",
+      flavorId: "flavor-1",
+      localPath: "/tmp/video.mp4",
+      importDate: Date.now(),
+      isProxy: false,
+    };
+
+    const segments = [
+      { startTime: 0, endTime: 5, text: "Hello world" },
+      { startTime: 5, endTime: 10, text: "Second segment here" },
+    ];
+
+    function setupProjectMock(overrides?: {
+      lockedAccessReturn?: boolean;
+      findClipByName?: boolean;
+    }) {
+      const mockClip = {
+        name: "video.mp4",
+        type: 1,
+        getMediaFilePath: jest.fn().mockResolvedValue("/tmp/video.mp4"),
+      };
+      const mockRootItem = {
+        name: "Root",
+        type: 3,
+        getItems: jest
+          .fn()
+          .mockResolvedValue(overrides?.findClipByName === false ? [] : [mockClip]),
+      };
+      const mockProject = {
+        name: "TestProject",
+        getRootItem: jest.fn().mockResolvedValue(mockRootItem),
+        lockedAccess: jest.fn().mockImplementation((fn: () => void) => {
+          fn();
+          return overrides?.lockedAccessReturn ?? true;
+        }),
+        executeTransaction: jest.fn().mockImplementation((fn: (ca: unknown) => void) => {
+          const compoundAction = { addAction: jest.fn() };
+          fn(compoundAction);
+        }),
+      };
+      pp.Project.getActiveProject.mockResolvedValue(mockProject);
+      return { mockProject, mockClip, mockRootItem };
+    }
+
+    it("returns error when video is not imported (no mapping)", async () => {
+      const result = await service.importTranscriptToClip("unknown-entry", segments);
+
+      expect(result).toEqual({
+        success: false,
+        error: expect.stringContaining("not imported"),
+      });
+    });
+
+    it("returns error when clip cannot be found in project", async () => {
+      service.saveMapping("entry-abc", mapping);
+      setupProjectMock({ findClipByName: false });
+
+      const result = await service.importTranscriptToClip("entry-abc", segments);
+
+      expect(result).toEqual({
+        success: false,
+        error: expect.stringContaining("Could not find"),
+      });
+    });
+
+    it("imports transcript successfully via TextSegments.importFromJSON callback", async () => {
+      service.saveMapping("entry-abc", mapping);
+      setupProjectMock();
+
+      const result = await service.importTranscriptToClip("entry-abc", segments);
+
+      expect(result).toEqual({ success: true });
+      expect(pp.TextSegments.importFromJSON).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Function),
+      );
+      expect(pp.Transcript.createImportTextSegmentsAction).toHaveBeenCalled();
+    });
+
+    it("builds correct Adobe transcript JSON with word-level timing", async () => {
+      service.saveMapping("entry-abc", mapping);
+      setupProjectMock();
+
+      await service.importTranscriptToClip("entry-abc", segments);
+
+      const jsonArg = pp.TextSegments.importFromJSON.mock.calls[0][0];
+      const parsed = JSON.parse(jsonArg);
+
+      expect(parsed.language).toBe("en-us");
+      expect(parsed.segments).toHaveLength(2);
+      expect(parsed.speakers).toHaveLength(1);
+      expect(parsed.speakers[0].id).toMatch(/^[0-9a-f-]+$/);
+
+      // First segment: "Hello world" → 2 words
+      const seg0 = parsed.segments[0];
+      expect(seg0.start).toBe(0);
+      expect(seg0.duration).toBe(5);
+      expect(seg0.words).toHaveLength(2);
+      expect(seg0.words[0].text).toBe("Hello");
+      expect(seg0.words[1].text).toBe("world");
+      expect(seg0.words[1].eos).toBe(true);
+    });
+
+    it("returns failure when lockedAccess returns false", async () => {
+      service.saveMapping("entry-abc", mapping);
+      setupProjectMock({ lockedAccessReturn: false });
+
+      const result = await service.importTranscriptToClip("entry-abc", segments);
+
+      expect(result).toEqual({
+        success: false,
+        error: expect.stringContaining("Failed to import"),
+      });
+    });
+
+    it("returns failure when TextSegments.importFromJSON throws", async () => {
+      service.saveMapping("entry-abc", mapping);
+      setupProjectMock();
+      pp.TextSegments.importFromJSON.mockImplementationOnce(() => {
+        throw new Error("Parse error");
+      });
+
+      const result = await service.importTranscriptToClip("entry-abc", segments);
+
+      expect(result).toEqual({
+        success: false,
+        error: expect.stringContaining("Failed to import"),
+      });
+    });
+
+    it("maps speaker IDs to unique UUIDs", async () => {
+      service.saveMapping("entry-abc", mapping);
+      setupProjectMock();
+
+      const segmentsWithSpeakers = [
+        { startTime: 0, endTime: 5, text: "Hello", speakerId: "spk-1" },
+        { startTime: 5, endTime: 10, text: "World", speakerId: "spk-2" },
+        { startTime: 10, endTime: 15, text: "Again", speakerId: "spk-1" },
+      ];
+
+      await service.importTranscriptToClip("entry-abc", segmentsWithSpeakers);
+
+      const jsonArg = pp.TextSegments.importFromJSON.mock.calls[0][0];
+      const parsed = JSON.parse(jsonArg);
+
+      expect(parsed.speakers).toHaveLength(3); // default + 2 speakers
+      const speakerIds = new Set(parsed.speakers.map((s: { id: string }) => s.id));
+      expect(speakerIds.size).toBe(3); // All unique
+    });
+  });
+
   describe("mapping methods", () => {
     const mapping = {
       entryId: "entry-abc",

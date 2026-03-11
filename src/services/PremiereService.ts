@@ -7,6 +7,7 @@ import {
 } from "../types/premiere";
 import type { CaptionSegment } from "./CaptionService";
 import { PremiereApiError } from "../utils/errors";
+import { ProjectItemType } from "../types/premiere";
 import { KALTURA_BIN_NAME, STORAGE_KEY_ASSET_MAPPINGS } from "../utils/constants";
 import { createLogger } from "../utils/logger";
 
@@ -543,7 +544,7 @@ export class PremiereService {
         try {
           pp.TextSegments.importFromJSON(textSegmentsJson, (importedTextSegments) => {
             try {
-              project.lockedAccess(() => {
+              const locked = project.lockedAccess(() => {
                 project.executeTransaction((compoundAction) => {
                   const action = pp.Transcript.createImportTextSegmentsAction(
                     importedTextSegments,
@@ -552,7 +553,10 @@ export class PremiereService {
                   compoundAction.addAction(action);
                 }, "Kaltura: Import Transcript");
               });
-              resolve(true);
+              if (!locked) {
+                log.error("lockedAccess returned false — project may be in use");
+              }
+              resolve(locked !== false);
             } catch (txnErr) {
               log.error("Transcript transaction failed", txnErr);
               resolve(false);
@@ -1052,7 +1056,7 @@ export class PremiereService {
     const children = await parent.getItems();
     if (!children) return null;
     for (const child of children) {
-      if (child.name === name && child.type === 2) {
+      if (child.name === name && child.type === ProjectItemType.BIN) {
         return child as unknown as premierepro.FolderItem;
       }
     }
@@ -1071,8 +1075,7 @@ export class PremiereService {
     const targetFileName = localPath.split("/").pop() || "";
 
     for (const child of children) {
-      // type 1 = clip
-      if (child.type === 1) {
+      if (child.type === ProjectItemType.CLIP) {
         // Fast path: match by item name (filename)
         if (child.name === targetFileName) {
           return child;
@@ -1087,8 +1090,7 @@ export class PremiereService {
           // Skip items that can't be cast to ClipProjectItem
         }
       }
-      // type 2 = bin — recurse
-      if (child.type === 2) {
+      if (child.type === ProjectItemType.BIN) {
         const found = await this.findItemByPath(
           child as unknown as premierepro.FolderItem,
           localPath,
