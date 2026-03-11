@@ -66,7 +66,11 @@ export class KalturaClient {
     const url = `${this.serviceUrl}${API_BASE_PATH}/${config.service}/action/${config.action}`;
     const body = this.buildRequestBody(config.params);
 
-    log.debug(`${config.service}.${config.action}`, body);
+    console.error(
+      `[DEBUG] API → ${config.service}.${config.action}`,
+      url,
+      JSON.stringify(config.params),
+    );
 
     const response = await this.doFetch(url, body);
     return this.handleResponse<T>(response);

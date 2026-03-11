@@ -449,22 +449,19 @@ export class PremiereService {
     entryId: string,
     segments: CaptionSegment[],
   ): Promise<TranscriptImportResult> {
+    console.error("[DEBUG] importTranscriptToClip called", entryId, "segments:", segments.length);
     const pp = getPremiere();
     const mapping = this.getMapping(entryId);
+    console.error("[DEBUG] mapping", mapping ? JSON.stringify(mapping) : "null");
     if (!mapping) {
       return { success: false, error: "Video not imported — import the video first" };
     }
-
-    log.info("Attaching transcript to clip", {
-      entryId,
-      localPath: mapping.localPath,
-      segmentCount: segments.length,
-    });
 
     try {
       const project = await pp.Project.getActiveProject();
       const rootItem = await project.getRootItem();
       const projectItem = this.findItemByPath(rootItem, mapping.localPath);
+      console.error("[DEBUG] projectItem found?", !!projectItem);
 
       if (!projectItem) {
         return {
@@ -474,10 +471,8 @@ export class PremiereService {
       }
 
       const clipItem = pp.ClipProjectItem.cast(projectItem);
+      console.error("[DEBUG] clipItem cast done", !!clipItem);
 
-      // Build TextSegments JSON — Premiere expects the format produced by
-      // Transcript.exportToJSON(). Based on the API, importFromJSON takes a
-      // JSON string and returns a TextSegments object.
       const textSegmentsJson = JSON.stringify(
         segments.map((s) => ({
           startTimeInMicroseconds: Math.round(s.startTime * 1_000_000),
@@ -485,19 +480,31 @@ export class PremiereService {
           text: s.text,
         })),
       );
+      console.error(
+        "[DEBUG] textSegmentsJson length",
+        textSegmentsJson.length,
+        "preview:",
+        textSegmentsJson.substring(0, 200),
+      );
 
       const textSegments = pp.Transcript.importFromJSON(textSegmentsJson);
+      console.error("[DEBUG] importFromJSON done", !!textSegments);
       const action = await pp.Transcript.createImportTextSegmentsAction(textSegments, clipItem);
+      console.error("[DEBUG] createImportTextSegmentsAction done", !!action);
 
       await project.executeTransaction(async () => {
         await action.execute();
       }, "Kaltura: Import Transcript");
 
-      log.info("Transcript attached successfully", { entryId, segmentCount: segments.length });
+      console.error("[DEBUG] Transcript attached successfully");
       return { success: true };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      log.error("Failed to attach transcript", { entryId, error: msg });
+      console.error(
+        "[DEBUG] importTranscriptToClip FAILED",
+        msg,
+        error instanceof Error ? error.stack : "",
+      );
       return { success: false, error: msg };
     }
   }

@@ -239,7 +239,7 @@ export class CaptionService {
    * Returns an array of time-stamped segments with text content.
    */
   async downloadCaptionAsJson(captionAssetId: string): Promise<KalturaTranscriptSegment[]> {
-    log.info("Downloading caption as JSON", { captionAssetId });
+    console.error("[DEBUG] downloadCaptionAsJson called", captionAssetId);
 
     // serveAsJson returns the transcript data directly (not a URL)
     const data = await this.client.request<
@@ -250,7 +250,7 @@ export class CaptionService {
       params: { captionAssetId },
     });
 
-    log.info("serveAsJson response", { objectCount: data.objects?.length });
+    console.error("[DEBUG] serveAsJson response", typeof data, "objects:", data.objects?.length);
     return (data.objects as KalturaTranscriptSegment[]) || [];
   }
 
