@@ -71,6 +71,12 @@ describe("DownloadService", () => {
     hostService.isImported.mockReturnValue(true);
     const existingFlavor = { ...mockFlavor, id: "flavor_existing", entryId: "0_existing" };
 
+    // First fetch: getFlavorDownloadUrl API call
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => "https://cdn.kaltura.com/download/test.mp4",
+    });
+    // Second fetch: actual file download
     mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2, 3])));
 
     const result = await service.downloadAndImport("0_existing", existingFlavor);
@@ -80,6 +86,12 @@ describe("DownloadService", () => {
   });
 
   it("downloads file and creates mapping", async () => {
+    // First fetch: getFlavorDownloadUrl API call
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => "https://cdn.kaltura.com/download/test.mp4",
+    });
+    // Second fetch: actual file download
     mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2, 3, 4])));
 
     const progressCalls: number[] = [];
@@ -94,6 +106,12 @@ describe("DownloadService", () => {
   });
 
   it("resolves native path via getEntryWithUrl", async () => {
+    // First fetch: getFlavorDownloadUrl API call
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => "https://cdn.kaltura.com/download/test.mp4",
+    });
+    // Second fetch: actual file download
     mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2])));
 
     const result = await service.downloadAndImport("0_abc", mockFlavor);

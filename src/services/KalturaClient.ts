@@ -62,7 +62,7 @@ export class KalturaClient {
   /**
    * Execute a single API request.
    */
-  async request<T extends KalturaObjectBase>(config: KalturaRequestConfig): Promise<T> {
+  async request<T extends KalturaObjectBase | string>(config: KalturaRequestConfig): Promise<T> {
     const url = `${this.serviceUrl}${API_BASE_PATH}/${config.service}/action/${config.action}`;
     const body = this.buildRequestBody(config.params);
 
@@ -169,10 +169,12 @@ export class KalturaClient {
     }
   }
 
-  private async handleResponse<T extends KalturaObjectBase>(response: Response): Promise<T> {
-    const data = (await response.json()) as KalturaObjectBase;
+  private async handleResponse<T extends KalturaObjectBase | string>(
+    response: Response,
+  ): Promise<T> {
+    const data = (await response.json()) as KalturaObjectBase | string;
 
-    if (data?.objectType === "KalturaAPIException") {
+    if (typeof data === "object" && data?.objectType === "KalturaAPIException") {
       const err = data as KalturaApiException;
       throw new KalturaApiError(err.message, err.code, err.args);
     }

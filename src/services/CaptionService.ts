@@ -63,15 +63,17 @@ export class CaptionService {
     log.info("Downloading caption as SRT", { id: caption.id, format: caption.format });
     const content = await this.downloadCaptionContent(caption.id);
 
-    if (caption.format === KalturaCaptionType.SRT) {
+    // Kaltura API returns format as string ("1", "3") but enum values are numbers.
+    // Use Number() to ensure correct comparison.
+    const format = Number(caption.format);
+
+    if (format === KalturaCaptionType.SRT) {
       return content;
     }
 
     // Convert other formats to SRT via parse → serialize
     const segments =
-      caption.format === KalturaCaptionType.WEBVTT
-        ? this.parseVtt(content)
-        : this.parseSrt(content);
+      format === KalturaCaptionType.WEBVTT ? this.parseVtt(content) : this.parseSrt(content);
 
     if (segments.length === 0) {
       log.warn("No parseable segments found, returning raw content");
@@ -149,14 +151,14 @@ export class CaptionService {
         parseInt(timeMatch[7]) +
         parseInt(timeMatch[8]) / 1000;
 
-      segments.push({
-        startTime,
-        endTime,
-        text: lines
-          .slice(timeLineIndex + 1)
-          .join("\n")
-          .trim(),
-      });
+      // Strip VTT voice tags: <v Speaker Name>text</v> → text
+      const rawText = lines
+        .slice(timeLineIndex + 1)
+        .join("\n")
+        .trim();
+      const text = rawText.replace(/<v[^>]*>/g, "").replace(/<\/v>/g, "");
+
+      segments.push({ startTime, endTime, text });
     }
 
     return segments;

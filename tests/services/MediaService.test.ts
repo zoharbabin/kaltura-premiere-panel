@@ -121,18 +121,19 @@ describe("MediaService", () => {
   });
 
   describe("getFlavorDownloadUrl()", () => {
-    it("returns playManifest URL with correct format", () => {
-      const url = service.getFlavorDownloadUrl("0_entry", "flavor_1");
-      expect(url).toContain("/p/12345/sp/0/playManifest");
-      expect(url).toContain("/entryId/0_entry/flavorId/flavor_1/");
-      expect(url).toContain("/format/url/protocol/https");
-      expect(url).toContain("/ks/test_ks/");
-      expect(url).toContain("/video.mp4");
-    });
+    it("calls flavorAsset/getDownloadUrl API and returns the URL", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => "https://cdn.kaltura.com/download/flavor_1",
+      });
 
-    it("encodes KS in the URL", () => {
-      const url = service.getFlavorDownloadUrl("0_entry", "flavor_1");
-      expect(url).toContain("/ks/");
+      const url = await service.getFlavorDownloadUrl("0_entry", "flavor_1");
+      expect(url).toBe("https://cdn.kaltura.com/download/flavor_1");
+
+      const [, options] = mockFetch.mock.calls[0];
+      const body = JSON.parse(options.body);
+      expect(body.id).toBe("flavor_1");
+      expect(body.useCdn).toBe(true);
     });
   });
 
