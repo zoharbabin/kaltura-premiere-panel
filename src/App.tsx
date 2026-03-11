@@ -108,26 +108,14 @@ export const App: React.FC = () => {
 
   const handleAttachToClip = useCallback(
     async (entryId: string, segments: CaptionSegment[]) => {
-      console.error("[DEBUG] App.handleAttachToClip called", entryId, "segments:", segments.length);
-      console.error("[DEBUG] hostService.importTranscript exists?", !!hostService.importTranscript);
       if (!hostService.importTranscript) {
         return { success: false, error: "Transcript attachment is not supported in this host app" };
       }
-      try {
-        const result = await hostService.importTranscript(entryId, segments);
-        console.error("[DEBUG] importTranscript result", JSON.stringify(result));
-        if (result.success) {
-          auditService.logAction("attachTranscript", entryId, `${segments.length} segments`);
-        }
-        return result;
-      } catch (err) {
-        console.error(
-          "[DEBUG] importTranscript threw",
-          String(err),
-          err instanceof Error ? err.stack : "",
-        );
-        throw err;
+      const result = await hostService.importTranscript(entryId, segments);
+      if (result.success) {
+        auditService.logAction("attachTranscript", entryId, `${segments.length} segments`);
       }
+      return result;
     },
     [hostService, auditService],
   );

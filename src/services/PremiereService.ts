@@ -458,10 +458,8 @@ export class PremiereService {
     entryId: string,
     segments: CaptionSegment[],
   ): Promise<TranscriptImportResult> {
-    console.error("[DEBUG] importTranscriptToClip called", entryId, "segments:", segments.length);
     const pp = getPremiere();
     const mapping = this.getMapping(entryId);
-    console.error("[DEBUG] mapping", mapping ? JSON.stringify(mapping) : "null");
     if (!mapping) {
       return { success: false, error: "Video not imported — import the video first" };
     }
@@ -470,7 +468,6 @@ export class PremiereService {
       const project = await pp.Project.getActiveProject();
       const rootItem = await project.getRootItem();
       const projectItem = await this.findItemByPath(rootItem, mapping.localPath);
-      console.error("[DEBUG] projectItem found?", !!projectItem);
 
       if (!projectItem) {
         return {
@@ -480,7 +477,6 @@ export class PremiereService {
       }
 
       const clipItem = pp.ClipProjectItem.cast(projectItem);
-      console.error("[DEBUG] clipItem cast done", !!clipItem);
 
       // Build Adobe Premiere transcript JSON per the official schema:
       // https://github.com/AdobeDocs/uxp-premiere-pro-samples (transcript_format_spec.json)
@@ -534,74 +530,49 @@ export class PremiereService {
       };
 
       const textSegmentsJson = JSON.stringify(transcriptObj);
-      console.error(
-        "[DEBUG] textSegmentsJson length",
-        textSegmentsJson.length,
-        "preview:",
-        textSegmentsJson.substring(0, 300),
-      );
+      log.info("Importing transcript to clip", {
+        entryId,
+        segmentCount: segments.length,
+        jsonLength: textSegmentsJson.length,
+      });
 
-      // Use TextSegments.importFromJSON with callback (per Adobe types.d.ts)
-      // Transcript.importFromJSON returns TextSegments but the data may not be fully initialized.
-      // TextSegments.importFromJSON uses a callback that fires once parsing is complete.
+      // Use TextSegments.importFromJSON with callback — this is the variant that
+      // actually persists transcript data (unlike Transcript.importFromJSON which
+      // creates TextSegments that don't survive the transaction).
       const importResult = await new Promise<boolean>((resolve) => {
         try {
-          const ok = pp.TextSegments.importFromJSON(textSegmentsJson, (importedTextSegments) => {
-            console.error(
-              "[DEBUG] TextSegments.importFromJSON callback fired:",
-              typeof importedTextSegments,
-              Object.prototype.toString.call(importedTextSegments),
-            );
+          pp.TextSegments.importFromJSON(textSegmentsJson, (importedTextSegments) => {
             try {
-              const txnSuccess = project.lockedAccess(() => {
+              project.lockedAccess(() => {
                 project.executeTransaction((compoundAction) => {
                   const action = pp.Transcript.createImportTextSegmentsAction(
                     importedTextSegments,
                     clipItem,
                   );
-                  console.error("[DEBUG] createImportTextSegmentsAction done", !!action);
                   compoundAction.addAction(action);
                 }, "Kaltura: Import Transcript");
               });
-              console.error("[DEBUG] lockedAccess returned:", txnSuccess);
               resolve(true);
             } catch (txnErr) {
-              console.error("[DEBUG] Transaction failed in callback:", txnErr);
+              log.error("Transcript transaction failed", txnErr);
               resolve(false);
             }
           });
-          console.error("[DEBUG] TextSegments.importFromJSON returned:", ok);
-          // If callback is synchronous and already resolved, this is fine
-          // If it doesn't fire, resolve after a timeout
-          setTimeout(() => resolve(false), 5000);
         } catch (err) {
-          console.error("[DEBUG] TextSegments.importFromJSON threw:", err);
+          log.error("TextSegments.importFromJSON failed", err);
           resolve(false);
         }
       });
 
-      console.error("[DEBUG] Import result:", importResult);
-
-      // Verify with exportToJSON
-      try {
-        const exported = await (pp.Transcript.exportToJSON(clipItem) as unknown as Promise<string>);
-        console.error(
-          "[DEBUG] exportToJSON verification:",
-          typeof exported,
-          exported ? String(exported).substring(0, 500) : "null/empty",
-        );
-      } catch (verifyErr) {
-        console.error("[DEBUG] exportToJSON verify failed:", verifyErr);
+      if (!importResult) {
+        return { success: false, error: "Failed to import transcript into clip" };
       }
 
+      log.info("Transcript imported successfully", { entryId });
       return { success: true };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      console.error(
-        "[DEBUG] importTranscriptToClip FAILED",
-        msg,
-        error instanceof Error ? error.stack : "",
-      );
+      log.error("importTranscriptToClip failed", { error: msg });
       return { success: false, error: msg };
     }
   }
@@ -1094,31 +1065,26 @@ export class PremiereService {
     localPath: string,
   ): Promise<premierepro.ProjectItem | null> {
     const children = await parent.getItems();
-    console.error("[DEBUG] findItemByPath", parent.name, "children:", children?.length);
     if (!children) return null;
 
     const pp = getPremiere();
     const targetFileName = localPath.split("/").pop() || "";
 
     for (const child of children) {
-      console.error("[DEBUG] child type:", child.type, "name:", child.name);
-
       // type 1 = clip
       if (child.type === 1) {
         // Fast path: match by item name (filename)
         if (child.name === targetFileName) {
-          console.error("[DEBUG] matched by name:", child.name);
           return child;
         }
         try {
           const clip = pp.ClipProjectItem.cast(child);
           const clipPath = await clip.getMediaFilePath();
-          console.error("[DEBUG] clip path:", clipPath);
           if (clipPath === localPath) return child;
           // Fallback: match by filename from path
           if (clipPath && clipPath.split("/").pop() === targetFileName) return child;
-        } catch (err) {
-          console.error("[DEBUG] cast error", String(err));
+        } catch {
+          // Skip items that can't be cast to ClipProjectItem
         }
       }
       // type 2 = bin — recurse
