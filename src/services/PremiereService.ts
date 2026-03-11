@@ -549,6 +549,19 @@ export class PremiereService {
       });
 
       console.error("[DEBUG] Transcript attached successfully, lockedAccess returned:", success);
+
+      // Verify the transcript was actually stored
+      try {
+        const exported = pp.Transcript.exportToJSON(clipItem);
+        console.error(
+          "[DEBUG] exportToJSON verification:",
+          typeof exported,
+          exported ? String(exported).substring(0, 300) : "null/empty",
+        );
+      } catch (verifyErr) {
+        console.error("[DEBUG] exportToJSON verify failed:", verifyErr);
+      }
+
       return { success: true };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
