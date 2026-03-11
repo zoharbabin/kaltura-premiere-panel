@@ -245,6 +245,7 @@ Second line`;
         expect.objectContaining({
           service: "caption_captionAsset",
           action: "serveAsJson",
+          params: { captionAssetId: "cap1" },
         }),
       );
     });
