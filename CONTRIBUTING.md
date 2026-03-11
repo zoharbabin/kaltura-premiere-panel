@@ -85,7 +85,7 @@ Read [docs/UXP_LESSONS_LEARNED.md](./docs/UXP_LESSONS_LEARNED.md) before making 
 **Running tests:**
 
 ```bash
-npm test                    # All tests
+npm test                    # All tests (447 across 37 suites)
 npm test -- --watch         # Watch mode (re-runs on file change)
 npm run test:coverage       # With coverage report
 ```
