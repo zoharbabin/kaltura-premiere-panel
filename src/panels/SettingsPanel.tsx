@@ -153,7 +153,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const handleSupportLink = useCallback(() => {
     const url = ISSUES_URL;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       uxp.shell.openExternal(url);
     } catch {

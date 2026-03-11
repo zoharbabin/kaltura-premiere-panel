@@ -68,7 +68,6 @@ const TOTAL_STEPS = 4;
 
 /** Read a file from disk using UXP fs module */
 async function readFileAsArrayBuffer(nativePath: string): Promise<ArrayBuffer> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require("fs");
   const data = await fs.readFile(nativePath);
   if (data instanceof ArrayBuffer) return data;
@@ -80,14 +79,13 @@ async function readFileAsArrayBuffer(nativePath: string): Promise<ArrayBuffer> {
 /** Open a file picker via UXP storage API */
 async function pickFile(): Promise<FileInfo | null> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const uxp = require("uxp");
     const lfs = uxp.storage.localFileSystem;
     const file = await lfs.getFileForOpening({
       types: ["mp4", "mov", "mxf", "avi", "mkv", "wav", "mp3", "aac", "m4a", "m4v", "webm"],
     });
     if (!file) return null;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const nodeFs = require("fs");
     const stats = await nodeFs.lstat(file.nativePath);
     return { nativePath: file.nativePath, name: file.name, size: stats.size };
@@ -400,7 +398,6 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     if (!publishedEntry) return;
     const url = `${mediaService.getServerUrl()}/index.php/kmcng/content/entries/entry/${publishedEntry.id}`;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       uxp.shell.openExternal(url);
     } catch (err) {

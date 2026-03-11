@@ -39,7 +39,6 @@ interface SecureStorage {
 /** Get UXP SecureStorage — returns null if not available (test environment) */
 function getSecureStorage(): SecureStorage | null {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const uxp = require("uxp");
     const raw = uxp.storage.secureStorage as SecureStorageRaw;
     if (!raw) return null;
@@ -237,7 +236,6 @@ export class AuthService {
       throw new AuthenticationError("SSO login URL must use HTTPS", "SSO_INVALID_URL");
     }
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       uxp.shell.openExternal(loginUrl);
     } catch {

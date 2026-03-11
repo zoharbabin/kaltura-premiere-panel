@@ -45,7 +45,6 @@ function isAfterEffectsAvailable(): boolean {
 }
 
 function getAE(): typeof aftereffects {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require("aftereffects") as typeof aftereffects;
 }
 

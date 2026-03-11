@@ -35,7 +35,6 @@ function isAuditionAvailable(): boolean {
 }
 
 function getAudition(): typeof audition {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require("audition") as typeof audition;
 }
 

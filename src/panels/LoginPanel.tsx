@@ -64,7 +64,6 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
     const url = `${serverUrl}/index.php/kmcng/login`;
     if (!/^https:\/\//i.test(url)) return;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const uxp = require("uxp");
       uxp.shell.openExternal(url);
     } catch {

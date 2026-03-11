@@ -178,7 +178,7 @@ function getPremiere(): typeof premierepro {
   if (!isPremiereAvailable()) {
     throw new PremiereApiError("Premiere Pro API is not available in this environment");
   }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   return require("premierepro") as typeof premierepro;
 }
 
@@ -602,7 +602,6 @@ export class PremiereService {
       throw new PremiereApiError("No active sequence to export");
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require("fs");
 
     // Find an export preset — required for exportSequence to work
@@ -812,7 +811,6 @@ export class PremiereService {
     let stableSince = 0;
     let pollCount = 0;
 
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
       pollCount++;
@@ -927,7 +925,6 @@ export class PremiereService {
    * Prefers H.264 "Match Source" presets but will accept any .epr.
    */
   private async findExportPreset(): Promise<string> {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require("fs");
 
     // Standard preset search paths (macOS and Windows)

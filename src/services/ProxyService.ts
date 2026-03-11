@@ -257,14 +257,14 @@ export class ProxyService {
     }
 
     // Use UXP fs module for binary writes (supports Uint8Array natively)
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const fs = require("fs");
     const pluginDataPath = `plugin-data:/${fileName}`;
 
     await fs.writeFile(pluginDataPath, merged);
 
     // Resolve native path for Premiere's importFiles API
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const uxp = require("uxp");
     const entry = await uxp.storage.localFileSystem.getEntryWithUrl(pluginDataPath);
     const nativePath = entry.nativePath;

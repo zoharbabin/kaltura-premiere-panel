@@ -33,7 +33,7 @@ class MockXhr {
     });
   }
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 (global as any).XMLHttpRequest = MockXhr;
 
 describe("UploadService", () => {

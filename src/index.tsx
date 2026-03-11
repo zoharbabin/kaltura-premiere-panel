@@ -17,7 +17,6 @@ if (process.env.NODE_ENV === "production") {
  */
 function setupPlugin(): void {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { entrypoints } = require("uxp");
 
     let panelRoot: ReturnType<typeof createRoot> | null = null;

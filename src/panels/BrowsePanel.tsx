@@ -992,17 +992,14 @@ const CaptionSection: React.FC<{
         const srtContent = await captionService.downloadCaptionAsSrt(caption);
         const fileName = `${caption.label || caption.language}.srt`;
 
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require("fs");
         const filePath = `plugin-data:/${fileName}`;
         await fs.writeFile(filePath, srtContent);
 
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const uxp = require("uxp");
         const fileEntry = await uxp.storage.localFileSystem.getEntryWithUrl(filePath);
         const nativePath = fileEntry.nativePath;
 
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const ppro = require("premierepro");
         const project = await ppro.Project.getActiveProject();
         await project.importFiles([nativePath], true);

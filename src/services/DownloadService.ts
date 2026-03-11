@@ -372,7 +372,6 @@ export class DownloadService {
    * and plugin-data:/ URL scheme for the plugin's persistent data folder.
    */
   private async saveTempFile(fileName: string, data: Uint8Array): Promise<string> {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require("fs");
     const pluginDataPath = `plugin-data:/${fileName}`;
 
@@ -396,7 +395,7 @@ export class DownloadService {
     log.info("File verified", { size: stats.size });
 
     // Resolve native path for Premiere's importFiles API
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+
     const uxp = require("uxp");
     const entry = await uxp.storage.localFileSystem.getEntryWithUrl(pluginDataPath);
     const nativePath = entry.nativePath;
