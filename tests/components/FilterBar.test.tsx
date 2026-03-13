@@ -53,6 +53,22 @@ describe("FilterBar", () => {
     expect(container.querySelectorAll("select.native-select").length).toBe(3);
   });
 
+  it("shows Has captions checkbox when expanded", () => {
+    render(<FilterBar {...defaultProps} />);
+    fireEvent.click(screen.getByText("Filters"));
+    expect(screen.getByText("Has captions")).toBeTruthy();
+  });
+
+  it("calls onFiltersChange when Has captions is toggled", () => {
+    render(<FilterBar {...defaultProps} />);
+    fireEvent.click(screen.getByText("Filters"));
+    const checkbox = screen.getByLabelText("Has captions") as HTMLInputElement;
+    fireEvent.click(checkbox);
+    expect(defaultProps.onFiltersChange).toHaveBeenCalledWith(
+      expect.objectContaining({ withCaptionsOnly: true }),
+    );
+  });
+
   it("collapses filter panel when Filters button clicked again", () => {
     const { container } = render(<FilterBar {...defaultProps} />);
     fireEvent.click(screen.getByText("Filters"));
@@ -84,14 +100,23 @@ describe("countActiveFilters", () => {
     expect(countActiveFilters({ ...defaultFilters, categoryId: 42 })).toBe(1);
   });
 
-  it("counts multiple active filters", () => {
+  it("counts withCaptionsOnly filter", () => {
+    expect(countActiveFilters({ ...defaultFilters, withCaptionsOnly: true })).toBe(1);
+  });
+
+  it("does not count withCaptionsOnly when false", () => {
+    expect(countActiveFilters({ ...defaultFilters, withCaptionsOnly: false })).toBe(0);
+  });
+
+  it("counts multiple active filters including withCaptionsOnly", () => {
     const filters: FilterState = {
       mediaType: 1,
       dateRange: "month",
       ownerFilter: "mine",
       categoryId: 5,
+      withCaptionsOnly: true,
     };
-    expect(countActiveFilters(filters)).toBe(4);
+    expect(countActiveFilters(filters)).toBe(5);
   });
 });
 
