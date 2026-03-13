@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.16.0
+
+### Features
+
+- **eSearch-powered browse** — BrowsePanel now uses Kaltura's Elasticsearch-backed `eSearch/searchEntry` API when search text is entered. Searches across entry names, descriptions, tags, captions/transcripts, and metadata simultaneously using `KalturaESearchUnifiedItem` with partial matching and synonym support. (Closes #83)
+- **Caption content search** — Users can now find videos by what was _said_ in them. eSearch returns timecoded highlights showing exactly where matches occur in transcripts
+- **"Has Captions" filter** — New checkbox toggle in FilterBar filters results to entries that have caption/transcript tracks (`KalturaESearchCaptionItem` with `EXISTS` item type)
+- **Search highlight display** — Grid cards show a subtle hint below the title ("in transcript ⏱ 1:23") and list rows append match source to metadata line when eSearch highlights are available
+
+### Improvements
+
+- **Shared eSearch types** — Added typed interfaces and enums (`ESearchItemType`, `ESearchOperatorType`, `KalturaESearchEntryParams`, `ESearchResponse`, etc.) to `types/kaltura.ts`, replacing inline `Record<string, unknown>` objects
+- **SearchService type consolidation** — Moved private eSearch response interfaces from `SearchService` to shared `types/kaltura.ts`
+- **Graceful fallback** — If eSearch call fails, BrowsePanel automatically falls back to `media/list` with error logging (no crash)
+- **Dual-path browse** — Empty search (initial browse) still uses `media/list` with chronological ordering; eSearch only activates when search text or caption filter is present
+
+### Tests
+
+- New tests: `eSearchBrowse()` parameter construction, response unwrapping, highlight extraction, filter combinations, eSearch/list dual path in BrowsePanel, FilterBar caption checkbox
+
 ## 1.15.4
 
 ### Documentation
