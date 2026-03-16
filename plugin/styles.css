@@ -874,6 +874,27 @@ a:hover {
   border-bottom: 1px solid #3e3e3e;
 }
 
+.filter-checkbox {
+  user-select: none;
+}
+
+/* ---- Search highlight hints ---- */
+
+.highlight-hint {
+  font-size: 9px;
+  color: #5a5a5a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 7px 4px;
+  line-height: 1.2;
+}
+
+.highlight-source {
+  color: #5a5a5a;
+  font-style: italic;
+}
+
 .result-count {
   padding: 4px 8px;
   font-size: 11px;

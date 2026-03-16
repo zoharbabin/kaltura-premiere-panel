@@ -185,6 +185,80 @@ export interface KalturaMediaEntryFilter {
   tagsMultiLikeAnd?: string;
 }
 
+/** eSearch item type constants */
+export enum ESearchItemType {
+  EXACT_MATCH = 1,
+  PARTIAL = 2,
+  STARTS_WITH = 3,
+  EXISTS = 4,
+  RANGE = 5,
+}
+
+/** eSearch operator type constants */
+export enum ESearchOperatorType {
+  AND_OP = 1,
+  OR_OP = 2,
+  NOT_OP = 3,
+}
+
+/** eSearch range for date/number filtering */
+export interface KalturaESearchRange {
+  greaterThanOrEqual?: number;
+  lessThanOrEqual?: number;
+}
+
+/** eSearch operator (AND/OR/NOT container for search items) */
+export interface KalturaESearchEntryOperator {
+  objectType: "KalturaESearchEntryOperator";
+  operator: ESearchOperatorType;
+  searchItems: KalturaESearchItem[];
+}
+
+/** eSearch search item — base for all item types */
+export interface KalturaESearchItem {
+  objectType: string;
+  searchTerm?: string;
+  itemType: ESearchItemType;
+  addHighlight?: boolean;
+  fieldName?: string;
+  range?: KalturaESearchRange;
+  categoryEntryStatus?: number;
+}
+
+/** eSearch entry params (top-level search config) */
+export interface KalturaESearchEntryParams {
+  objectType: "KalturaESearchEntryParams";
+  searchOperator: KalturaESearchEntryOperator;
+  objectStatuses?: string;
+}
+
+/** Raw eSearch result item from the API */
+export interface ESearchEntryResult extends KalturaObjectBase {
+  object: KalturaMediaEntry;
+  itemsData?: ESearchItemsData[];
+}
+
+/** eSearch items data container */
+export interface ESearchItemsData extends KalturaObjectBase {
+  items?: ESearchItemDataResult[];
+}
+
+/** Individual eSearch item data result (highlight, timecodes) */
+export interface ESearchItemDataResult extends KalturaObjectBase {
+  itemType?: string;
+  searchTerm?: string;
+  highlight?: string;
+  startTime?: number;
+  endTime?: number;
+  captionAssetId?: string;
+}
+
+/** Raw eSearch response from the API */
+export interface ESearchResponse extends KalturaObjectBase {
+  totalCount: number;
+  objects: ESearchEntryResult[];
+}
+
 /** Pager for paginated requests */
 export interface KalturaFilterPager {
   pageSize: number;

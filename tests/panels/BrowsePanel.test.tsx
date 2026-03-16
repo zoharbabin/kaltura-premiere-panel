@@ -51,6 +51,11 @@ const entries = [
 function mockMediaService(overrides: Record<string, unknown> = {}) {
   return {
     list: jest.fn().mockResolvedValue({ objects: entries, totalCount: 3 }),
+    eSearchBrowse: jest.fn().mockResolvedValue({
+      totalCount: 0,
+      entries: [],
+      highlights: new Map(),
+    }),
     getEntryDetails: jest.fn().mockResolvedValue({
       entry: entries[0],
       flavors: [makeFlavor()],
@@ -465,13 +470,20 @@ describe("BrowsePanel", () => {
 
   // --- Search ---
 
-  it("calls mediaService.list with search text after debounce", async () => {
+  it("calls eSearchBrowse with search text after debounce", async () => {
     jest.useFakeTimers();
-    const service = mockMediaService();
+    const eSearchResult = {
+      totalCount: 1,
+      entries: [makeEntry({ id: "0_found", name: "Found Video" })],
+      highlights: new Map([["0_found", [{ type: "content" as const, text: "demo" }]]]),
+    };
+    const service = mockMediaService({
+      eSearchBrowse: jest.fn().mockResolvedValue(eSearchResult),
+    });
     const { container } = render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
 
     await act(async () => {
-      await Promise.resolve(); // Flush initial load
+      await Promise.resolve();
     });
 
     const searchInput = container.querySelector("sp-search")!;
@@ -481,9 +493,82 @@ describe("BrowsePanel", () => {
     });
 
     await waitFor(() => {
-      const calls = (service.list as jest.Mock).mock.calls;
-      const lastCall = calls[calls.length - 1];
-      expect(lastCall[0]).toEqual(expect.objectContaining({ searchTextMatchAnd: "demo" }));
+      expect(service.eSearchBrowse).toHaveBeenCalledWith(
+        expect.objectContaining({ searchText: "demo" }),
+        expect.anything(),
+      );
+    });
+    jest.useRealTimers();
+  });
+
+  it("uses media/list when search text is empty", async () => {
+    const service = mockMediaService();
+    render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
+
+    await waitFor(() => {
+      expect(service.list).toHaveBeenCalled();
+      expect(service.eSearchBrowse).not.toHaveBeenCalled();
+    });
+  });
+
+  it("shows highlight hint on grid cards from eSearch", async () => {
+    jest.useFakeTimers();
+    const eSearchResult = {
+      totalCount: 1,
+      entries: [makeEntry({ id: "0_found", name: "Found Video" })],
+      highlights: new Map([
+        ["0_found", [{ type: "caption" as const, text: "hello", startTime: 83000 }]],
+      ]),
+    };
+    const service = mockMediaService({
+      eSearchBrowse: jest.fn().mockResolvedValue(eSearchResult),
+    });
+    const { container } = render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const searchInput = container.querySelector("sp-search")!;
+    await act(async () => {
+      simulateInput(searchInput, "hello");
+      jest.advanceTimersByTime(400);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Found Video")).toBeTruthy();
+    });
+
+    // Check for highlight hint
+    const hint = container.querySelector(".highlight-hint");
+    expect(hint).toBeTruthy();
+    expect(hint!.textContent).toContain("transcript");
+    expect(hint!.textContent).toContain("1:23");
+    jest.useRealTimers();
+  });
+
+  it("falls back to media/list when eSearch fails", async () => {
+    jest.useFakeTimers();
+    const service = mockMediaService({
+      eSearchBrowse: jest.fn().mockRejectedValue(new Error("eSearch error")),
+      list: jest.fn().mockResolvedValue({ objects: entries, totalCount: 3 }),
+    });
+    const { container } = render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const searchInput = container.querySelector("sp-search")!;
+    await act(async () => {
+      simulateInput(searchInput, "fallback");
+      jest.advanceTimersByTime(400);
+    });
+
+    await waitFor(() => {
+      // Should have called list as fallback
+      const listCalls = (service.list as jest.Mock).mock.calls;
+      expect(listCalls.length).toBeGreaterThan(1); // initial + fallback
     });
     jest.useRealTimers();
   });

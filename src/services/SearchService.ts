@@ -3,7 +3,7 @@ import {
   KalturaMediaEntry,
   KalturaListResponse,
   KalturaFilterPager,
-  KalturaObjectBase,
+  ESearchResponse,
 } from "../types/kaltura";
 import { createLogger } from "../utils/logger";
 import { DEFAULT_PAGE_SIZE } from "../utils/constants";
@@ -30,30 +30,6 @@ export interface TranscriptSearchResult {
 export interface InVideoSearchResult {
   entry: KalturaMediaEntry;
   highlights: SearchHighlight[];
-}
-
-/** Raw eSearch result item from the API */
-interface ESearchEntryResult extends KalturaObjectBase {
-  object: KalturaMediaEntry;
-  itemsData?: ESearchItemsData[];
-}
-
-interface ESearchItemsData extends KalturaObjectBase {
-  items?: ESearchItemDataResult[];
-}
-
-interface ESearchItemDataResult extends KalturaObjectBase {
-  itemType?: string;
-  searchTerm?: string;
-  highlight?: string;
-  startTime?: number;
-  endTime?: number;
-}
-
-/** Raw eSearch response from the API */
-interface ESearchResponse extends KalturaObjectBase {
-  totalCount: number;
-  objects: ESearchEntryResult[];
 }
 
 /**

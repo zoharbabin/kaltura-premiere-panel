@@ -7,7 +7,7 @@ import {
   KalturaCaptionAsset,
   KalturaCaptionType,
 } from "../types/kaltura";
-import { MediaService } from "../services/MediaService";
+import { MediaService, BrowseHighlight } from "../services/MediaService";
 import { MetadataService } from "../services/MetadataService";
 import { CaptionService, CaptionSegment } from "../services/CaptionService";
 import { createLogger } from "../utils/logger";
@@ -86,6 +86,36 @@ function formatCaptionFormat(format: KalturaCaptionType): string {
   }
 }
 
+/** Format the first highlight for an entry into a short display string */
+function formatHighlightHint(highlights: BrowseHighlight[]): string | null {
+  if (highlights.length === 0) return null;
+  const h = highlights[0];
+  if (h.type === "caption" && h.startTime !== undefined) {
+    const totalSec = Math.floor(h.startTime / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `in transcript \u23F1 ${m}:${String(s).padStart(2, "0")}`;
+  }
+  if (h.type === "caption") return "in transcript";
+  if (h.type === "metadata") return "in metadata";
+  return "in title/tags";
+}
+
+/** Format highlight for list row (slightly more verbose) */
+function formatHighlightMeta(highlights: BrowseHighlight[]): string | null {
+  if (highlights.length === 0) return null;
+  const h = highlights[0];
+  if (h.type === "caption" && h.startTime !== undefined) {
+    const totalSec = Math.floor(h.startTime / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `Found in transcript at ${m}:${String(s).padStart(2, "0")}`;
+  }
+  if (h.type === "caption") return "Found in transcript";
+  if (h.type === "metadata") return "Found in metadata";
+  return "Found in title/tags";
+}
+
 /** Duck-typed SearchService for enhanced transcript/in-video search */
 interface SearchServiceLike {
   searchTranscripts(
@@ -149,7 +179,7 @@ interface EntryDetails {
 export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   mediaService,
   metadataService,
-  searchService,
+  searchService: _searchService,
   batchService,
   auditService,
   offlineService,
@@ -176,6 +206,8 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   const [showQualityPicker, setShowQualityPicker] = useState(false);
   const [selectedFlavor, setSelectedFlavor] = useState<KalturaFlavorAsset | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  const [highlights, setHighlights] = useState<Map<string, BrowseHighlight[]>>(new Map());
 
   const debouncedSearch = useDebounce(searchText, SEARCH_DEBOUNCE_MS);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -218,28 +250,80 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       setError(null);
 
       try {
-        const filter = buildFilter();
-        const result = await mediaService.list(filter, {
-          pageSize: DEFAULT_PAGE_SIZE,
-          pageIndex,
-        });
+        let newEntries: KalturaMediaEntry[];
+        let total: number;
 
-        setEntries((prev) => (append ? [...prev, ...result.objects] : result.objects));
-        setTotalCount(result.totalCount);
+        const hasESearchFilters = debouncedSearch || filters.withCaptionsOnly;
+
+        if (hasESearchFilters) {
+          // eSearch for text queries and caption-only filter
+          const eResult = await mediaService.eSearchBrowse(
+            {
+              searchText: debouncedSearch || undefined,
+              mediaType: filters.mediaType ?? undefined,
+              createdAfter: filters.dateRange ? dateRangeToTimestamp(filters.dateRange) : undefined,
+              userId: filters.ownerFilter === "mine" && userId ? userId : undefined,
+              categoryIds: filters.categoryId !== null ? String(filters.categoryId) : undefined,
+              withCaptionsOnly: filters.withCaptionsOnly,
+            },
+            { pageSize: DEFAULT_PAGE_SIZE, pageIndex },
+          );
+          newEntries = eResult.entries;
+          total = eResult.totalCount;
+          setHighlights((prev) => {
+            if (append) {
+              const merged = new Map(prev);
+              eResult.highlights.forEach((v, k) => merged.set(k, v));
+              return merged;
+            }
+            return eResult.highlights;
+          });
+        } else {
+          // media/list for initial chronological browse (no search text)
+          const filter = buildFilter();
+          const listResult = await mediaService.list(filter, {
+            pageSize: DEFAULT_PAGE_SIZE,
+            pageIndex,
+          });
+          newEntries = listResult.objects;
+          total = listResult.totalCount;
+          setHighlights(new Map());
+        }
+
+        setEntries((prev) => (append ? [...prev, ...newEntries] : newEntries));
+        setTotalCount(total);
         setPage(pageIndex);
 
         // Cache results for offline access
-        if (offlineService && result.objects.length > 0) {
-          offlineService.cacheEntries(result.objects);
+        if (offlineService && newEntries.length > 0) {
+          offlineService.cacheEntries(newEntries);
         }
       } catch (err) {
-        setError(getUserMessage(err));
+        // Fallback to media/list if eSearch fails
+        if (debouncedSearch || filters.withCaptionsOnly) {
+          log.error("eSearch failed, falling back to media/list", err);
+          try {
+            const filter = buildFilter();
+            const listResult = await mediaService.list(filter, {
+              pageSize: DEFAULT_PAGE_SIZE,
+              pageIndex,
+            });
+            setEntries((prev) => (append ? [...prev, ...listResult.objects] : listResult.objects));
+            setTotalCount(listResult.totalCount);
+            setPage(pageIndex);
+            setHighlights(new Map());
+          } catch (fallbackErr) {
+            setError(getUserMessage(fallbackErr));
+          }
+        } else {
+          setError(getUserMessage(err));
+        }
       } finally {
         setIsLoading(false);
         setIsLoadingMore(false);
       }
     },
-    [buildFilter, mediaService, offlineService],
+    [buildFilter, mediaService, offlineService, debouncedSearch, filters, userId],
   );
 
   // Subscribe to offline status changes
@@ -424,12 +508,13 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       {/* Search bar */}
       <div className="search-bar">
         <sp-search
-          placeholder={searchService ? "Search assets & transcripts..." : "Search assets..."}
+          placeholder="Search assets..."
           value={searchText}
           onInput={(e: Event) => setSearchText((e.target as HTMLInputElement).value)}
           onSubmit={(e: Event) => e.preventDefault()}
           style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", minWidth: 0, width: "100%" }}
           size="s"
+          aria-label="Search Kaltura media library"
         />
         <sp-action-button
           quiet
@@ -502,6 +587,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 partnerId={partnerId}
                 imported={isImported(entry.id)}
                 cardWidth={cardWidth || undefined}
+                highlightHint={formatHighlightHint(highlights.get(entry.id) || [])}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => handleQuickImport(entry)}
               />
@@ -515,6 +601,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 entry={entry}
                 partnerId={partnerId}
                 imported={isImported(entry.id)}
+                highlightMeta={formatHighlightMeta(highlights.get(entry.id) || [])}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => handleQuickImport(entry)}
               />
@@ -535,6 +622,7 @@ interface ThumbnailCardProps {
   partnerId: number;
   imported: boolean;
   cardWidth?: string;
+  highlightHint?: string | null;
   onClick: () => void;
   onDoubleClick: () => void;
 }
@@ -544,6 +632,7 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
   partnerId,
   imported,
   cardWidth,
+  highlightHint,
   onClick,
   onDoubleClick,
 }) => (
@@ -584,6 +673,7 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
     <div className={`thumb-card-label${isContentHeld(entry) ? " text-error" : ""}`}>
       {truncate(entry.name, 30)}
     </div>
+    {highlightHint && <div className="highlight-hint">{highlightHint}</div>}
   </div>
 );
 
@@ -591,6 +681,7 @@ interface ListRowProps {
   entry: KalturaMediaEntry;
   partnerId: number;
   imported: boolean;
+  highlightMeta?: string | null;
   onClick: () => void;
   onDoubleClick: () => void;
 }
@@ -599,6 +690,7 @@ const ListRow: React.FC<ListRowProps> = ({
   entry,
   partnerId,
   imported,
+  highlightMeta,
   onClick,
   onDoubleClick,
 }) => (
@@ -630,6 +722,11 @@ const ListRow: React.FC<ListRowProps> = ({
         {getLicenseStatus(entry) === "expiring" && (
           <span className="text-warning-yellow" style={{ marginLeft: 4 }}>
             Expiring: {formatDate(entry.endDate!)}
+          </span>
+        )}
+        {highlightMeta && (
+          <span className="highlight-source" style={{ marginLeft: 4 }}>
+            {"\u00B7"} {highlightMeta}
           </span>
         )}
       </div>

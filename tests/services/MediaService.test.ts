@@ -1,6 +1,6 @@
 import { KalturaClient } from "../../src/services/KalturaClient";
 import { MediaService } from "../../src/services/MediaService";
-import { KalturaMediaType } from "../../src/types/kaltura";
+import { KalturaMediaType, ESearchItemType, ESearchOperatorType } from "../../src/types/kaltura";
 
 const mockFetch = global.fetch as jest.Mock;
 
@@ -166,6 +166,191 @@ describe("MediaService", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.searchParams.searchOperator.searchItems[0].searchTerm).toBe("test query");
+    });
+  });
+
+  describe("eSearchBrowse()", () => {
+    const makeESearchResponse = (
+      entries: { id: string; name: string }[],
+      highlights?: Record<string, unknown>[],
+    ) => ({
+      ok: true,
+      json: async () => ({
+        totalCount: entries.length,
+        objects: entries.map((e, i) => ({
+          object: { id: e.id, name: e.name, mediaType: 1 },
+          itemsData: highlights?.[i] ? [highlights[i]] : [],
+        })),
+      }),
+    });
+
+    it("builds unified search item for search text", async () => {
+      mockFetch.mockResolvedValueOnce(makeESearchResponse([{ id: "0_a", name: "A" }]));
+
+      await service.eSearchBrowse({ searchText: "demo" });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const items = body.searchParams.searchOperator.searchItems;
+      expect(items).toHaveLength(1);
+      expect(items[0].objectType).toBe("KalturaESearchUnifiedItem");
+      expect(items[0].itemType).toBe(ESearchItemType.PARTIAL);
+      expect(items[0].searchTerm).toBe("demo");
+      expect(items[0].addHighlight).toBe(true);
+    });
+
+    it("builds caption EXISTS item for withCaptionsOnly", async () => {
+      mockFetch.mockResolvedValueOnce(makeESearchResponse([]));
+
+      await service.eSearchBrowse({ withCaptionsOnly: true });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const items = body.searchParams.searchOperator.searchItems;
+      expect(items).toHaveLength(1);
+      expect(items[0].objectType).toBe("KalturaESearchCaptionItem");
+      expect(items[0].fieldName).toBe("content");
+      expect(items[0].itemType).toBe(ESearchItemType.EXISTS);
+    });
+
+    it("builds category item for categoryIds", async () => {
+      mockFetch.mockResolvedValueOnce(makeESearchResponse([]));
+
+      await service.eSearchBrowse({ searchText: "x", categoryIds: "42" });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const items = body.searchParams.searchOperator.searchItems;
+      const catItem = items.find(
+        (i: Record<string, unknown>) => i.objectType === "KalturaESearchCategoryEntryItem",
+      );
+      expect(catItem).toBeDefined();
+      expect(catItem.fieldName).toBe("full_ids");
+      expect(catItem.searchTerm).toBe("42");
+      expect(catItem.categoryEntryStatus).toBe(1);
+    });
+
+    it("builds media type item", async () => {
+      mockFetch.mockResolvedValueOnce(makeESearchResponse([]));
+
+      await service.eSearchBrowse({ searchText: "x", mediaType: KalturaMediaType.VIDEO });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const items = body.searchParams.searchOperator.searchItems;
+      const typeItem = items.find((i: Record<string, unknown>) => i.fieldName === "media_type");
+      expect(typeItem).toBeDefined();
+      expect(typeItem.searchTerm).toBe("1");
+      expect(typeItem.itemType).toBe(ESearchItemType.EXACT_MATCH);
+    });
+
+    it("builds date range item for createdAfter", async () => {
+      mockFetch.mockResolvedValueOnce(makeESearchResponse([]));
+
+      await service.eSearchBrowse({ searchText: "x", createdAfter: 1700000000 });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const items = body.searchParams.searchOperator.searchItems;
+      const dateItem = items.find((i: Record<string, unknown>) => i.fieldName === "created_at");
+      expect(dateItem).toBeDefined();
+      expect(dateItem.itemType).toBe(ESearchItemType.RANGE);
+      expect(dateItem.range.greaterThanOrEqual).toBe(1700000000);
+    });
+
+    it("builds user ID item", async () => {
+      mockFetch.mockResolvedValueOnce(makeESearchResponse([]));
+
+      await service.eSearchBrowse({ searchText: "x", userId: "user123" });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const items = body.searchParams.searchOperator.searchItems;
+      const userItem = items.find((i: Record<string, unknown>) => i.fieldName === "user_id");
+      expect(userItem).toBeDefined();
+      expect(userItem.searchTerm).toBe("user123");
+    });
+
+    it("uses AND operator and objectStatuses=2", async () => {
+      mockFetch.mockResolvedValueOnce(makeESearchResponse([]));
+
+      await service.eSearchBrowse({ searchText: "x" });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.searchParams.searchOperator.operator).toBe(ESearchOperatorType.AND_OP);
+      expect(body.searchParams.objectStatuses).toBe("2");
+    });
+
+    it("returns empty result when no search items would be generated", async () => {
+      const result = await service.eSearchBrowse({});
+      expect(result.totalCount).toBe(0);
+      expect(result.entries).toHaveLength(0);
+      expect(result.highlights.size).toBe(0);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("unwraps entries from eSearch response", async () => {
+      mockFetch.mockResolvedValueOnce(
+        makeESearchResponse([
+          { id: "0_a", name: "Alpha" },
+          { id: "0_b", name: "Beta" },
+        ]),
+      );
+
+      const result = await service.eSearchBrowse({ searchText: "test" });
+      expect(result.totalCount).toBe(2);
+      expect(result.entries).toHaveLength(2);
+      expect(result.entries[0].id).toBe("0_a");
+      expect(result.entries[1].id).toBe("0_b");
+    });
+
+    it("extracts highlights from itemsData", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          totalCount: 1,
+          objects: [
+            {
+              object: { id: "0_a", name: "Alpha", mediaType: 1 },
+              itemsData: [
+                {
+                  items: [
+                    {
+                      itemType: "caption",
+                      highlight: "<em>hello</em> world",
+                      startTime: 5000,
+                      endTime: 8000,
+                    },
+                    { itemType: "metadata", highlight: "tag match" },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const result = await service.eSearchBrowse({ searchText: "hello" });
+      const h = result.highlights.get("0_a");
+      expect(h).toBeDefined();
+      expect(h).toHaveLength(2);
+      expect(h![0].type).toBe("caption");
+      expect(h![0].text).toBe("hello world"); // HTML tags stripped
+      expect(h![0].startTime).toBe(5000);
+      expect(h![1].type).toBe("metadata");
+      expect(h![1].text).toBe("tag match");
+    });
+
+    it("combines multiple filter parameters", async () => {
+      mockFetch.mockResolvedValueOnce(makeESearchResponse([]));
+
+      await service.eSearchBrowse({
+        searchText: "demo",
+        mediaType: KalturaMediaType.AUDIO,
+        withCaptionsOnly: true,
+        categoryIds: "10",
+        userId: "admin",
+        createdAfter: 1600000000,
+      });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const items = body.searchParams.searchOperator.searchItems;
+      // unified + caption + category + media_type + created_at + user_id = 6
+      expect(items).toHaveLength(6);
     });
   });
 });
