@@ -6,6 +6,7 @@ export interface FilterState {
   dateRange: DateRange | null;
   ownerFilter: OwnerFilter;
   categoryId: number | null;
+  withCaptionsOnly: boolean;
 }
 
 export type DateRange = "week" | "month" | "quarter" | "year" | null;
@@ -22,6 +23,7 @@ export const defaultFilters: FilterState = {
   dateRange: null,
   ownerFilter: "all",
   categoryId: null,
+  withCaptionsOnly: false,
 };
 
 export const FilterBar: React.FC<FilterBarProps> = ({
@@ -108,6 +110,27 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             <option value="all">All content</option>
             <option value="mine">My content</option>
           </select>
+
+          {/* Has captions */}
+          <label
+            className="filter-checkbox"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginRight: "8px",
+              fontSize: "11px",
+              color: "#8b8b8b",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={filters.withCaptionsOnly}
+              onChange={(e) => updateFilter("withCaptionsOnly", e.target.checked)}
+              style={{ marginRight: "4px" }}
+            />
+            Has captions
+          </label>
         </div>
       )}
     </div>
@@ -121,6 +144,7 @@ export function countActiveFilters(filters: FilterState): number {
   if (filters.dateRange !== null) count++;
   if (filters.ownerFilter !== "all") count++;
   if (filters.categoryId !== null) count++;
+  if (filters.withCaptionsOnly) count++;
   return count;
 }
 

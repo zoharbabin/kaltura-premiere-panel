@@ -2,22 +2,12 @@
   "manifestVersion": 5,
   "id": "com.kaltura.premiere.panel",
   "name": "Kaltura for Adobe Creative Cloud",
-  "version": "1.15.4",
+  "version": "1.16.0",
   "main": "index.html",
-  "host": [
-    {
-      "app": "premierepro",
-      "minVersion": "25.2.0"
-    },
-    {
-      "app": "aftereffects",
-      "minVersion": "25.2.0"
-    },
-    {
-      "app": "audition",
-      "minVersion": "25.2.0"
-    }
-  ],
+  "host": {
+    "app": "premierepro",
+    "minVersion": "25.2.0"
+  },
   "entrypoints": [
     {
       "type": "panel",
