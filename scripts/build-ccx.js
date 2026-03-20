@@ -1,8 +1,9 @@
 /**
- * Build a .ccx package for distribution.
+ * Build .ccx packages for distribution.
  *
- * Produces a single .ccx containing the multi-host manifest so one file
- * works across Premiere Pro, After Effects, and Audition.
+ * Produces one .ccx per host application (Premiere Pro, After Effects, Audition).
+ * Adobe requires each .ccx to target exactly one host — the manifest `host`
+ * field must be a single HostDefinition object, not an array.
  *
  * Usage: node scripts/build-ccx.js [--output-dir <dir>]
  *
@@ -18,6 +19,13 @@ const { execSync } = require("child_process");
 
 const distDir = path.resolve(__dirname, "../dist");
 const packageJson = require("../package.json");
+
+// Host applications to build .ccx packages for
+const HOST_APPS = [
+  { app: "premierepro", minVersion: "25.6", label: "Premiere Pro" },
+  { app: "aftereffects", minVersion: "25.6", label: "After Effects" },
+  { app: "audition", minVersion: "25.6", label: "Audition" },
+];
 
 // Files that should not be shipped in production .ccx packages
 const EXCLUDED_EXTENSIONS = [".d.ts", ".d.ts.map"];
@@ -77,27 +85,21 @@ function collectFiles(dirPath, prefix) {
   return result;
 }
 
-async function main() {
-  const manifest = readManifest();
-  const filename = `kaltura-panel-${manifest.version}.ccx`;
+/** Build a single .ccx for the given host app */
+function buildCcxForHost(manifest, hostDef) {
+  const filename = `kaltura-panel-${manifest.version}_${hostDef.app}.ccx`;
   const outputPath = path.join(outputDir, filename);
 
-  console.log(
-    `\nBuilding .ccx package for ${manifest.name} v${manifest.version}\n`,
-  );
+  console.log(`  Building ${filename} (${hostDef.label})...`);
 
-  // Verify dist has required files
-  const indexPath = path.join(distDir, "index.js");
-  if (!fs.existsSync(indexPath)) {
-    console.error("dist/index.js not found. Run 'npm run build' first.");
-    process.exit(1);
-  }
-
-  // Create output directory
-  fs.mkdirSync(outputDir, { recursive: true });
+  // Create a host-specific manifest with a single HostDefinition object
+  const hostManifest = {
+    ...manifest,
+    host: { app: hostDef.app, minVersion: hostDef.minVersion },
+  };
 
   // Use a temporary staging directory to assemble the package contents
-  const stagingDir = path.join(outputDir, ".staging");
+  const stagingDir = path.join(outputDir, `.staging-${hostDef.app}`);
   if (fs.existsSync(stagingDir)) {
     fs.rmSync(stagingDir, { recursive: true });
   }
@@ -111,10 +113,10 @@ async function main() {
     fs.copyFileSync(fullPath, dest);
   }
 
-  // Write the manifest (version-synced from package.json)
+  // Write the host-specific manifest
   fs.writeFileSync(
     path.join(stagingDir, "manifest.json"),
-    JSON.stringify(manifest, null, 2) + "\n",
+    JSON.stringify(hostManifest, null, 2) + "\n",
   );
 
   // Remove any previous .ccx at this path
@@ -122,7 +124,7 @@ async function main() {
     fs.unlinkSync(outputPath);
   }
 
-  // Create the ZIP using the system zip command (produces standard ZIP without data descriptors)
+  // Create the ZIP using the system zip command
   const absOutputPath = path.resolve(outputPath);
   execSync(`cd "${stagingDir}" && zip -r -X "${absOutputPath}" .`, {
     stdio: "pipe",
@@ -136,15 +138,43 @@ async function main() {
     size > 1024 * 1024
       ? `${(size / (1024 * 1024)).toFixed(1)} MB`
       : `${(size / 1024).toFixed(1)} KB`;
-  console.log(`  ${filename} (${sizeStr})`);
+  console.log(`    ${filename} (${sizeStr})`);
 
-  console.log(`\nDone. Written to ${outputDir}/`);
+  return filename;
+}
+
+async function main() {
+  const manifest = readManifest();
+
+  console.log(
+    `\nBuilding .ccx packages for ${manifest.name} v${manifest.version}\n`,
+  );
+
+  // Verify dist has required files
+  const indexPath = path.join(distDir, "index.js");
+  if (!fs.existsSync(indexPath)) {
+    console.error("dist/index.js not found. Run 'npm run build' first.");
+    process.exit(1);
+  }
+
+  // Create output directory
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  // Build one .ccx per host app
+  const producedFiles = [];
+  for (const hostDef of HOST_APPS) {
+    const filename = buildCcxForHost(manifest, hostDef);
+    producedFiles.push(filename);
+  }
+
+  console.log(`\nDone. ${producedFiles.length} packages written to ${outputDir}/`);
 
   // Write a manifest of produced files for CI consumption
   const releaseManifest = {
     version: manifest.version,
     pluginName: manifest.name,
-    files: [filename],
+    hosts: HOST_APPS.map((h) => h.app),
+    files: producedFiles,
   };
   fs.writeFileSync(
     path.join(outputDir, "release-manifest.json"),

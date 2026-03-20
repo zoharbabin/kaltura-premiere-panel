@@ -50,8 +50,11 @@ function getSecureStorage(): SecureStorage | null {
           const value = await raw.getItem(key);
           if (value == null) return null;
           // UXP returns Uint8Array — decode to string
+          // Note: TextDecoder is not available in UXP, use manual conversion
           if (value instanceof Uint8Array) {
-            return new TextDecoder().decode(value);
+            let str = "";
+            for (let i = 0; i < value.length; i++) str += String.fromCharCode(value[i]);
+            return str;
           }
           // Some UXP versions may return string directly
           if (typeof value === "string") return value;
@@ -442,8 +445,9 @@ export class AuthService {
   }
 
   private async sha256(input: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(input);
+    // Manual string-to-bytes (UXP does not support TextEncoder)
+    const data = new Uint8Array(input.length);
+    for (let i = 0; i < input.length; i++) data[i] = input.charCodeAt(i);
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
