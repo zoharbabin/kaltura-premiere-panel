@@ -33,15 +33,8 @@ Browse, search, import, and publish video content — all without leaving your A
 ### Install (End Users)
 
 1. Go to the **[Latest Release](../../releases/latest)** page
-2. Download the `.ccx` file for your Adobe app:
-
-   | Download                               | Purpose                  |
-   | -------------------------------------- | ------------------------ |
-   | `kaltura-panel-x.x.x-premierepro.ccx`  | Plugin for Premiere Pro  |
-   | `kaltura-panel-x.x.x-aftereffects.ccx` | Plugin for After Effects |
-   | `kaltura-panel-x.x.x-audition.ccx`     | Plugin for Audition      |
-
-3. **Double-click** the `.ccx` file to install
+2. Download the `kaltura-panel-x.x.x.ccx` file
+3. **Double-click** the `.ccx` file to install (works for Premiere Pro, After Effects, and Audition)
 4. Open your Adobe app > **Window > UXP Plugins > Kaltura**
 
 ### Development Setup
@@ -242,7 +235,7 @@ npm run package              # Validate build + generate Exchange metadata
 node scripts/build-ccx.js   # Build per-host .ccx files into release/
 ```
 
-`npm run package` validates the build, syncs the manifest version, verifies icons, and generates Exchange metadata. `build-ccx.js` then creates one `.ccx` per host app (Premiere Pro, After Effects, Audition), each with a single-host manifest as Adobe requires for production distribution.
+`npm run package` validates the build, syncs the manifest version, verifies icons, and generates Exchange metadata. `build-ccx.js` then creates a single `.ccx` containing a multi-host manifest that works across Premiere Pro, After Effects, and Audition.
 
 **Automated releases:** Push a version tag (e.g. `git tag v1.14.0 && git push --tags`) and the [Release workflow](.github/workflows/release.yml) runs CI, builds all `.ccx` files, and publishes a GitHub Release with install instructions and downloadable assets.
 
