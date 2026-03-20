@@ -772,8 +772,22 @@ a:hover {
   color: #cfcfcf;
   line-height: 1.4;
   word-break: break-word;
-  user-select: text;
-  cursor: text;
+}
+
+.detail-field-value.copyable {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.detail-field-value.copyable:hover {
+  color: #ffffff;
+}
+
+.copy-badge {
+  font-size: 10px;
+  color: #2dc653;
+  margin-left: 8px;
 }
 
 /* Action bar */

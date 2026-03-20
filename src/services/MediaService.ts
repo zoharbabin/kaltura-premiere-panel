@@ -478,8 +478,16 @@ export class MediaService {
       searchItems = filterItems;
     }
 
+    // Always restrict to media clips (entry_type=1) — excludes playlists, data, live
+    searchItems.push({
+      objectType: "KalturaESearchEntryItem",
+      fieldName: "entry_type",
+      itemType: ESearchItemType.EXACT_MATCH,
+      searchTerm: "1",
+    });
+
     // Always include display_in_search=1 as a base filter
-    if (searchItems.length === 0) {
+    if (searchItems.length === 1) {
       searchItems.push({
         objectType: "KalturaESearchEntryItem",
         fieldName: "display_in_search",
@@ -502,7 +510,6 @@ export class MediaService {
             searchItems,
           },
           objectStatuses: "2", // READY only
-          objectTypes: "1", // media clips only (video, image, audio) — excludes playlists, live, data
           ...((!params.sortField || params.sortField !== "relevance") && {
             orderBy: {
               objectType: "KalturaESearchOrderBy",
