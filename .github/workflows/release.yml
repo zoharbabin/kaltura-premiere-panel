@@ -63,59 +63,12 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           REPO="${{ github.repository }}"
-          cat > release/RELEASE_NOTES.md <<'HEADER'
+          cat > release/RELEASE_NOTES.md <<EOF
           ## How to Install
 
-          HEADER
-          cat >> release/RELEASE_NOTES.md <<EOF
-          ### Option A — Download & Install (recommended)
-
-          1. Download the \`.ccx\` file for your app and the installer script for your OS from the **Assets** section below
-          2. Place the \`.ccx\` and installer script in the same folder
-          3. Run the installer:
-             - **macOS:** Open Terminal, \`cd\` to that folder, run \`chmod +x install-mac.sh && ./install-mac.sh\`
-             - **Windows:** Double-click \`install-win.bat\`
-          4. Open your Adobe app and go to **Window > UXP Plugins > Kaltura**
-
-          > **Why not double-click the \`.ccx\`?** Adobe only supports \`.ccx\` double-click install for Photoshop.
-          > For Premiere Pro, After Effects, and Audition, the installer scripts use Adobe's UPIA under the hood.
-
-          ### Option B — One-Click Install via GitHub CLI
-
-          Requires [GitHub CLI](https://cli.github.com/) (\`gh\`):
-
-          **macOS:**
-          \`\`\`bash
-          gh release download --clobber --repo ${REPO} --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
-          \`\`\`
-
-          **Windows (PowerShell as Administrator):**
-          \`\`\`powershell
-          gh release download --clobber --repo ${REPO} --pattern 'quick-install.ps1' --dir \$env:TEMP; & "\$env:TEMP\\quick-install.ps1"
-          \`\`\`
-
-          > To install for After Effects or Audition instead of Premiere Pro, set \`KALTURA_HOST_APP\` first:
-          > \`\`\`bash
-          > export KALTURA_HOST_APP=aftereffects
-          > gh release download --clobber --repo ${REPO} --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
-          > \`\`\`
-
-          ### Option C — UPIA Command Line
-          \`\`\`bash
-          # macOS
-          cd "/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS"
-          ./UnifiedPluginInstallerAgent --install /path/to/kaltura-panel-${VERSION}-premierepro.ccx
-
-          # Windows
-          cd "C:\\Program Files\\Common Files\\Adobe\\Adobe Desktop Common\\RemoteComponents\\UPI\\UnifiedPluginInstallerAgent"
-          UnifiedPluginInstallerAgent.exe /install C:\\path\\to\\kaltura-panel-${VERSION}-premierepro.ccx
-          \`\`\`
-
-          ### Option D — UXP Developer Tool (development)
-          1. Install the [UXP Developer Tool](https://developer.adobe.com/premiere-pro/uxp/devtools/)
-          2. Download and unzip the \`.ccx\` file (it's a ZIP archive)
-          3. Open UXP Developer Tool > **Add Plugin** > select the \`manifest.json\`
-          4. Click **Load** to sideload the plugin
+          1. Download the \`.ccx\` file for your Adobe app from the **Assets** section below
+          2. **Double-click** the \`.ccx\` file to install
+          3. Open your Adobe app and go to **Window > UXP Plugins > Kaltura**
 
           ### Available Downloads
           | File | Host App |
@@ -123,16 +76,10 @@ jobs:
           | \`kaltura-panel-${VERSION}-premierepro.ccx\` | Premiere Pro |
           | \`kaltura-panel-${VERSION}-aftereffects.ccx\` | After Effects |
           | \`kaltura-panel-${VERSION}-audition.ccx\` | Audition |
-          | \`install-mac.sh\` | macOS installer script |
-          | \`install-win.bat\` | Windows installer script |
 
           ### Requirements
           - Adobe Premiere Pro, After Effects, or Audition **v25.2+**
-          - Creative Cloud Desktop (for UPIA installer)
           - A [Kaltura](https://corp.kaltura.com/) account with API access
-
-          > **Note:** The \`.ccx\` double-click install only works for Photoshop plugins.
-          > For Premiere Pro, After Effects, and Audition, use the installer script or UPIA command above.
 
           ### Enterprise / IT deployment
           See the [Enterprise Deployment Guide](https://github.com/${REPO}/blob/main/docs/enterprise-deployment.md).
@@ -157,8 +104,4 @@ jobs:
           body_path: release/RELEASE_NOTES.md
           files: |
             release/*.ccx
-            release/install-mac.sh
-            release/install-win.bat
-            release/quick-install.sh
-            release/quick-install.ps1
           fail_on_unmatched_files: true

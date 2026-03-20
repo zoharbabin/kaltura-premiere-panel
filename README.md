@@ -32,44 +32,17 @@ Browse, search, import, and publish video content — all without leaving your A
 
 ### Install (End Users)
 
-#### Option A — Download & Install (recommended)
-
 1. Go to the **[Latest Release](../../releases/latest)** page
-2. Download the `.ccx` file for your app and the installer script for your OS:
+2. Download the `.ccx` file for your Adobe app:
 
    | Download                               | Purpose                  |
    | -------------------------------------- | ------------------------ |
    | `kaltura-panel-x.x.x-premierepro.ccx`  | Plugin for Premiere Pro  |
    | `kaltura-panel-x.x.x-aftereffects.ccx` | Plugin for After Effects |
    | `kaltura-panel-x.x.x-audition.ccx`     | Plugin for Audition      |
-   | `install-mac.sh`                       | macOS installer          |
-   | `install-win.bat`                      | Windows installer        |
 
-3. Place the `.ccx` and installer script in the same folder
-4. Run the installer:
-   - **macOS:** Open Terminal, `cd` to that folder, run `chmod +x install-mac.sh && ./install-mac.sh`
-   - **Windows:** Double-click `install-win.bat`
-5. Open your Adobe app > **Window > UXP Plugins > Kaltura**
-
-> **Why not double-click the `.ccx`?** Adobe only supports `.ccx` double-click install for Photoshop. For Premiere Pro, After Effects, and Audition, the installer scripts use Adobe's UPIA (Unified Plugin Installer Agent) under the hood.
-
-#### Option B — One-Click Install via GitHub CLI
-
-If you have the [GitHub CLI](https://cli.github.com/) (`gh`) installed:
-
-**macOS:**
-
-```bash
-gh release download --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.sh' --dir /tmp && bash /tmp/quick-install.sh
-```
-
-**Windows (PowerShell as Administrator):**
-
-```powershell
-gh release download --repo zoharbabin/kaltura-premiere-panel --pattern 'quick-install.ps1' --dir $env:TEMP; & "$env:TEMP\quick-install.ps1"
-```
-
-> **For After Effects or Audition:** set `KALTURA_HOST_APP=aftereffects` (or `audition`) before running.
+3. **Double-click** the `.ccx` file to install
+4. Open your Adobe app > **Window > UXP Plugins > Kaltura**
 
 ### Development Setup
 
@@ -204,13 +177,9 @@ kaltura-premiere-panel/
       logger.ts               #   Namespaced console logger with levels
       thumbnail.ts            #   Kaltura thumbnail CDN URL builder
   tests/                      # Jest unit tests (mirrors src/ structure)
-  scripts/                    # Build and install scripts
+  scripts/                    # Build scripts
     package.js                #   Build validation, manifest sync, Exchange metadata generation
     build-ccx.js              #   Per-host .ccx package builder
-    install-mac.sh            #   macOS installer (uses UPIA)
-    install-win.bat           #   Windows installer (uses UPIA)
-    quick-install.sh          #   One-click macOS installer (downloads from GitHub Releases)
-    quick-install.ps1         #   One-click Windows installer (downloads from GitHub Releases)
   docs/                       # Documentation
     enterprise-deployment.md  #   Admin Console, UPIA, pre-configuration guide
     UXP_LESSONS_LEARNED.md    #   Hard-won UXP patterns and workarounds
@@ -279,14 +248,14 @@ node scripts/build-ccx.js   # Build per-host .ccx files into release/
 
 ### Distribution Options
 
-| Method                  | Use Case                                                                   |
-| ----------------------- | -------------------------------------------------------------------------- |
-| **Installer scripts**   | End users: `install-mac.sh` / `install-win.bat` (uses UPIA under the hood) |
-| **UPIA CLI**            | IT automation: `UnifiedPluginInstallerAgent --install plugin.ccx`          |
-| **UXP Developer Tool**  | Development: load `dist/manifest.json` directly                            |
-| **Adobe Admin Console** | Enterprise: deploy via managed packages to user groups                     |
+| Method                  | Use Case                                                          |
+| ----------------------- | ----------------------------------------------------------------- |
+| **Double-click `.ccx`** | End users: download and double-click to install                   |
+| **UPIA CLI**            | IT automation: `UnifiedPluginInstallerAgent --install plugin.ccx` |
+| **UXP Developer Tool**  | Development: load `dist/manifest.json` directly                   |
+| **Adobe Admin Console** | Enterprise: deploy via managed packages to user groups            |
 
-A `.ccx` file is a ZIP archive — no digital signatures required (unlike legacy `.zxp`). Note: `.ccx` double-click install only works for Photoshop; for Premiere Pro, After Effects, and Audition, use the installer scripts or UPIA.
+A `.ccx` file is a ZIP archive — no digital signatures required (unlike legacy `.zxp`).
 
 See the [Enterprise Deployment Guide](./docs/enterprise-deployment.md) for Admin Console, UPIA, and pre-configuration details.
 
