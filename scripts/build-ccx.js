@@ -135,7 +135,13 @@ function createCcx(manifest, host) {
 
 async function main() {
   const manifest = readManifest();
-  const hosts = Array.isArray(manifest.host) ? manifest.host : [manifest.host];
+  // Always build for all three host apps, regardless of what manifest.host contains.
+  // Each .ccx gets a single-host manifest as Adobe requires for production.
+  const hosts = [
+    { app: "premierepro", minVersion: "25.6" },
+    { app: "aftereffects", minVersion: "25.6" },
+    { app: "audition", minVersion: "25.6" },
+  ];
 
   console.log(
     `\nBuilding .ccx packages for ${manifest.name} v${manifest.version}\n`,
@@ -156,16 +162,6 @@ async function main() {
   for (const host of hosts) {
     const result = createCcx(manifest, host);
     results.push(result);
-  }
-
-  // Copy installer scripts into the release folder
-  const scriptsDir = path.resolve(__dirname);
-  for (const installer of ["install-mac.sh", "install-win.bat", "quick-install.sh", "quick-install.ps1"]) {
-    const src = path.join(scriptsDir, installer);
-    if (fs.existsSync(src)) {
-      fs.copyFileSync(src, path.join(outputDir, installer));
-      console.log(`  Copied ${installer} to ${outputDir}/`);
-    }
   }
 
   console.log(`\nDone. ${results.length} .ccx file(s) written to ${outputDir}/`);
