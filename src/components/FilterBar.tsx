@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { KalturaMediaType } from "../types/kaltura";
+import type { ESearchSortField } from "../services/MediaService";
 
 export interface FilterState {
   mediaType: KalturaMediaType | null;
@@ -16,6 +17,9 @@ interface FilterBarProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
   activeFilterCount: number;
+  sortField: ESearchSortField;
+  onSortChange: (field: ESearchSortField) => void;
+  hasSearchText?: boolean;
 }
 
 export const defaultFilters: FilterState = {
@@ -30,6 +34,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   filters,
   onFiltersChange,
   activeFilterCount,
+  sortField,
+  onSortChange,
+  hasSearchText,
 }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -48,7 +55,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     <div className="filter-bar">
       <div style={{ display: "flex", alignItems: "center", padding: "4px 8px" }}>
         <sp-action-button quiet size="s" onClick={() => setExpanded(!expanded)}>
-          Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          Filters and sort{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </sp-action-button>
         {activeFilterCount > 0 && (
           <sp-action-button quiet size="s" onClick={clearAll}>
@@ -65,6 +72,21 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             padding: "4px 8px 8px",
           }}
         >
+          {/* Sort By */}
+          <select
+            className="native-select"
+            value={sortField}
+            onChange={(e) => onSortChange(e.target.value as ESearchSortField)}
+            style={{ minWidth: "100px", maxWidth: "160px", marginRight: "8px" }}
+          >
+            {hasSearchText && <option value="relevance">Relevance</option>}
+            <option value="updated_at">Recently updated</option>
+            <option value="created_at">Recently created</option>
+            <option value="name">Name A-Z</option>
+            <option value="plays">Most played</option>
+            <option value="last_played_at">Last played</option>
+          </select>
+
           {/* Media Type */}
           <select
             className="native-select"

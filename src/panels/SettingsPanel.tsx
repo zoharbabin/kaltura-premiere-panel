@@ -175,7 +175,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const offlineStatus = offlineService?.getSyncStatus();
 
   return (
-    <div className="panel-root panel-padding" style={{ overflowY: "auto" }}>
+    <div className="panel-scroll">
       {/* Logout confirmation */}
       {showLogoutConfirm && (
         <ConfirmDialog

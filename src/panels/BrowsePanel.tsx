@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   KalturaMediaEntry,
-  KalturaMediaEntryFilter,
   KalturaMediaType,
   KalturaFlavorAsset,
   KalturaCaptionAsset,
   KalturaCaptionType,
 } from "../types/kaltura";
-import { MediaService, BrowseHighlight } from "../services/MediaService";
+import { MediaService, BrowseHighlight, ESearchSortField } from "../services/MediaService";
 import { MetadataService } from "../services/MetadataService";
 import { CaptionService, CaptionSegment } from "../services/CaptionService";
 import { createLogger } from "../utils/logger";
@@ -86,34 +85,42 @@ function formatCaptionFormat(format: KalturaCaptionType): string {
   }
 }
 
-/** Format the first highlight for an entry into a short display string */
+/** Truncate highlight text for display */
+function truncateHighlight(text: string, max: number): string {
+  if (!text || text.length <= max) return text;
+  return text.slice(0, max) + "\u2026";
+}
+
+/** Format the first highlight for an entry into a short display string (grid cards) */
 function formatHighlightHint(highlights: BrowseHighlight[]): string | null {
   if (highlights.length === 0) return null;
   const h = highlights[0];
+  const snippet = h.text ? `: "${truncateHighlight(h.text, 40)}"` : "";
   if (h.type === "caption" && h.startTime !== undefined) {
     const totalSec = Math.floor(h.startTime / 1000);
     const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
-    return `in transcript \u23F1 ${m}:${String(s).padStart(2, "0")}`;
+    return `transcript \u23F1 ${m}:${String(s).padStart(2, "0")}${snippet}`;
   }
-  if (h.type === "caption") return "in transcript";
-  if (h.type === "metadata") return "in metadata";
-  return "in title/tags";
+  if (h.type === "caption") return `transcript${snippet}`;
+  if (h.type === "metadata") return `metadata${snippet}`;
+  return `title/tags${snippet}`;
 }
 
 /** Format highlight for list row (slightly more verbose) */
 function formatHighlightMeta(highlights: BrowseHighlight[]): string | null {
   if (highlights.length === 0) return null;
   const h = highlights[0];
+  const snippet = h.text ? `: "${truncateHighlight(h.text, 60)}"` : "";
   if (h.type === "caption" && h.startTime !== undefined) {
     const totalSec = Math.floor(h.startTime / 1000);
     const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
-    return `Found in transcript at ${m}:${String(s).padStart(2, "0")}`;
+    return `transcript at ${m}:${String(s).padStart(2, "0")}${snippet}`;
   }
-  if (h.type === "caption") return "Found in transcript";
-  if (h.type === "metadata") return "Found in metadata";
-  return "Found in title/tags";
+  if (h.type === "caption") return `transcript${snippet}`;
+  if (h.type === "metadata") return `metadata${snippet}`;
+  return `title/tags${snippet}`;
 }
 
 /** Duck-typed SearchService for enhanced transcript/in-video search */
@@ -206,39 +213,29 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   const [showQualityPicker, setShowQualityPicker] = useState(false);
   const [selectedFlavor, setSelectedFlavor] = useState<KalturaFlavorAsset | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [sortField, setSortField] = useState<ESearchSortField>("updated_at");
 
   const [highlights, setHighlights] = useState<Map<string, BrowseHighlight[]>>(new Map());
 
   const debouncedSearch = useDebounce(searchText, SEARCH_DEBOUNCE_MS);
+  const prevSearch = useRef(debouncedSearch);
+
+  // Auto-switch sort: relevance when searching, updated_at when cleared
+  useEffect(() => {
+    if (debouncedSearch && !prevSearch.current) {
+      setSortField("relevance");
+    } else if (!debouncedSearch && prevSearch.current && sortField === "relevance") {
+      setSortField("updated_at");
+    }
+    prevSearch.current = debouncedSearch;
+  }, [debouncedSearch, sortField]);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(gridRef);
   const gridColumns = getGridColumns(containerWidth);
   const cardWidth = getCardWidth(gridColumns, 8, containerWidth);
   const activeFilterCount = countActiveFilters(filters);
-
-  const buildFilter = useCallback((): KalturaMediaEntryFilter => {
-    const filter: KalturaMediaEntryFilter = {};
-
-    if (debouncedSearch) {
-      filter.searchTextMatchAnd = debouncedSearch;
-    }
-    if (filters.mediaType !== null) {
-      filter.mediaTypeEqual = filters.mediaType;
-    }
-    if (filters.dateRange) {
-      filter.createdAtGreaterThanOrEqual = dateRangeToTimestamp(filters.dateRange);
-    }
-    if (filters.ownerFilter === "mine" && userId) {
-      filter.userIdEqual = userId;
-    }
-    if (filters.categoryId !== null) {
-      filter.categoryAncestorIdIn = String(filters.categoryId);
-    }
-
-    filter.orderBy = "-createdAt";
-    return filter;
-  }, [debouncedSearch, filters, userId]);
 
   const loadEntries = useCallback(
     async (pageIndex: number, append: boolean = false) => {
@@ -250,80 +247,45 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       setError(null);
 
       try {
-        let newEntries: KalturaMediaEntry[];
-        let total: number;
+        const eResult = await mediaService.eSearchBrowse(
+          {
+            searchText: debouncedSearch || undefined,
+            mediaType: filters.mediaType ?? undefined,
+            createdAfter: filters.dateRange ? dateRangeToTimestamp(filters.dateRange) : undefined,
+            userId: filters.ownerFilter === "mine" && userId ? userId : undefined,
+            categoryIds: filters.categoryId !== null ? String(filters.categoryId) : undefined,
+            withCaptionsOnly: filters.withCaptionsOnly,
+            sortField,
+            sortOrder: sortField === "name" ? "asc" : "desc",
+          },
+          { pageSize: DEFAULT_PAGE_SIZE, pageIndex },
+        );
 
-        const hasESearchFilters = debouncedSearch || filters.withCaptionsOnly;
-
-        if (hasESearchFilters) {
-          // eSearch for text queries and caption-only filter
-          const eResult = await mediaService.eSearchBrowse(
-            {
-              searchText: debouncedSearch || undefined,
-              mediaType: filters.mediaType ?? undefined,
-              createdAfter: filters.dateRange ? dateRangeToTimestamp(filters.dateRange) : undefined,
-              userId: filters.ownerFilter === "mine" && userId ? userId : undefined,
-              categoryIds: filters.categoryId !== null ? String(filters.categoryId) : undefined,
-              withCaptionsOnly: filters.withCaptionsOnly,
-            },
-            { pageSize: DEFAULT_PAGE_SIZE, pageIndex },
-          );
-          newEntries = eResult.entries;
-          total = eResult.totalCount;
-          setHighlights((prev) => {
-            if (append) {
-              const merged = new Map(prev);
-              eResult.highlights.forEach((v, k) => merged.set(k, v));
-              return merged;
-            }
-            return eResult.highlights;
-          });
-        } else {
-          // media/list for initial chronological browse (no search text)
-          const filter = buildFilter();
-          const listResult = await mediaService.list(filter, {
-            pageSize: DEFAULT_PAGE_SIZE,
-            pageIndex,
-          });
-          newEntries = listResult.objects;
-          total = listResult.totalCount;
-          setHighlights(new Map());
-        }
-
-        setEntries((prev) => (append ? [...prev, ...newEntries] : newEntries));
-        setTotalCount(total);
+        setEntries((prev) => (append ? [...prev, ...eResult.entries] : eResult.entries));
+        setTotalCount(eResult.totalCount);
         setPage(pageIndex);
+        setHighlights((prev) => {
+          if (append) {
+            const merged = new Map(prev);
+            eResult.highlights.forEach((v, k) => merged.set(k, v));
+            return merged;
+          }
+          return eResult.highlights;
+        });
 
         // Cache results for offline access
-        if (offlineService && newEntries.length > 0) {
-          offlineService.cacheEntries(newEntries);
+        if (offlineService && eResult.entries.length > 0) {
+          offlineService.cacheEntries(eResult.entries);
         }
       } catch (err) {
-        // Fallback to media/list if eSearch fails
-        if (debouncedSearch || filters.withCaptionsOnly) {
-          log.error("eSearch failed, falling back to media/list", err);
-          try {
-            const filter = buildFilter();
-            const listResult = await mediaService.list(filter, {
-              pageSize: DEFAULT_PAGE_SIZE,
-              pageIndex,
-            });
-            setEntries((prev) => (append ? [...prev, ...listResult.objects] : listResult.objects));
-            setTotalCount(listResult.totalCount);
-            setPage(pageIndex);
-            setHighlights(new Map());
-          } catch (fallbackErr) {
-            setError(getUserMessage(fallbackErr));
-          }
-        } else {
-          setError(getUserMessage(err));
-        }
+        log.error("Failed to load entries", err);
+        setError(getUserMessage(err));
       } finally {
         setIsLoading(false);
         setIsLoadingMore(false);
       }
     },
-    [buildFilter, mediaService, offlineService, debouncedSearch, filters, userId],
+    [mediaService, offlineService, debouncedSearch, filters, userId, sortField],
   );
 
   // Subscribe to offline status changes
@@ -507,41 +469,54 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
     <div className="panel-root">
       {/* Search bar */}
       <div className="search-bar">
-        <sp-search
-          placeholder="Search assets..."
+        <sp-textfield
+          placeholder="Search media library..."
           value={searchText}
           onInput={(e: Event) => setSearchText((e.target as HTMLInputElement).value)}
-          onSubmit={(e: Event) => e.preventDefault()}
           style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", minWidth: 0, width: "100%" }}
           size="s"
           aria-label="Search Kaltura media library"
         />
+        {searchText && (
+          <sp-action-button
+            quiet
+            size="s"
+            onClick={() => setSearchText("")}
+            title="Clear search"
+            style={{ marginLeft: 4 }}
+          >
+            {"\u2715"}
+          </sp-action-button>
+        )}
         <sp-action-button
           quiet
           size="s"
           onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
           title={viewMode === "grid" ? "Switch to list view" : "Switch to grid view"}
+          style={{ marginLeft: 4 }}
         >
           {viewMode === "grid" ? "List" : "Grid"}
         </sp-action-button>
       </div>
 
-      {/* Filter bar */}
+      {/* Filter & sort bar */}
       <FilterBar
         filters={filters}
         onFiltersChange={setFilters}
         activeFilterCount={activeFilterCount}
+        sortField={sortField}
+        onSortChange={setSortField}
+        hasSearchText={!!debouncedSearch}
       />
 
       {/* Result count */}
-      {!isLoading && (
+      {!isLoading && totalCount > 0 && (
         <div className="result-count">
-          {totalCount > 0
-            ? `Showing ${entries.length} of ${totalCount} results`
-            : searchText || activeFilterCount > 0
-              ? "No results"
-              : ""}
+          Showing {entries.length} of {totalCount} results
         </div>
+      )}
+      {!isLoading && totalCount === 0 && (searchText || activeFilterCount > 0) && (
+        <div className="result-count">No results</div>
       )}
 
       {/* Offline mode banner */}
@@ -588,6 +563,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 imported={isImported(entry.id)}
                 cardWidth={cardWidth || undefined}
                 highlightHint={formatHighlightHint(highlights.get(entry.id) || [])}
+                searchQuery={debouncedSearch}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => handleQuickImport(entry)}
               />
@@ -602,6 +578,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 partnerId={partnerId}
                 imported={isImported(entry.id)}
                 highlightMeta={formatHighlightMeta(highlights.get(entry.id) || [])}
+                searchQuery={debouncedSearch}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => handleQuickImport(entry)}
               />
@@ -617,12 +594,30 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
 
 // --- Sub-components ---
 
+/** Renders text with the search term highlighted in accent color */
+const HighlightText: React.FC<{ text: string; query: string }> = ({ text, query }) => {
+  if (!query) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  const before = text.slice(0, idx);
+  const match = text.slice(idx, idx + query.length);
+  const after = text.slice(idx + query.length);
+  return (
+    <>
+      {before}
+      <span className="search-match">{match}</span>
+      {after}
+    </>
+  );
+};
+
 interface ThumbnailCardProps {
   entry: KalturaMediaEntry;
   partnerId: number;
   imported: boolean;
   cardWidth?: string;
   highlightHint?: string | null;
+  searchQuery?: string;
   onClick: () => void;
   onDoubleClick: () => void;
 }
@@ -633,6 +628,7 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
   imported,
   cardWidth,
   highlightHint,
+  searchQuery,
   onClick,
   onDoubleClick,
 }) => (
@@ -671,7 +667,7 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
       {imported && <div className="badge-imported">{"\u2713"}</div>}
     </div>
     <div className={`thumb-card-label${isContentHeld(entry) ? " text-error" : ""}`}>
-      {truncate(entry.name, 30)}
+      <HighlightText text={truncate(entry.name, 30)} query={searchQuery || ""} />
     </div>
     {highlightHint && <div className="highlight-hint">{highlightHint}</div>}
   </div>
@@ -682,6 +678,7 @@ interface ListRowProps {
   partnerId: number;
   imported: boolean;
   highlightMeta?: string | null;
+  searchQuery?: string;
   onClick: () => void;
   onDoubleClick: () => void;
 }
@@ -691,6 +688,7 @@ const ListRow: React.FC<ListRowProps> = ({
   partnerId,
   imported,
   highlightMeta,
+  searchQuery,
   onClick,
   onDoubleClick,
 }) => (
@@ -705,7 +703,7 @@ const ListRow: React.FC<ListRowProps> = ({
       <div className={`list-row-name ellipsis${isContentHeld(entry) ? " text-error" : ""}`}>
         {isContentHeld(entry) && <span className="badge-inline badge-hold">HOLD</span>}
         {imported && "\u2713\u0020"}
-        {entry.name}
+        <HighlightText text={entry.name} query={searchQuery || ""} />
       </div>
       <div className="list-row-meta">
         {formatDuration(entry.duration)} {"\u00B7"} {formatDate(entry.createdAt)}

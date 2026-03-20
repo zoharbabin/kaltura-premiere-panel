@@ -1,24 +1,38 @@
 # Changelog
 
-## 1.16.0
+## 1.16.2
 
 ### Features
 
-- **eSearch-powered browse** — BrowsePanel now uses Kaltura's Elasticsearch-backed `eSearch/searchEntry` API when search text is entered. Searches across entry names, descriptions, tags, captions/transcripts, and metadata simultaneously using `KalturaESearchUnifiedItem` with partial matching and synonym support. (Closes #83)
-- **Caption content search** — Users can now find videos by what was _said_ in them. eSearch returns timecoded highlights showing exactly where matches occur in transcripts
-- **"Has Captions" filter** — New checkbox toggle in FilterBar filters results to entries that have caption/transcript tracks (`KalturaESearchCaptionItem` with `EXISTS` item type)
-- **Search highlight display** — Grid cards show a subtle hint below the title ("in transcript ⏱ 1:23") and list rows append match source to metadata line when eSearch highlights are available
+- **eSearch for all browsing** — Replaced `media/list` entirely with eSearch (`elasticsearch_esearch/searchEntry`) for both initial browse and search queries. Uses `display_in_search=1` as default filter with `updated_at desc` sort for initial load.
+- **Sort By dropdown** — Added sort options (Relevance, Recently updated, Recently created, Name A-Z, Most played, Last played) inside the "Filters and sort" panel. Auto-switches to Relevance when searching, back to Recently updated when cleared.
+- **Visual search highlighting** — Search terms are highlighted in orange bold within entry titles in both grid and list views via `HighlightText` component.
+- **Highlight snippets** — Search result hints now show the matched text (e.g., `title/tags: "PathFactory"` or `transcript at 1:23: "PathFactory integration..."`) instead of just "Found in title/tags".
+- **My Content filter** — "My content" ownership filter uses structured eSearch OR across `kuser_id`, `creator_kuser_id`, `entitled_kusers_edit`, and `entitled_kusers_publish` fields, showing entries the user owns, created, or can edit/publish.
+
+### Bug Fixes
+
+- **Fix responsive UI overlap** — Login, Settings, and Publish panels now scroll properly when the plugin window is resized small. Uses `panel-scroll` layout pattern consistently.
+- **Fix search box not rendering** — Replaced `<sp-search>` (unsupported in UXP) with `<sp-textfield>` for the search input.
+- **Fix eSearch service name** — Corrected API service from `"eSearch"` to `"elasticsearch_esearch"` across MediaService and SearchService.
+- **Fix highlight parsing** — Reads both top-level `highlight[]` and `itemsData[]` from eSearch response for complete highlight coverage. Fixed `stripHighlightTags` to handle non-string inputs.
+- **Fix My Content highlight pollution** — Ownership filter items use `addHighlight: false` and proper AND/OR query hierarchy so highlights only come from the search term, not user field matches.
+- **Fix eSearch field names** — Use valid `KalturaESearchEntryFieldName` enum values (`kuser_id`, `creator_kuser_id`, `entitled_kusers_edit`, `entitled_kusers_publish`).
+- **Fix search precision** — Changed unified search from `PARTIAL` (itemType 2) to `STARTS_WITH` (itemType 3) for more precise matching.
 
 ### Improvements
 
-- **Shared eSearch types** — Added typed interfaces and enums (`ESearchItemType`, `ESearchOperatorType`, `KalturaESearchEntryParams`, `ESearchResponse`, etc.) to `types/kaltura.ts`, replacing inline `Record<string, unknown>` objects
-- **SearchService type consolidation** — Moved private eSearch response interfaces from `SearchService` to shared `types/kaltura.ts`
-- **Graceful fallback** — If eSearch call fails, BrowsePanel automatically falls back to `media/list` with error logging (no crash)
-- **Dual-path browse** — Empty search (initial browse) still uses `media/list` with chronological ordering; eSearch only activates when search text or caption filter is present
+- **Compact toolbar** — Sort dropdown moved inside the "Filters and sort" collapsible panel. Result count shown as a compact single line that's always visible.
+- **eSearch query structure** — Properly structured as `AND[ OR[user fields], AND[search/filter fields] ]` per Kaltura best practices.
+- **eSearch types** — Added nested operator support (`operator`, `searchItems` fields) to `KalturaESearchItem` type for sub-group queries.
 
 ### Tests
 
-- New tests: `eSearchBrowse()` parameter construction, response unwrapping, highlight extraction, filter combinations, eSearch/list dual path in BrowsePanel, FilterBar caption checkbox
+- Updated all BrowsePanel tests for eSearch-only browse (removed media.list mocks)
+- Updated FilterBar tests for "Filters and sort" rename and sort dropdown
+- Updated MediaService tests for query structure, ownership OR operator, `STARTS_WITH` item type, and highlight extraction
+
+## 1.15.4
 
 ## 1.15.4
 

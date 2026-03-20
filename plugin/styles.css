@@ -880,9 +880,14 @@ a:hover {
 
 /* ---- Search highlight hints ---- */
 
+.search-match {
+  color: #ff6600;
+  font-weight: 700;
+}
+
 .highlight-hint {
   font-size: 9px;
-  color: #5a5a5a;
+  color: #4b9cf5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -891,14 +896,15 @@ a:hover {
 }
 
 .highlight-source {
-  color: #5a5a5a;
+  color: #4b9cf5;
   font-style: italic;
 }
 
 .result-count {
-  padding: 4px 8px;
-  font-size: 11px;
+  font-size: 10px;
   color: #6e6e6e;
+  padding: 3px 8px;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
@@ -1011,7 +1017,7 @@ a:hover {
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  height: 100%;
+  min-height: 100%;
 }
 
 .login-brand {

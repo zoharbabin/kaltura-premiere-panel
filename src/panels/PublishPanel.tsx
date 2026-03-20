@@ -486,13 +486,14 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
 
   // ---- Form view with progressive disclosure ----
   return (
-    <div className="panel-root panel-padding">
-      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
+    <div className="panel-root">
+      {error && (
+        <div style={{ padding: "12px 12px 0" }}>
+          <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        </div>
+      )}
 
-      <div
-        className="flex-col"
-        style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", overflowY: "auto" }}
-      >
+      <div className="panel-scroll">
         {/* Publish mode toggle */}
         <div style={{ marginBottom: "8px" }}>
           <SegmentedControl
@@ -685,7 +686,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       </div>
 
       {/* Publish button — pinned to bottom */}
-      <div style={{ padding: "8px 0", flexShrink: 0 }}>
+      <div style={{ padding: "8px 12px", flexShrink: 0 }}>
         <div
           role="button"
           tabIndex={canPublish ? 0 : -1}
