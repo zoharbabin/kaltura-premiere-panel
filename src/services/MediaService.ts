@@ -502,7 +502,7 @@ export class MediaService {
             searchItems,
           },
           objectStatuses: "2", // READY only
-          objectTypes: "1,2,5", // video, image, audio — exclude playlists, data, live
+          objectTypes: "1", // media clips only (video, image, audio) — excludes playlists, live, data
           ...((!params.sortField || params.sortField !== "relevance") && {
             orderBy: {
               objectType: "KalturaESearchOrderBy",
