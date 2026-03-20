@@ -207,22 +207,25 @@ export interface KalturaESearchRange {
   lessThanOrEqual?: number;
 }
 
+/** eSearch search item — base for all item types */
+export interface KalturaESearchItem {
+  objectType: string;
+  searchTerm?: string;
+  itemType?: ESearchItemType;
+  addHighlight?: boolean;
+  fieldName?: string;
+  range?: KalturaESearchRange;
+  categoryEntryStatus?: number;
+  /** Nested operator support (OR/AND sub-groups) */
+  operator?: ESearchOperatorType;
+  searchItems?: KalturaESearchItem[];
+}
+
 /** eSearch operator (AND/OR/NOT container for search items) */
 export interface KalturaESearchEntryOperator {
   objectType: "KalturaESearchEntryOperator";
   operator: ESearchOperatorType;
   searchItems: KalturaESearchItem[];
-}
-
-/** eSearch search item — base for all item types */
-export interface KalturaESearchItem {
-  objectType: string;
-  searchTerm?: string;
-  itemType: ESearchItemType;
-  addHighlight?: boolean;
-  fieldName?: string;
-  range?: KalturaESearchRange;
-  categoryEntryStatus?: number;
 }
 
 /** eSearch entry params (top-level search config) */
@@ -232,15 +235,24 @@ export interface KalturaESearchEntryParams {
   objectStatuses?: string;
 }
 
+/** Top-level highlight from eSearch response */
+export interface ESearchHighlight extends KalturaObjectBase {
+  fieldName?: string;
+  hits?: { value: string }[];
+}
+
 /** Raw eSearch result item from the API */
 export interface ESearchEntryResult extends KalturaObjectBase {
   object: KalturaMediaEntry;
+  highlight?: ESearchHighlight[];
   itemsData?: ESearchItemsData[];
 }
 
 /** eSearch items data container */
 export interface ESearchItemsData extends KalturaObjectBase {
+  totalCount?: number;
   items?: ESearchItemDataResult[];
+  itemsType?: string;
 }
 
 /** Individual eSearch item data result (highlight, timecodes) */

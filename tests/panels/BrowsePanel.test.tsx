@@ -52,8 +52,8 @@ function mockMediaService(overrides: Record<string, unknown> = {}) {
   return {
     list: jest.fn().mockResolvedValue({ objects: entries, totalCount: 3 }),
     eSearchBrowse: jest.fn().mockResolvedValue({
-      totalCount: 0,
-      entries: [],
+      totalCount: 3,
+      entries,
       highlights: new Map(),
     }),
     getEntryDetails: jest.fn().mockResolvedValue({
@@ -105,7 +105,7 @@ describe("BrowsePanel", () => {
 
   it("shows skeleton loading grid initially", () => {
     const service = mockMediaService({
-      list: jest.fn().mockReturnValue(new Promise(() => {})),
+      eSearchBrowse: jest.fn().mockReturnValue(new Promise(() => {})),
     });
     const { container } = render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
     // SkeletonGrid renders skeleton-card placeholders instead of a spinner
@@ -133,7 +133,9 @@ describe("BrowsePanel", () => {
 
   it("shows empty state when no assets exist", async () => {
     const service = mockMediaService({
-      list: jest.fn().mockResolvedValue({ objects: [], totalCount: 0 }),
+      eSearchBrowse: jest
+        .fn()
+        .mockResolvedValue({ totalCount: 0, entries: [], highlights: new Map() }),
     });
     render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
     await waitFor(() => {
@@ -144,7 +146,9 @@ describe("BrowsePanel", () => {
 
   it("shows 'No results found' when search yields nothing", async () => {
     const service = mockMediaService({
-      list: jest.fn().mockResolvedValue({ objects: [], totalCount: 0 }),
+      eSearchBrowse: jest
+        .fn()
+        .mockResolvedValue({ totalCount: 0, entries: [], highlights: new Map() }),
     });
     jest.useFakeTimers();
     const { container } = render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
@@ -153,7 +157,9 @@ describe("BrowsePanel", () => {
       await Promise.resolve(); // Flush initial load
     });
 
-    const searchInput = container.querySelector("sp-search")!;
+    const searchInput = container.querySelector(
+      "sp-textfield[aria-label='Search Kaltura media library']",
+    )!;
     await act(async () => {
       simulateInput(searchInput, "nonexistent");
       jest.advanceTimersByTime(400); // Past debounce
@@ -169,7 +175,7 @@ describe("BrowsePanel", () => {
 
   it("shows error banner on API failure with retry", async () => {
     const service = mockMediaService({
-      list: jest.fn().mockRejectedValue(new Error("Network fail")),
+      eSearchBrowse: jest.fn().mockRejectedValue(new Error("Network fail")),
     });
     render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
 
@@ -264,7 +270,9 @@ describe("BrowsePanel", () => {
       adminTags: "content_hold,hold_reason:legal_review",
     });
     const service = mockMediaService({
-      list: jest.fn().mockResolvedValue({ objects: [heldEntry], totalCount: 1 }),
+      eSearchBrowse: jest
+        .fn()
+        .mockResolvedValue({ totalCount: 1, entries: [heldEntry], highlights: new Map() }),
     });
     render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
     await waitFor(() => {
@@ -279,7 +287,9 @@ describe("BrowsePanel", () => {
       adminTags: "content_hold,hold_reason:legal_review",
     });
     const service = mockMediaService({
-      list: jest.fn().mockResolvedValue({ objects: [heldEntry], totalCount: 1 }),
+      eSearchBrowse: jest
+        .fn()
+        .mockResolvedValue({ totalCount: 1, entries: [heldEntry], highlights: new Map() }),
       getEntryDetails: jest.fn().mockResolvedValue({
         entry: heldEntry,
         flavors: [makeFlavor()],
@@ -312,7 +322,9 @@ describe("BrowsePanel", () => {
       endDate: now - 86400, // Expired yesterday
     });
     const service = mockMediaService({
-      list: jest.fn().mockResolvedValue({ objects: [expiredEntry], totalCount: 1 }),
+      eSearchBrowse: jest
+        .fn()
+        .mockResolvedValue({ totalCount: 1, entries: [expiredEntry], highlights: new Map() }),
     });
     render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
     await waitFor(() => {
@@ -328,7 +340,9 @@ describe("BrowsePanel", () => {
       endDate: now + 3 * 86400, // 3 days from now
     });
     const service = mockMediaService({
-      list: jest.fn().mockResolvedValue({ objects: [expiringEntry], totalCount: 1 }),
+      eSearchBrowse: jest
+        .fn()
+        .mockResolvedValue({ totalCount: 1, entries: [expiringEntry], highlights: new Map() }),
     });
     render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
     await waitFor(() => {
@@ -354,7 +368,7 @@ describe("BrowsePanel", () => {
   it("renders filter bar", async () => {
     render(<BrowsePanel {...defaultProps} />);
     await waitFor(() => {
-      expect(screen.getByText("Filters")).toBeTruthy();
+      expect(screen.getByText("Filters and sort")).toBeTruthy();
     });
   });
 
@@ -486,7 +500,9 @@ describe("BrowsePanel", () => {
       await Promise.resolve();
     });
 
-    const searchInput = container.querySelector("sp-search")!;
+    const searchInput = container.querySelector(
+      "sp-textfield[aria-label='Search Kaltura media library']",
+    )!;
     await act(async () => {
       simulateInput(searchInput, "demo");
       jest.advanceTimersByTime(400);
@@ -501,13 +517,12 @@ describe("BrowsePanel", () => {
     jest.useRealTimers();
   });
 
-  it("uses media/list when search text is empty", async () => {
+  it("uses eSearchBrowse for initial load with no search text", async () => {
     const service = mockMediaService();
     render(<BrowsePanel {...defaultProps} mediaService={service as never} />);
 
     await waitFor(() => {
-      expect(service.list).toHaveBeenCalled();
-      expect(service.eSearchBrowse).not.toHaveBeenCalled();
+      expect(service.eSearchBrowse).toHaveBeenCalled();
     });
   });
 
@@ -529,7 +544,9 @@ describe("BrowsePanel", () => {
       await Promise.resolve();
     });
 
-    const searchInput = container.querySelector("sp-search")!;
+    const searchInput = container.querySelector(
+      "sp-textfield[aria-label='Search Kaltura media library']",
+    )!;
     await act(async () => {
       simulateInput(searchInput, "hello");
       jest.advanceTimersByTime(400);
@@ -547,7 +564,7 @@ describe("BrowsePanel", () => {
     jest.useRealTimers();
   });
 
-  it("falls back to media/list when eSearch fails", async () => {
+  it("shows error when eSearch fails", async () => {
     jest.useFakeTimers();
     const service = mockMediaService({
       eSearchBrowse: jest.fn().mockRejectedValue(new Error("eSearch error")),
@@ -559,16 +576,16 @@ describe("BrowsePanel", () => {
       await Promise.resolve();
     });
 
-    const searchInput = container.querySelector("sp-search")!;
+    const searchInput = container.querySelector(
+      "sp-textfield[aria-label='Search Kaltura media library']",
+    )!;
     await act(async () => {
       simulateInput(searchInput, "fallback");
       jest.advanceTimersByTime(400);
     });
 
     await waitFor(() => {
-      // Should have called list as fallback
-      const listCalls = (service.list as jest.Mock).mock.calls;
-      expect(listCalls.length).toBeGreaterThan(1); // initial + fallback
+      expect(container.textContent).toContain("eSearch error");
     });
     jest.useRealTimers();
   });

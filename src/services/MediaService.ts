@@ -28,6 +28,14 @@ export interface BrowseHighlight {
 }
 
 /** Parameters for eSearch-based browsing */
+export type ESearchSortField =
+  | "relevance"
+  | "updated_at"
+  | "created_at"
+  | "name"
+  | "plays"
+  | "last_played_at";
+
 export interface ESearchBrowseParams {
   searchText?: string;
   mediaType?: KalturaMediaType;
@@ -36,6 +44,8 @@ export interface ESearchBrowseParams {
   userId?: string;
   categoryIds?: string;
   withCaptionsOnly?: boolean;
+  sortField?: ESearchSortField;
+  sortOrder?: "asc" | "desc";
 }
 
 /** Result from eSearch browse including highlights */
@@ -57,8 +67,17 @@ function resolveHighlightType(itemType: string | undefined): BrowseHighlight["ty
   }
 }
 
+/** Map top-level highlight fieldName to a BrowseHighlight type */
+function fieldNameToHighlightType(fieldName: string | undefined): BrowseHighlight["type"] {
+  if (!fieldName) return "content";
+  if (fieldName.startsWith("caption")) return "caption";
+  if (fieldName.startsWith("metadata")) return "metadata";
+  return "content";
+}
+
 /** Strip HTML tags from eSearch highlight text */
-function stripHighlightTags(text: string): string {
+function stripHighlightTags(text: unknown): string {
+  if (typeof text !== "string") return String(text ?? "");
   return text.replace(/<\/?em>/g, "");
 }
 
@@ -311,7 +330,7 @@ export class MediaService {
     log.debug("eSearch", { searchText });
 
     return this.client.request<KalturaListResponse<KalturaMediaEntry>>({
-      service: "eSearch",
+      service: "elasticsearch_esearch",
       action: "searchEntry",
       params: {
         searchParams: {
@@ -345,19 +364,20 @@ export class MediaService {
     params: ESearchBrowseParams,
     pager: KalturaFilterPager = { pageSize: DEFAULT_PAGE_SIZE, pageIndex: 1 },
   ): Promise<ESearchBrowseResult> {
-    const searchItems: KalturaESearchItem[] = [];
+    // Build content/filter items (everything except ownership)
+    const filterItems: KalturaESearchItem[] = [];
 
     if (params.searchText) {
-      searchItems.push({
+      filterItems.push({
         objectType: "KalturaESearchUnifiedItem",
-        itemType: ESearchItemType.PARTIAL,
+        itemType: ESearchItemType.STARTS_WITH,
         searchTerm: params.searchText,
         addHighlight: true,
       });
     }
 
     if (params.withCaptionsOnly) {
-      searchItems.push({
+      filterItems.push({
         objectType: "KalturaESearchCaptionItem",
         fieldName: "content",
         itemType: ESearchItemType.EXISTS,
@@ -365,7 +385,7 @@ export class MediaService {
     }
 
     if (params.categoryIds) {
-      searchItems.push({
+      filterItems.push({
         objectType: "KalturaESearchCategoryEntryItem",
         fieldName: "full_ids",
         itemType: ESearchItemType.EXACT_MATCH,
@@ -375,7 +395,7 @@ export class MediaService {
     }
 
     if (params.mediaType !== undefined) {
-      searchItems.push({
+      filterItems.push({
         objectType: "KalturaESearchEntryItem",
         fieldName: "media_type",
         itemType: ESearchItemType.EXACT_MATCH,
@@ -384,7 +404,7 @@ export class MediaService {
     }
 
     if (params.createdAfter !== undefined || params.createdBefore !== undefined) {
-      searchItems.push({
+      filterItems.push({
         objectType: "KalturaESearchEntryItem",
         fieldName: "created_at",
         itemType: ESearchItemType.RANGE,
@@ -395,24 +415,83 @@ export class MediaService {
       });
     }
 
+    // Build top-level searchItems:
+    // When userId is set: AND[ OR[user fields], AND[search/filter fields] ]
+    // Otherwise: AND[ filter items... ]
+    let searchItems: KalturaESearchItem[];
+
     if (params.userId) {
-      searchItems.push({
-        objectType: "KalturaESearchEntryItem",
-        fieldName: "user_id",
-        itemType: ESearchItemType.EXACT_MATCH,
-        searchTerm: params.userId,
-      });
+      // Ensure filter items has at least the default item
+      if (filterItems.length === 0) {
+        filterItems.push({
+          objectType: "KalturaESearchEntryItem",
+          fieldName: "display_in_search",
+          itemType: ESearchItemType.EXACT_MATCH,
+          searchTerm: "1",
+        });
+      }
+
+      searchItems = [
+        // OR: ownership fields
+        {
+          objectType: "KalturaESearchEntryOperator",
+          operator: ESearchOperatorType.OR_OP,
+          searchItems: [
+            {
+              objectType: "KalturaESearchEntryItem",
+              fieldName: "kuser_id",
+              itemType: ESearchItemType.EXACT_MATCH,
+              searchTerm: params.userId,
+              addHighlight: false,
+            },
+            {
+              objectType: "KalturaESearchEntryItem",
+              fieldName: "creator_kuser_id",
+              itemType: ESearchItemType.EXACT_MATCH,
+              searchTerm: params.userId,
+              addHighlight: false,
+            },
+            {
+              objectType: "KalturaESearchEntryItem",
+              fieldName: "entitled_kusers_edit",
+              itemType: ESearchItemType.EXACT_MATCH,
+              searchTerm: params.userId,
+              addHighlight: false,
+            },
+            {
+              objectType: "KalturaESearchEntryItem",
+              fieldName: "entitled_kusers_publish",
+              itemType: ESearchItemType.EXACT_MATCH,
+              searchTerm: params.userId,
+              addHighlight: false,
+            },
+          ],
+        },
+        // AND: search/filter fields
+        {
+          objectType: "KalturaESearchEntryOperator",
+          operator: ESearchOperatorType.AND_OP,
+          searchItems: filterItems,
+        },
+      ];
+    } else {
+      searchItems = filterItems;
     }
 
-    // eSearch requires at least one search item
+    // Always include display_in_search=1 as a base filter
     if (searchItems.length === 0) {
-      return { totalCount: 0, entries: [], highlights: new Map() };
+      searchItems.push({
+        objectType: "KalturaESearchEntryItem",
+        fieldName: "display_in_search",
+        itemType: ESearchItemType.EXACT_MATCH,
+        searchTerm: "1",
+      });
     }
 
     log.debug("eSearchBrowse", { params, itemCount: searchItems.length });
 
     const response = await this.client.request<ESearchResponse>({
-      service: "eSearch",
+      service: "elasticsearch_esearch",
       action: "searchEntry",
       params: {
         searchParams: {
@@ -423,6 +502,18 @@ export class MediaService {
             searchItems,
           },
           objectStatuses: "2", // READY only
+          ...((!params.sortField || params.sortField !== "relevance") && {
+            orderBy: {
+              objectType: "KalturaESearchOrderBy",
+              orderItems: [
+                {
+                  objectType: "KalturaESearchEntryOrderByItem",
+                  sortField: params.sortField || "updated_at",
+                  sortOrder: params.sortOrder || "desc",
+                },
+              ],
+            },
+          }),
         },
         pager: {
           objectType: "KalturaFilterPager",
@@ -441,16 +532,37 @@ export class MediaService {
       entries.push(entry);
 
       const entryHighlights: BrowseHighlight[] = [];
+
+      // 1. Top-level highlights (fieldName + hits with <em> tags)
+      const topHighlights = entryResult.highlight || [];
+      for (const hl of topHighlights) {
+        const type = fieldNameToHighlightType(hl.fieldName);
+        const hits = hl.hits || [];
+        for (const hit of hits) {
+          if (hit.value) {
+            entryHighlights.push({
+              type,
+              text: stripHighlightTags(hit.value),
+            });
+          }
+        }
+      }
+
+      // 2. itemsData for granular caption/metadata results (timecodes, etc.)
       const itemsDataList = entryResult.itemsData || [];
       for (const itemsData of itemsDataList) {
         const items = itemsData.items || [];
+        const itemsType = itemsData.itemsType;
         for (const item of items) {
-          entryHighlights.push({
-            type: resolveHighlightType(item.itemType),
-            text: stripHighlightTags(item.highlight ?? item.searchTerm ?? ""),
-            startTime: item.startTime,
-            endTime: item.endTime,
-          });
+          // Only add caption items with timecodes (avoid duplicating top-level highlights)
+          if (item.startTime !== undefined) {
+            entryHighlights.push({
+              type: resolveHighlightType(itemsType ?? item.itemType),
+              text: stripHighlightTags(item.highlight ?? item.searchTerm ?? ""),
+              startTime: item.startTime,
+              endTime: item.endTime,
+            });
+          }
         }
       }
 

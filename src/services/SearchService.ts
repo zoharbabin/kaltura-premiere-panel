@@ -44,7 +44,7 @@ export class SearchService {
     log.debug("Searching transcripts", { entryId, searchText });
 
     const response = await this.client.request<ESearchResponse>({
-      service: "eSearch",
+      service: "elasticsearch_esearch",
       action: "searchEntry",
       params: {
         searchParams: {
@@ -103,7 +103,7 @@ export class SearchService {
     log.debug("In-video search", { searchText, pager });
 
     const response = await this.client.request<ESearchResponse>({
-      service: "eSearch",
+      service: "elasticsearch_esearch",
       action: "searchEntry",
       params: {
         searchParams: {
@@ -179,7 +179,7 @@ export class SearchService {
     }));
 
     return this.client.request<KalturaListResponse<KalturaMediaEntry>>({
-      service: "eSearch",
+      service: "elasticsearch_esearch",
       action: "searchEntry",
       params: {
         searchParams: {
@@ -206,7 +206,7 @@ export class SearchService {
     log.debug("Searching similar entries", { entryId, pager });
 
     return this.client.request<KalturaListResponse<KalturaMediaEntry>>({
-      service: "eSearch",
+      service: "elasticsearch_esearch",
       action: "searchEntry",
       params: {
         searchParams: {

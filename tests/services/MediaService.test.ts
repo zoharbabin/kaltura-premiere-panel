@@ -193,7 +193,7 @@ describe("MediaService", () => {
       const items = body.searchParams.searchOperator.searchItems;
       expect(items).toHaveLength(1);
       expect(items[0].objectType).toBe("KalturaESearchUnifiedItem");
-      expect(items[0].itemType).toBe(ESearchItemType.PARTIAL);
+      expect(items[0].itemType).toBe(ESearchItemType.STARTS_WITH);
       expect(items[0].searchTerm).toBe("demo");
       expect(items[0].addHighlight).toBe(true);
     });
@@ -253,16 +253,32 @@ describe("MediaService", () => {
       expect(dateItem.range.greaterThanOrEqual).toBe(1700000000);
     });
 
-    it("builds user ID item", async () => {
+    it("builds AND[ OR[user fields], AND[search fields] ] structure", async () => {
       mockFetch.mockResolvedValueOnce(makeESearchResponse([]));
 
       await service.eSearchBrowse({ searchText: "x", userId: "user123" });
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const items = body.searchParams.searchOperator.searchItems;
-      const userItem = items.find((i: Record<string, unknown>) => i.fieldName === "user_id");
-      expect(userItem).toBeDefined();
-      expect(userItem.searchTerm).toBe("user123");
+      expect(items).toHaveLength(2);
+
+      // First: OR of ownership fields
+      const orOp = items[0];
+      expect(orOp.objectType).toBe("KalturaESearchEntryOperator");
+      expect(orOp.operator).toBe(ESearchOperatorType.OR_OP);
+      expect(orOp.searchItems).toHaveLength(4);
+      expect(orOp.searchItems[0].fieldName).toBe("kuser_id");
+      expect(orOp.searchItems[0].addHighlight).toBe(false);
+      expect(orOp.searchItems[1].fieldName).toBe("creator_kuser_id");
+      expect(orOp.searchItems[2].fieldName).toBe("entitled_kusers_edit");
+      expect(orOp.searchItems[3].fieldName).toBe("entitled_kusers_publish");
+
+      // Second: AND of search/filter fields
+      const andOp = items[1];
+      expect(andOp.objectType).toBe("KalturaESearchEntryOperator");
+      expect(andOp.operator).toBe(ESearchOperatorType.AND_OP);
+      expect(andOp.searchItems[0].objectType).toBe("KalturaESearchUnifiedItem");
+      expect(andOp.searchItems[0].searchTerm).toBe("x");
     });
 
     it("uses AND operator and objectStatuses=2", async () => {
@@ -275,12 +291,16 @@ describe("MediaService", () => {
       expect(body.searchParams.objectStatuses).toBe("2");
     });
 
-    it("returns empty result when no search items would be generated", async () => {
-      const result = await service.eSearchBrowse({});
-      expect(result.totalCount).toBe(0);
-      expect(result.entries).toHaveLength(0);
-      expect(result.highlights.size).toBe(0);
-      expect(mockFetch).not.toHaveBeenCalled();
+    it("uses display_in_search default item when no filters specified", async () => {
+      mockFetch.mockResolvedValueOnce(makeESearchResponse([{ id: "0_a", name: "A" }]));
+      await service.eSearchBrowse({});
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const items = body.searchParams.searchOperator.searchItems;
+      expect(items).toHaveLength(1);
+      expect(items[0].objectType).toBe("KalturaESearchEntryItem");
+      expect(items[0].fieldName).toBe("display_in_search");
+      expect(items[0].searchTerm).toBe("1");
     });
 
     it("unwraps entries from eSearch response", async () => {
@@ -298,7 +318,7 @@ describe("MediaService", () => {
       expect(result.entries[1].id).toBe("0_b");
     });
 
-    it("extracts highlights from itemsData", async () => {
+    it("extracts highlights from top-level highlight array and itemsData", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -306,16 +326,25 @@ describe("MediaService", () => {
           objects: [
             {
               object: { id: "0_a", name: "Alpha", mediaType: 1 },
+              highlight: [
+                {
+                  fieldName: "name",
+                  hits: [{ value: "<em>hello</em> world" }],
+                },
+                {
+                  fieldName: "captions_content",
+                  hits: [{ value: "caption <em>hello</em>" }],
+                },
+              ],
               itemsData: [
                 {
+                  itemsType: "caption",
                   items: [
                     {
-                      itemType: "caption",
-                      highlight: "<em>hello</em> world",
+                      highlight: "<em>hello</em> in caption",
                       startTime: 5000,
                       endTime: 8000,
                     },
-                    { itemType: "metadata", highlight: "tag match" },
                   ],
                 },
               ],
@@ -327,12 +356,16 @@ describe("MediaService", () => {
       const result = await service.eSearchBrowse({ searchText: "hello" });
       const h = result.highlights.get("0_a");
       expect(h).toBeDefined();
-      expect(h).toHaveLength(2);
-      expect(h![0].type).toBe("caption");
+      expect(h).toHaveLength(3);
+      // Top-level highlights first
+      expect(h![0].type).toBe("content");
       expect(h![0].text).toBe("hello world"); // HTML tags stripped
-      expect(h![0].startTime).toBe(5000);
-      expect(h![1].type).toBe("metadata");
-      expect(h![1].text).toBe("tag match");
+      expect(h![1].type).toBe("caption");
+      expect(h![1].text).toBe("caption hello");
+      // itemsData caption with timecodes
+      expect(h![2].type).toBe("caption");
+      expect(h![2].text).toBe("hello in caption");
+      expect(h![2].startTime).toBe(5000);
     });
 
     it("combines multiple filter parameters", async () => {
@@ -349,8 +382,14 @@ describe("MediaService", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const items = body.searchParams.searchOperator.searchItems;
-      // unified + caption + category + media_type + created_at + user_id = 6
-      expect(items).toHaveLength(6);
+      // Top level: OR[user fields] + AND[search/filter fields] = 2
+      expect(items).toHaveLength(2);
+      // OR has 4 user fields
+      expect(items[0].operator).toBe(ESearchOperatorType.OR_OP);
+      expect(items[0].searchItems).toHaveLength(4);
+      // AND has 5 filter items: unified + caption + category + media_type + created_at
+      expect(items[1].operator).toBe(ESearchOperatorType.AND_OP);
+      expect(items[1].searchItems).toHaveLength(5);
     });
   });
 });

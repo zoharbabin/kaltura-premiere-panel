@@ -175,7 +175,15 @@ export const App: React.FC = () => {
   if (!authState.isAuthenticated) {
     return (
       <div className="panel-root">
-        <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%" }}>
+        <div
+          style={{
+            flexGrow: 1,
+            flexShrink: 1,
+            flexBasis: "0%",
+            overflowY: "auto" as const,
+            minHeight: 0,
+          }}
+        >
           <LoginPanel
             onLogin={login}
             onSsoLogin={loginWithSso}

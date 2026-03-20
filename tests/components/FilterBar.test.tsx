@@ -13,18 +13,20 @@ describe("FilterBar", () => {
     filters: defaultFilters,
     onFiltersChange: jest.fn(),
     activeFilterCount: 0,
+    sortField: "updated_at" as const,
+    onSortChange: jest.fn(),
   };
 
   beforeEach(() => jest.clearAllMocks());
 
   it("renders Filters button", () => {
     render(<FilterBar {...defaultProps} />);
-    expect(screen.getByText("Filters")).toBeTruthy();
+    expect(screen.getByText("Filters and sort")).toBeTruthy();
   });
 
   it("shows active filter count in button text", () => {
     render(<FilterBar {...defaultProps} activeFilterCount={3} />);
-    expect(screen.getByText("Filters (3)")).toBeTruthy();
+    expect(screen.getByText("Filters and sort (3)")).toBeTruthy();
   });
 
   it("shows Clear all when filters are active", () => {
@@ -48,20 +50,20 @@ describe("FilterBar", () => {
     // Initially no pickers visible
     expect(container.querySelectorAll("select.native-select").length).toBe(0);
 
-    fireEvent.click(screen.getByText("Filters"));
-    // After expand, selects should be visible
-    expect(container.querySelectorAll("select.native-select").length).toBe(3);
+    fireEvent.click(screen.getByText("Filters and sort"));
+    // After expand, selects should be visible (sort + 3 filters = 4)
+    expect(container.querySelectorAll("select.native-select").length).toBe(4);
   });
 
   it("shows Has captions checkbox when expanded", () => {
     render(<FilterBar {...defaultProps} />);
-    fireEvent.click(screen.getByText("Filters"));
+    fireEvent.click(screen.getByText("Filters and sort"));
     expect(screen.getByText("Has captions")).toBeTruthy();
   });
 
   it("calls onFiltersChange when Has captions is toggled", () => {
     render(<FilterBar {...defaultProps} />);
-    fireEvent.click(screen.getByText("Filters"));
+    fireEvent.click(screen.getByText("Filters and sort"));
     const checkbox = screen.getByLabelText("Has captions") as HTMLInputElement;
     fireEvent.click(checkbox);
     expect(defaultProps.onFiltersChange).toHaveBeenCalledWith(
@@ -71,10 +73,10 @@ describe("FilterBar", () => {
 
   it("collapses filter panel when Filters button clicked again", () => {
     const { container } = render(<FilterBar {...defaultProps} />);
-    fireEvent.click(screen.getByText("Filters"));
-    expect(container.querySelectorAll("select.native-select").length).toBe(3);
+    fireEvent.click(screen.getByText("Filters and sort"));
+    expect(container.querySelectorAll("select.native-select").length).toBe(4);
 
-    fireEvent.click(screen.getByText("Filters"));
+    fireEvent.click(screen.getByText("Filters and sort"));
     expect(container.querySelectorAll("select.native-select").length).toBe(0);
   });
 });
