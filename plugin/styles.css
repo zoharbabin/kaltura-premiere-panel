@@ -772,6 +772,8 @@ a:hover {
   color: #cfcfcf;
   line-height: 1.4;
   word-break: break-word;
+  user-select: text;
+  cursor: text;
 }
 
 /* Action bar */
