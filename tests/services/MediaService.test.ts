@@ -191,7 +191,8 @@ describe("MediaService", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const items = body.searchParams.searchOperator.searchItems;
-      expect(items).toHaveLength(1);
+      // unified_item + entry_type
+      expect(items).toHaveLength(2);
       expect(items[0].objectType).toBe("KalturaESearchUnifiedItem");
       expect(items[0].itemType).toBe(ESearchItemType.STARTS_WITH);
       expect(items[0].searchTerm).toBe("demo");
@@ -205,7 +206,8 @@ describe("MediaService", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const items = body.searchParams.searchOperator.searchItems;
-      expect(items).toHaveLength(1);
+      // caption_item + entry_type
+      expect(items).toHaveLength(2);
       expect(items[0].objectType).toBe("KalturaESearchCaptionItem");
       expect(items[0].fieldName).toBe("content");
       expect(items[0].itemType).toBe(ESearchItemType.EXISTS);
@@ -260,7 +262,8 @@ describe("MediaService", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const items = body.searchParams.searchOperator.searchItems;
-      expect(items).toHaveLength(2);
+      // OR[user fields] + AND[search fields] + entry_type = 3
+      expect(items).toHaveLength(3);
 
       // First: OR of ownership fields
       const orOp = items[0];
@@ -279,6 +282,10 @@ describe("MediaService", () => {
       expect(andOp.operator).toBe(ESearchOperatorType.AND_OP);
       expect(andOp.searchItems[0].objectType).toBe("KalturaESearchUnifiedItem");
       expect(andOp.searchItems[0].searchTerm).toBe("x");
+
+      // Third: entry_type filter
+      expect(items[2].fieldName).toBe("entry_type");
+      expect(items[2].searchTerm).toBe("1");
     });
 
     it("uses AND operator and objectStatuses=2", async () => {
@@ -297,10 +304,12 @@ describe("MediaService", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const items = body.searchParams.searchOperator.searchItems;
-      expect(items).toHaveLength(1);
-      expect(items[0].objectType).toBe("KalturaESearchEntryItem");
-      expect(items[0].fieldName).toBe("display_in_search");
+      // entry_type + display_in_search
+      expect(items).toHaveLength(2);
+      expect(items[0].fieldName).toBe("entry_type");
       expect(items[0].searchTerm).toBe("1");
+      expect(items[1].fieldName).toBe("display_in_search");
+      expect(items[1].searchTerm).toBe("1");
     });
 
     it("unwraps entries from eSearch response", async () => {
@@ -382,14 +391,17 @@ describe("MediaService", () => {
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       const items = body.searchParams.searchOperator.searchItems;
-      // Top level: OR[user fields] + AND[search/filter fields] = 2
-      expect(items).toHaveLength(2);
+      // Top level: OR[user fields] + AND[search/filter fields] + entry_type = 3
+      expect(items).toHaveLength(3);
       // OR has 4 user fields
       expect(items[0].operator).toBe(ESearchOperatorType.OR_OP);
       expect(items[0].searchItems).toHaveLength(4);
       // AND has 5 filter items: unified + caption + category + media_type + created_at
       expect(items[1].operator).toBe(ESearchOperatorType.AND_OP);
       expect(items[1].searchItems).toHaveLength(5);
+      // entry_type filter
+      expect(items[2].fieldName).toBe("entry_type");
+      expect(items[2].searchTerm).toBe("1");
     });
   });
 });

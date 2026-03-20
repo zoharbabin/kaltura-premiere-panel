@@ -47,6 +47,28 @@ function isFlavorReady(f: KalturaFlavorAsset): boolean {
   return false;
 }
 
+/** Copyable text field — click to copy to clipboard */
+function CopyableValue({ value, mono }: { value: string; mono?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [value]);
+  return (
+    <span
+      className={`detail-field-value copyable${mono ? " text-mono" : ""}`}
+      onClick={handleCopy}
+      role="button"
+      title="Click to copy"
+    >
+      {value}
+      {copied && <span className="copy-badge">Copied</span>}
+    </span>
+  );
+}
+
 /** Check if an entry is under content hold (governance) */
 function isContentHeld(entry: KalturaMediaEntry): boolean {
   return Boolean(entry.adminTags && entry.adminTags.includes(CONTENT_HOLD_TAG));
@@ -993,12 +1015,12 @@ const InfoSection: React.FC<{
           )}
           <div className="detail-field">
             <span className="detail-field-label">Entry ID</span>
-            <span className="detail-field-value text-mono">{entry.id}</span>
+            <CopyableValue value={entry.id} mono />
           </div>
           {entry.userId && (
             <div className="detail-field">
               <span className="detail-field-label">Owner</span>
-              <span className="detail-field-value">{entry.userId}</span>
+              <CopyableValue value={entry.userId} />
             </div>
           )}
         </div>
