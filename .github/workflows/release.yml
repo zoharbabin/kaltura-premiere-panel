@@ -52,7 +52,7 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Build .ccx packages
+      - name: Build .ccx package
         run: node scripts/build-ccx.js --output-dir release
 
       - name: Extract version from tag
@@ -66,19 +66,13 @@ jobs:
           cat > release/RELEASE_NOTES.md <<EOF
           ## How to Install
 
-          1. Download the \`.ccx\` file for your Adobe app from the **Assets** section below
+          1. Download \`kaltura-panel-${VERSION}.ccx\` from the **Assets** section below
           2. **Double-click** the \`.ccx\` file to install
           3. Open your Adobe app and go to **Window > UXP Plugins > Kaltura**
 
-          ### Available Downloads
-          | File | Host App |
-          |------|----------|
-          | \`kaltura-panel-${VERSION}-premierepro.ccx\` | Premiere Pro |
-          | \`kaltura-panel-${VERSION}-aftereffects.ccx\` | After Effects |
-          | \`kaltura-panel-${VERSION}-audition.ccx\` | Audition |
+          Works with **Premiere Pro**, **After Effects**, and **Audition** (v25.2+).
 
           ### Requirements
-          - Adobe Premiere Pro, After Effects, or Audition **v25.2+**
           - A [Kaltura](https://corp.kaltura.com/) account with API access
 
           ### Enterprise / IT deployment

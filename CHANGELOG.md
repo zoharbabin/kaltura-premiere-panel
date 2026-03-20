@@ -4,9 +4,9 @@
 
 ### Improvements
 
-- **Simplified installation** — `.ccx` double-click install now works for Premiere Pro, After Effects, and Audition. Removed installer scripts (`install-mac.sh`, `install-win.bat`, `quick-install.sh`, `quick-install.ps1`) that are no longer needed.
-- **Simplified README** — Installation instructions reduced to: download `.ccx`, double-click, done.
-- **Simplified release workflow** — GitHub Releases now only include `.ccx` files as assets.
+- **Single unified `.ccx`** — One `.ccx` file now works across Premiere Pro, After Effects, and Audition using a multi-host manifest. No more per-app downloads.
+- **Simplified installation** — Download one `.ccx`, double-click to install, done. Removed all installer scripts (`install-mac.sh`, `install-win.bat`, `quick-install.sh`, `quick-install.ps1`).
+- **Simplified release workflow** — GitHub Releases now publish a single `.ccx` asset.
 
 ## 1.16.2
 
