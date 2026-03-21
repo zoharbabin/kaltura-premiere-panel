@@ -70,63 +70,42 @@ function detectFileExtension(contentType: string | null, data: Uint8Array): stri
   return null;
 }
 
-interface XhrDownloadResult {
-  data: Uint8Array;
-  contentType: string;
-  status: number;
-  statusText: string;
-}
-
 /**
- * Download binary data via XHR instead of fetch.
- * UXP's fetch has a bug where response.arrayBuffer() throws "Already read"
- * after redirect following. XHR with responseType='arraybuffer' handles
- * redirects correctly and avoids this issue.
+ * Download binary data, working around UXP's "Already read" fetch bug.
+ *
+ * UXP's fetch consumes the response body during redirect following, so
+ * response.arrayBuffer() throws "Already read" on redirected responses.
+ *
+ * Strategy: first resolve redirects via a HEAD request (no body to consume),
+ * then GET the final URL directly (no redirect → body is fresh).
  */
-function xhrDownload(
+async function fetchBinary(
   url: string,
   signal?: AbortSignal,
-  onProgress?: (loaded: number, total: number) => void,
-): Promise<XhrDownloadResult> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", url, true);
-    xhr.responseType = "arraybuffer";
-
-    if (signal) {
-      if (signal.aborted) {
-        reject(new Error("Download aborted"));
-        return;
-      }
-      signal.addEventListener("abort", () => {
-        xhr.abort();
-        reject(new Error("Download aborted"));
-      });
-    }
-
-    if (onProgress) {
-      xhr.onprogress = (e) => {
-        if (e.lengthComputable) {
-          onProgress(e.loaded, e.total);
-        }
-      };
-    }
-
-    xhr.onload = () => {
-      const data = new Uint8Array(xhr.response as ArrayBuffer);
-      resolve({
-        data,
-        contentType: xhr.getResponseHeader("content-type") || "",
-        status: xhr.status,
-        statusText: xhr.statusText,
-      });
-    };
-
-    xhr.onerror = () => reject(new NetworkError("Network error during download"));
-    xhr.ontimeout = () => reject(new NetworkError("Download timed out"));
-
-    xhr.send();
+): Promise<{ data: Uint8Array; contentType: string; status: number; statusText: string }> {
+  // Step 1: HEAD request to follow redirects and discover the final URL
+  const headResp = await fetch(url, { method: "HEAD", redirect: "follow", signal });
+  const finalUrl = headResp.url || url;
+  log.info("Resolved download URL", {
+    original: url.substring(0, 120),
+    final: finalUrl.substring(0, 120),
+    redirected: finalUrl !== url,
   });
+
+  // Step 2: GET the final URL (should not redirect, so body is not pre-consumed)
+  const response = await fetch(finalUrl, { signal });
+
+  if (!response.ok) {
+    throw new NetworkError(`Download failed: HTTP ${response.status} ${response.statusText}`);
+  }
+
+  const buf = await response.arrayBuffer();
+  return {
+    data: new Uint8Array(buf),
+    contentType: response.headers.get("content-type") || "",
+    status: response.status,
+    statusText: response.statusText,
+  };
 }
 
 export interface DownloadProgress {
@@ -347,22 +326,8 @@ export class DownloadService {
         source: request.downloadUrl ? "api" : "cdn",
       });
 
-      // Use XHR instead of fetch to avoid UXP "Already read" bug on redirects
-      const progressCallback = this.onProgressCallbacks.get(request.entryId);
-      const result = await xhrDownload(downloadUrl, controller.signal, (loaded, total) => {
-        progressCallback?.({
-          entryId: request.entryId,
-          loaded,
-          total,
-          percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
-          speed: 0,
-        });
-      });
-
-      if (result.status < 200 || result.status >= 300) {
-        throw new NetworkError(`Download failed: HTTP ${result.status} ${result.statusText}`);
-      }
-
+      // Use HEAD+GET to avoid UXP "Already read" bug on redirected fetch responses
+      const result = await fetchBinary(downloadUrl, controller.signal);
       const downloadedData = result.data;
       const contentType = result.contentType;
       log.info("Downloaded entry data", {
@@ -389,7 +354,7 @@ export class DownloadService {
         : request.fileName;
       log.info("File type detection", { actualExt, correctedFileName });
 
-      // Report 100% progress (XHR may have already reported incremental progress)
+      const progressCallback = this.onProgressCallbacks.get(request.entryId);
       progressCallback?.({
         entryId: request.entryId,
         loaded: downloadedData.byteLength,
@@ -446,27 +411,8 @@ export class DownloadService {
       );
       log.info("Download URL", { url: downloadUrl.substring(0, 150) });
 
-      // Use XHR instead of fetch to avoid UXP "Already read" bug on redirects
-      const progressCallback = this.onProgressCallbacks.get(request.entryId);
-      const result = await xhrDownload(downloadUrl, controller.signal, (loaded, total) => {
-        progressCallback?.({
-          entryId: request.entryId,
-          loaded,
-          total,
-          percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
-          speed: 0,
-        });
-      });
-
-      log.info("XHR response", {
-        status: result.status,
-        contentType: result.contentType,
-      });
-
-      if (result.status < 200 || result.status >= 300) {
-        throw new NetworkError(`Download failed: HTTP ${result.status} ${result.statusText}`);
-      }
-
+      // Use HEAD+GET to avoid UXP "Already read" bug on redirected fetch responses
+      const result = await fetchBinary(downloadUrl, controller.signal);
       const downloadedData = result.data;
 
       log.info("Downloaded data", {
@@ -485,6 +431,7 @@ export class DownloadService {
       }
 
       // Report 100% progress
+      const progressCallback = this.onProgressCallbacks.get(request.entryId);
       progressCallback?.({
         entryId: request.entryId,
         loaded: downloadedData.byteLength,
