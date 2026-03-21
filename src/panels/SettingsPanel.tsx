@@ -36,14 +36,14 @@ interface OfflineServiceLike {
 }
 
 interface SettingsPanelProps {
-  currentServerUrl: string;
-  currentPartnerId: number | null;
-  userName: string | null;
-  userEmail: string | null;
+  currentServerUrl?: string;
+  currentPartnerId?: number | null;
+  userName?: string | null;
+  userEmail?: string | null;
   hostService: HostService;
   offlineService?: OfflineServiceLike;
   auditService?: AuditServiceLike;
-  onLogout: () => void;
+  onLogout?: () => void;
 }
 
 const defaultSettings: PluginSettings = {
@@ -147,7 +147,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const handleLogout = useCallback(() => {
     setShowLogoutConfirm(false);
-    onLogout();
+    onLogout?.();
   }, [onLogout]);
 
   const handleSupportLink = useCallback(() => {
