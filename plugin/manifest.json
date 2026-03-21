@@ -13,7 +13,7 @@
       "type": "panel",
       "id": "kalturaMediaBrowser",
       "label": {
-        "default": "Media Browser"
+        "default": "Kaltura Browse"
       },
       "minimumSize": {
         "width": 280,
@@ -32,7 +32,7 @@
       "type": "panel",
       "id": "kalturaPublish",
       "label": {
-        "default": "Publish"
+        "default": "Kaltura Publish"
       },
       "minimumSize": {
         "width": 280,

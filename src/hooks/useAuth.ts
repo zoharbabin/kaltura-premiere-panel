@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { AuthState, ConnectionState, KalturaLoginCredentials } from "../types";
 import { AuthService, KalturaClient } from "../services";
 import { getUserMessage } from "../utils/errors";
-import { DEFAULT_SERVICE_URL } from "../utils/constants";
+import { DEFAULT_SERVICE_URL, AUTH_SIGNOUT_EVENT } from "../utils/constants";
 
 interface UseAuthReturn {
   authState: AuthState;
@@ -161,6 +161,23 @@ export function useAuth(client: KalturaClient, authService: AuthService): UseAut
     });
     setError(null);
   }, [authService, client]);
+
+  // Listen for sign-out broadcast from SignOutCommand (cross-panel communication)
+  useEffect(() => {
+    const handleSignOut = () => {
+      setAuthState({
+        isAuthenticated: false,
+        user: null,
+        ks: null,
+        partnerId: null,
+        serverUrl: client.getServiceUrl(),
+        connectionState: ConnectionState.DISCONNECTED,
+      });
+      setError(null);
+    };
+    document.addEventListener(AUTH_SIGNOUT_EVENT, handleSignOut);
+    return () => document.removeEventListener(AUTH_SIGNOUT_EVENT, handleSignOut);
+  }, [client]);
 
   const clearError = useCallback(() => setError(null), []);
 

@@ -54,6 +54,9 @@ export const THUMBNAIL_GRID_WIDTH = 200;
 export const THUMBNAIL_GRID_HEIGHT = 120;
 export const THUMBNAIL_GRID_QUALITY = 75;
 
+/** Cross-panel auth event */
+export const AUTH_SIGNOUT_EVENT = "kaltura:signout";
+
 /** Support */
 export const ISSUES_URL = "https://github.com/zoharbabin/kaltura-premiere-panel/issues";
 
