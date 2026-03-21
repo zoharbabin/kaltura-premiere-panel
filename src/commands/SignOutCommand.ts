@@ -5,6 +5,7 @@
  * KS from SecureStorage. All mounted panels will re-render to show login.
  */
 import { AuthService } from "../services/AuthService";
+import { AUTH_SIGNOUT_EVENT } from "../utils/constants";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("SignOutCommand");
@@ -12,6 +13,8 @@ const log = createLogger("SignOutCommand");
 export async function runSignOutCommand(authService: AuthService): Promise<void> {
   try {
     await authService.logout();
+    // Notify all mounted panels to reset their auth state
+    document.dispatchEvent(new Event(AUTH_SIGNOUT_EVENT));
     log.info("User signed out via command");
     try {
       alert("You have been signed out of Kaltura.");
