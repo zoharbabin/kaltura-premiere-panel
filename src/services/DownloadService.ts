@@ -15,6 +15,54 @@ interface DownloadHostService {
 
 const log = createLogger("DownloadService");
 
+const MIME_TO_EXT: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/bmp": "bmp",
+  "image/tiff": "tif",
+  "image/webp": "webp",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "audio/mpeg": "mp3",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+};
+
+/** Detect the correct file extension from Content-Type or magic bytes */
+function detectFileExtension(contentType: string | null, data: Uint8Array): string | null {
+  // Try Content-Type header first
+  if (contentType) {
+    const mime = contentType.split(";")[0].trim().toLowerCase();
+    if (MIME_TO_EXT[mime]) return MIME_TO_EXT[mime];
+  }
+  // Fall back to magic bytes
+  if (data.length >= 4) {
+    // PNG: 89 50 4E 47
+    if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return "png";
+    // JPEG: FF D8 FF
+    if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "jpg";
+    // GIF: 47 49 46
+    if (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46) return "gif";
+    // BMP: 42 4D
+    if (data[0] === 0x42 && data[1] === 0x4d) return "bmp";
+    // WEBP: RIFF....WEBP
+    if (
+      data[0] === 0x52 &&
+      data[1] === 0x49 &&
+      data[2] === 0x46 &&
+      data[3] === 0x46 &&
+      data.length >= 12 &&
+      data[8] === 0x57 &&
+      data[9] === 0x45 &&
+      data[10] === 0x42 &&
+      data[11] === 0x50
+    )
+      return "webp";
+  }
+  return null;
+}
+
 export interface DownloadProgress {
   entryId: string;
   loaded: number;
@@ -238,6 +286,12 @@ export class DownloadService {
         throw new NetworkError(`Download returned 0 bytes for entry ${request.entryId}`);
       }
 
+      // Detect actual file type from Content-Type header or magic bytes
+      const actualExt = detectFileExtension(response.headers.get("content-type"), downloadedData);
+      const correctedFileName = actualExt
+        ? request.fileName.replace(/\.[^.]+$/, `.${actualExt}`)
+        : request.fileName;
+
       const progressCallback = this.onProgressCallbacks.get(request.entryId);
       progressCallback?.({
         entryId: request.entryId,
@@ -247,7 +301,7 @@ export class DownloadService {
         speed: 0,
       });
 
-      const tempPath = await this.saveTempFile(request.fileName, downloadedData);
+      const tempPath = await this.saveTempFile(correctedFileName, downloadedData);
       log.info("File saved, importing into project", { tempPath, size: downloadedData.byteLength });
       const importResult = await this.hostService.importFile(tempPath);
 

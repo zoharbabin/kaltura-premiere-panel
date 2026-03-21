@@ -13,7 +13,7 @@ function createMockHostService() {
   };
 }
 
-function mockFetchResponse(data: Uint8Array) {
+function mockFetchResponse(data: Uint8Array, contentType = "video/mp4") {
   return {
     ok: true,
     status: 200,
@@ -23,7 +23,7 @@ function mockFetchResponse(data: Uint8Array) {
     headers: {
       get: (name: string) => {
         if (name === "content-length") return String(data.byteLength);
-        if (name === "content-type") return "video/mp4";
+        if (name === "content-type") return contentType;
         return null;
       },
     },
@@ -121,7 +121,10 @@ describe("DownloadService", () => {
 
   describe("downloadAndImportEntry()", () => {
     it("downloads an image entry directly without flavors", async () => {
-      mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([0xff, 0xd8, 0xff, 0xe0])));
+      // JPEG magic bytes + image/jpeg content type
+      mockFetch.mockResolvedValueOnce(
+        mockFetchResponse(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), "image/jpeg"),
+      );
 
       const result = await service.downloadAndImportEntry("0_img", "photo.jpg");
 
@@ -135,20 +138,26 @@ describe("DownloadService", () => {
       expect(fetchUrl).toContain("/raw/entry_id/0_img/direct_serve/1");
     });
 
-    it("extracts file extension from entry name", async () => {
-      mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2, 3])));
+    it("corrects extension based on Content-Type header", async () => {
+      // File named .jpg but actual content is PNG
+      mockFetch.mockResolvedValueOnce(
+        mockFetchResponse(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), "image/png"),
+      );
 
       const result = await service.downloadAndImportEntry("0_png", "screenshot.PNG");
 
       expect(result.localPath).toContain("0_png_source.png");
     });
 
-    it("defaults to jpg extension when entry name has no extension", async () => {
-      mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2, 3])));
+    it("detects format from magic bytes when Content-Type is generic", async () => {
+      // PNG magic bytes but octet-stream content type
+      mockFetch.mockResolvedValueOnce(
+        mockFetchResponse(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), "application/octet-stream"),
+      );
 
       const result = await service.downloadAndImportEntry("0_noext", "ImageWithoutExt");
 
-      expect(result.localPath).toContain("0_noext_source.jpg");
+      expect(result.localPath).toContain("0_noext_source.png");
     });
 
     it("throws on empty download", async () => {
