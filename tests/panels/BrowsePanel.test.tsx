@@ -92,7 +92,6 @@ const defaultProps = {
   metadataService: mockMetadataService() as never,
   captionService: mockCaptionService() as never,
   partnerId: 123,
-  isImported: jest.fn().mockReturnValue(false),
   onImportEntry: jest.fn(),
 };
 
@@ -245,9 +244,8 @@ describe("BrowsePanel", () => {
 
   // --- Import behavior ---
 
-  it("shows 'Re-import to Project' when entry is already imported", async () => {
-    const isImported = jest.fn().mockReturnValue(true);
-    render(<BrowsePanel {...defaultProps} isImported={isImported} />);
+  it("always shows 'Import to Project' button", async () => {
+    render(<BrowsePanel {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByText("Video One")).toBeTruthy();
     });
@@ -257,7 +255,7 @@ describe("BrowsePanel", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Re-import to Project")).toBeTruthy();
+      expect(screen.getByText("Import to Project")).toBeTruthy();
     });
   });
 
@@ -352,15 +350,14 @@ describe("BrowsePanel", () => {
 
   // --- Imported indicator ---
 
-  it("shows imported indicator on imported entries", async () => {
-    const isImported = jest.fn().mockImplementation((id: string) => id === "0_entry1");
-    render(<BrowsePanel {...defaultProps} isImported={isImported} />);
+  it("does not show imported indicators (tracking removed)", async () => {
+    render(<BrowsePanel {...defaultProps} />);
     await waitFor(() => {
       expect(screen.getByText("Video One")).toBeTruthy();
     });
-    // The checkmark \u2713 is JSX text content (renders as literal character)
-    const checkmarks = screen.getAllByText(/\u2713/);
-    expect(checkmarks.length).toBeGreaterThanOrEqual(1);
+    // No checkmark indicators should appear
+    const checkmarks = screen.queryAllByText(/\u2713/);
+    expect(checkmarks.length).toBe(0);
   });
 
   // --- Filter bar ---
