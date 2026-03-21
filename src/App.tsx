@@ -112,7 +112,12 @@ export const App: React.FC = () => {
       setImportStatus({ message: `Downloading "${entry.name}"...`, isError: false });
       try {
         log.info("Importing entry directly (no flavor)", { entryId: entry.id });
-        await downloadService.downloadAndImportEntry(entry.id, entry.name);
+        await downloadService.downloadAndImportEntry(
+          entry.id,
+          entry.name,
+          undefined,
+          entry.downloadUrl,
+        );
         auditService.logAction("import", entry.id, "Imported source file (no flavor)");
         setImportStatus({
           message: `"${entry.name}" imported to "Kaltura Assets" bin in the Project panel.`,
