@@ -13,9 +13,9 @@ import { PLUGIN_VERSION } from "../../src/utils/constants";
 // ---------- LoadingSpinner ----------
 
 describe("LoadingSpinner", () => {
-  it("renders without a label", () => {
+  it("renders CSS spinner without a label", () => {
     const { container } = render(<LoadingSpinner />);
-    expect(container.querySelector("sp-progress-circle")).toBeInTheDocument();
+    expect(container.querySelector(".css-spinner")).toBeInTheDocument();
   });
 
   it("does not render label text when label is omitted", () => {
@@ -28,22 +28,22 @@ describe("LoadingSpinner", () => {
     expect(screen.getByText("Loading assets…")).toBeInTheDocument();
   });
 
-  it("renders with size small", () => {
+  it("renders small size (20px)", () => {
     const { container } = render(<LoadingSpinner size="small" />);
-    const circle = container.querySelector("sp-progress-circle");
-    expect(circle).toHaveAttribute("size", "small");
+    const spinner = container.querySelector(".css-spinner") as HTMLElement;
+    expect(spinner.style.width).toBe("20px");
   });
 
-  it("renders with size medium by default", () => {
+  it("renders medium size by default (32px)", () => {
     const { container } = render(<LoadingSpinner />);
-    const circle = container.querySelector("sp-progress-circle");
-    expect(circle).toHaveAttribute("size", "medium");
+    const spinner = container.querySelector(".css-spinner") as HTMLElement;
+    expect(spinner.style.width).toBe("32px");
   });
 
-  it("renders with size large", () => {
+  it("renders large size (48px)", () => {
     const { container } = render(<LoadingSpinner size="large" />);
-    const circle = container.querySelector("sp-progress-circle");
-    expect(circle).toHaveAttribute("size", "large");
+    const spinner = container.querySelector(".css-spinner") as HTMLElement;
+    expect(spinner.style.width).toBe("48px");
   });
 });
 
