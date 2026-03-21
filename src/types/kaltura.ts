@@ -80,6 +80,7 @@ export interface KalturaMediaEntry extends KalturaObjectBase {
   mediaType: KalturaMediaType;
   duration: number;
   thumbnailUrl?: string;
+  downloadUrl?: string;
   dataUrl?: string;
   createdAt: number;
   updatedAt: number;

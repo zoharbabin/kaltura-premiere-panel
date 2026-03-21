@@ -82,6 +82,7 @@ export interface DownloadRequest {
   entryId: string;
   flavorId: string;
   fileName: string;
+  downloadUrl?: string;
 }
 
 interface ActiveDownload {
@@ -118,12 +119,13 @@ export class DownloadService {
   /**
    * Download and import an entry directly (no flavor required).
    * Used for image and document entries that have no flavor assets.
-   * Uses baseEntry/getDownloadUrl to get the source file.
+   * Prefers the entry's own downloadUrl; falls back to raw CDN URL.
    */
   async downloadAndImportEntry(
     entryId: string,
     entryName: string,
     onProgress?: (progress: DownloadProgress) => void,
+    entryDownloadUrl?: string,
   ): Promise<AssetMapping> {
     // Extract file extension from entry name, validate it's a known media format
     const KNOWN_EXTENSIONS = new Set([
@@ -161,7 +163,12 @@ export class DownloadService {
     const rawExt = dotIdx > 0 ? entryName.slice(dotIdx + 1).toLowerCase() : "";
     const fileExt = KNOWN_EXTENSIONS.has(rawExt) ? rawExt : "jpg";
     const fileName = `${entryId}_source.${fileExt}`;
-    const request: DownloadRequest = { entryId, flavorId: "source", fileName };
+    const request: DownloadRequest = {
+      entryId,
+      flavorId: "source",
+      fileName,
+      downloadUrl: entryDownloadUrl,
+    };
 
     if (onProgress) {
       this.onProgressCallbacks.set(entryId, onProgress);
@@ -272,8 +279,14 @@ export class DownloadService {
     try {
       log.info("Starting direct entry download", { entryId: request.entryId });
 
-      const downloadUrl = this.mediaService.getEntryDownloadUrl(request.entryId, request.fileName);
-      log.info("Entry download URL", { url: downloadUrl.substring(0, 150) });
+      // Prefer entry's own downloadUrl from API; fall back to constructed raw CDN URL
+      const downloadUrl = request.downloadUrl
+        ? `${request.downloadUrl}${request.downloadUrl.includes("?") ? "&" : "?"}ks=${encodeURIComponent(this.client.getKs() || "")}`
+        : this.mediaService.getEntryDownloadUrl(request.entryId, request.fileName);
+      log.info("Entry download URL", {
+        url: downloadUrl.substring(0, 150),
+        source: request.downloadUrl ? "api" : "cdn",
+      });
 
       const response = await fetch(downloadUrl, {
         signal: controller.signal,
