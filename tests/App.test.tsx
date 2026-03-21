@@ -124,7 +124,7 @@ describe("App", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Kaltura for Adobe/i)).toBeTruthy();
+      expect(screen.getByText(/Disconnected/)).toBeTruthy();
     });
   });
 
