@@ -2,15 +2,13 @@ import React, { useState, useEffect, useCallback } from "react";
 import { PluginSettings } from "../types";
 import { HostService, HostAppInfo } from "../services/HostService";
 import {
-  DEFAULT_SERVICE_URL,
-  DEFAULT_CACHE_SIZE_MB,
   PLUGIN_VERSION,
   PLUGIN_NAME,
-  STORAGE_KEY_SETTINGS,
   STORAGE_KEY_ASSET_MAPPINGS,
   ISSUES_URL,
 } from "../utils/constants";
 import { formatFileSize } from "../utils/format";
+import { loadSettings, saveSettings, estimateCacheSize, formatTimestamp } from "../utils/settings";
 import { ConfirmDialog } from "../components";
 
 /** Duck-typed AuditService for audit trail display */
@@ -44,55 +42,6 @@ interface SettingsPanelProps {
   offlineService?: OfflineServiceLike;
   auditService?: AuditServiceLike;
   onLogout?: () => void;
-}
-
-const defaultSettings: PluginSettings = {
-  serverUrl: DEFAULT_SERVICE_URL,
-  partnerId: null,
-  defaultExportPreset: "Match Source - Adaptive High Bitrate",
-  defaultCaptionLanguage: "en",
-  downloadLocation: "",
-  cacheEnabled: true,
-  maxCacheSizeMB: DEFAULT_CACHE_SIZE_MB,
-};
-
-function loadSettings(): PluginSettings {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_SETTINGS);
-    if (stored) return { ...defaultSettings, ...JSON.parse(stored) };
-  } catch {
-    // ignore
-  }
-  return defaultSettings;
-}
-
-function saveSettings(settings: PluginSettings): void {
-  localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-}
-
-function estimateCacheSize(): number {
-  let total = 0;
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith("kaltura_")) {
-        total += (localStorage.getItem(key) || "").length * 2;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return total;
-}
-
-function formatTimestamp(ts: number): string {
-  return new Date(ts).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({

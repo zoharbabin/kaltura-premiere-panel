@@ -11,64 +11,24 @@ import { HostService, HostAppInfo } from "../services/HostService";
 import { OfflineService } from "../services/OfflineService";
 import { AuditService } from "../services/AuditService";
 import {
-  DEFAULT_SERVICE_URL,
   DEFAULT_CACHE_SIZE_MB,
   PLUGIN_VERSION,
   PLUGIN_NAME,
-  STORAGE_KEY_SETTINGS,
   STORAGE_KEY_ASSET_MAPPINGS,
   ISSUES_URL,
 } from "../utils/constants";
 import { formatFileSize } from "../utils/format";
+import { loadSettings, saveSettings, estimateCacheSize, formatTimestamp } from "../utils/settings";
 import type { PluginSettings } from "../types";
 
-const defaultSettings: PluginSettings = {
-  serverUrl: DEFAULT_SERVICE_URL,
-  partnerId: null,
-  defaultExportPreset: "Match Source - Adaptive High Bitrate",
-  defaultCaptionLanguage: "en",
-  downloadLocation: "",
-  cacheEnabled: true,
-  maxCacheSizeMB: DEFAULT_CACHE_SIZE_MB,
-};
-
-function loadSettings(): PluginSettings {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_SETTINGS);
-    if (stored) return { ...defaultSettings, ...JSON.parse(stored) };
-  } catch {
-    // ignore
-  }
-  return defaultSettings;
-}
-
-function saveSettings(settings: PluginSettings): void {
-  localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-}
-
-function estimateCacheSize(): number {
-  let total = 0;
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith("kaltura_")) {
-        total += (localStorage.getItem(key) || "").length * 2;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return total;
-}
-
-function formatTimestamp(ts: number): string {
-  return new Date(ts).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+/** Escape HTML to prevent XSS when rendering user/API data into innerHTML. */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export async function runSettingsCommand(
@@ -157,9 +117,9 @@ export async function runSettingsCommand(
                 .map(
                   (e) =>
                     `<div style="padding: 2px 0; border-bottom: 1px solid #333;">
-                      <span style="background: #333; padding: 1px 4px; border-radius: 2px; font-size: 9px;">${e.action}</span>
-                      <span style="color: #888; margin-left: 4px;">${formatTimestamp(e.timestamp)}</span>
-                      ${e.entryId ? `<div style="color: #777; font-family: monospace; font-size: 9px;">${e.entryId}</div>` : ""}
+                      <span style="background: #333; padding: 1px 4px; border-radius: 2px; font-size: 9px;">${escapeHtml(e.action)}</span>
+                      <span style="color: #888; margin-left: 4px;">${escapeHtml(formatTimestamp(e.timestamp))}</span>
+                      ${e.entryId ? `<div style="color: #777; font-family: monospace; font-size: 9px;">${escapeHtml(e.entryId)}</div>` : ""}
                     </div>`,
                 )
                 .join("")

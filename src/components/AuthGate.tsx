@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useCallback } from "react";
 import { useAuth } from "../hooks";
+import { KalturaLoginCredentials } from "../types";
 import { LoginPanel } from "../panels/LoginPanel";
 import { StatusBar } from "./StatusBar";
 import { LoadingSpinner } from "./LoadingSpinner";
@@ -37,12 +38,29 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
     }
   }, [authState.partnerId]);
 
+  // Sync with project on auth (including session restore)
   useEffect(() => {
     if (authState.isAuthenticated) {
-      auditService.logAction("login", undefined, `User: ${authState.user?.email}`);
       hostService.syncWithProject?.();
     }
-  }, [authState.isAuthenticated, authState.user?.email]);
+  }, [authState.isAuthenticated]);
+
+  // Wrap login to log audit trail only on explicit user action (not session restore)
+  const handleLogin = useCallback(
+    async (credentials: KalturaLoginCredentials) => {
+      await login(credentials);
+      auditService.logAction("login", undefined, `User: ${credentials.email}`);
+    },
+    [login],
+  );
+
+  const handleSsoLogin = useCallback(
+    async (serverUrl: string, partnerId: number) => {
+      await loginWithSso(serverUrl, partnerId);
+      auditService.logAction("login", undefined, "SSO login");
+    },
+    [loginWithSso],
+  );
 
   const handleServerUrlChange = useCallback((url: string) => {
     client.configure({ serviceUrl: url });
@@ -72,8 +90,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
           }}
         >
           <LoginPanel
-            onLogin={login}
-            onSsoLogin={loginWithSso}
+            onLogin={handleLogin}
+            onSsoLogin={handleSsoLogin}
             onCancelSso={cancelSso}
             onServerUrlChange={handleServerUrlChange}
             isLoading={isLoading}
