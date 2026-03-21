@@ -221,7 +221,6 @@ export const App: React.FC = () => {
             captionService={captionService}
             partnerId={authState.partnerId}
             userId={authState.user?.id}
-            isImported={(id) => hostService.isImported(id)}
             onImportEntry={handleImportEntry}
             onImportDirectEntry={handleImportDirectEntry}
             onAttachToClip={handleAttachToClip}

@@ -194,7 +194,6 @@ interface BrowsePanelProps {
   captionService: CaptionService;
   partnerId: number;
   userId?: string;
-  isImported: (entryId: string) => boolean;
   onImportEntry: (entry: KalturaMediaEntry, flavor: KalturaFlavorAsset) => void;
   onImportDirectEntry?: (entry: KalturaMediaEntry) => void;
   onAttachToClip?: (
@@ -219,7 +218,6 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   captionService,
   partnerId,
   userId,
-  isImported,
   onImportEntry,
   onImportDirectEntry,
   onAttachToClip,
@@ -465,7 +463,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         onBack={handleBackToGrid}
         onImport={handleImportClick}
         onEdit={() => setIsEditing(true)}
-        isImported={isImported(selectedEntry.entry.id)}
+        isImported={false}
         importError={importError}
         showQualityPicker={showQualityPicker}
         selectedFlavor={selectedFlavor}
@@ -573,7 +571,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 key={entry.id}
                 entry={entry}
                 partnerId={partnerId}
-                imported={isImported(entry.id)}
+                imported={false}
                 cardWidth={cardWidth || undefined}
                 highlightHint={formatHighlightHint(highlights.get(entry.id) || [])}
                 searchQuery={debouncedSearch}
@@ -589,7 +587,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 key={entry.id}
                 entry={entry}
                 partnerId={partnerId}
-                imported={isImported(entry.id)}
+                imported={false}
                 highlightMeta={formatHighlightMeta(highlights.get(entry.id) || [])}
                 searchQuery={debouncedSearch}
                 onClick={() => handleEntryClick(entry)}
