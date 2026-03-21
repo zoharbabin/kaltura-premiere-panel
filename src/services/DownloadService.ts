@@ -22,11 +22,18 @@ const MIME_TO_EXT: Record<string, string> = {
   "image/bmp": "bmp",
   "image/tiff": "tif",
   "image/webp": "webp",
+  "image/svg+xml": "svg",
+  "image/x-adobe-dng": "dng",
   "video/mp4": "mp4",
   "video/quicktime": "mov",
+  "video/x-msvideo": "avi",
+  "video/x-matroska": "mkv",
   "audio/mpeg": "mp3",
   "audio/wav": "wav",
   "audio/x-wav": "wav",
+  "audio/aac": "aac",
+  "audio/flac": "flac",
+  "application/pdf": "pdf",
 };
 
 /** Detect the correct file extension from Content-Type or magic bytes */
@@ -280,17 +287,30 @@ export class DownloadService {
       const buf = await response.arrayBuffer();
       const downloadedData = new Uint8Array(buf);
 
-      log.info("Downloaded entry data", { byteLength: downloadedData.byteLength });
+      const contentType = response.headers.get("content-type") || "";
+      log.info("Downloaded entry data", {
+        byteLength: downloadedData.byteLength,
+        contentType,
+      });
 
       if (downloadedData.byteLength === 0) {
         throw new NetworkError(`Download returned 0 bytes for entry ${request.entryId}`);
       }
 
+      // Reject non-media responses (e.g. HTML error pages from CDN)
+      const ctLower = contentType.split(";")[0].trim().toLowerCase();
+      if (ctLower.startsWith("text/") || ctLower === "application/json") {
+        throw new NetworkError(
+          `Download returned non-media content (${ctLower}) for entry ${request.entryId}`,
+        );
+      }
+
       // Detect actual file type from Content-Type header or magic bytes
-      const actualExt = detectFileExtension(response.headers.get("content-type"), downloadedData);
+      const actualExt = detectFileExtension(contentType, downloadedData);
       const correctedFileName = actualExt
         ? request.fileName.replace(/\.[^.]+$/, `.${actualExt}`)
         : request.fileName;
+      log.info("File type detection", { actualExt, correctedFileName });
 
       const progressCallback = this.onProgressCallbacks.get(request.entryId);
       progressCallback?.({
