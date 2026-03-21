@@ -141,6 +141,56 @@ jest.mock(
 // Mock fetch globally
 global.fetch = jest.fn();
 
+// Mock XMLHttpRequest for DownloadService XHR-based downloads
+class MockXMLHttpRequest {
+  responseType = "";
+  response: ArrayBuffer | null = null;
+  status = 200;
+  statusText = "OK";
+  readyState = 0;
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  ontimeout: (() => void) | null = null;
+  onprogress: ((e: { lengthComputable: boolean; loaded: number; total: number }) => void) | null =
+    null;
+  private _headers: Record<string, string> = {};
+  private _url = "";
+
+  static _nextResponse: {
+    data: Uint8Array;
+    contentType: string;
+    status?: number;
+    statusText?: string;
+  } | null = null;
+
+  open(_method: string, url: string) {
+    this._url = url;
+  }
+  send() {
+    const resp = MockXMLHttpRequest._nextResponse;
+    if (resp) {
+      this.status = resp.status ?? 200;
+      this.statusText = resp.statusText ?? "OK";
+      this._headers["content-type"] = resp.contentType;
+      this.response = new Uint8Array(resp.data).buffer as ArrayBuffer;
+      MockXMLHttpRequest._nextResponse = null;
+    } else {
+      this.response = new ArrayBuffer(0);
+    }
+    setTimeout(() => this.onload?.(), 0);
+  }
+  abort() {}
+  getResponseHeader(name: string) {
+    return this._headers[name.toLowerCase()] || null;
+  }
+  get url() {
+    return this._url;
+  }
+}
+
+(global as unknown as Record<string, unknown>).XMLHttpRequest = MockXMLHttpRequest;
+(global as unknown as Record<string, unknown>).MockXMLHttpRequest = MockXMLHttpRequest;
+
 // Polyfill TextEncoder/TextDecoder for jsdom
 if (typeof global.TextEncoder === "undefined") {
   const { TextEncoder, TextDecoder } = require("util");
