@@ -196,6 +196,7 @@ interface BrowsePanelProps {
   userId?: string;
   onImportEntry: (entry: KalturaMediaEntry, flavor: KalturaFlavorAsset) => void;
   onImportDirectEntry?: (entry: KalturaMediaEntry) => void;
+  isEntryImported?: (entryId: string) => boolean;
   onAttachToClip?: (
     entryId: string,
     segments: CaptionSegment[],
@@ -220,6 +221,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   userId,
   onImportEntry,
   onImportDirectEntry,
+  isEntryImported,
   onAttachToClip,
 }) => {
   const [entries, setEntries] = useState<KalturaMediaEntry[]>([]);
@@ -463,7 +465,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         onBack={handleBackToGrid}
         onImport={handleImportClick}
         onEdit={() => setIsEditing(true)}
-        isImported={false}
+        isImported={isEntryImported?.(selectedEntry.entry.id) ?? false}
         importError={importError}
         showQualityPicker={showQualityPicker}
         selectedFlavor={selectedFlavor}

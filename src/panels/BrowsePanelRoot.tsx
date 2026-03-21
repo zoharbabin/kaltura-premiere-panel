@@ -102,6 +102,7 @@ const BrowseContent: React.FC<AuthGateContext> = ({ partnerId, userId }) => {
           userId={userId}
           onImportEntry={handleImportEntry}
           onImportDirectEntry={handleImportDirectEntry}
+          isEntryImported={hostService.isImported.bind(hostService)}
           onAttachToClip={handleAttachToClip}
         />
       </div>
