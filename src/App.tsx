@@ -238,16 +238,7 @@ export const App: React.FC = () => {
             onPublished={handlePublished}
           />
         )}
-        <Suspense
-          fallback={
-            <div className="loading-spinner">
-              <div className="css-spinner" />
-              <sp-body size="S" className="text-muted">
-                Loading...
-              </sp-body>
-            </div>
-          }
-        >
+        <Suspense fallback={<LoadingSpinner label="Loading..." />}>
           {activeTab === "settings" && (
             <SettingsPanel
               currentServerUrl={authState.serverUrl}
