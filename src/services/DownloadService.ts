@@ -70,6 +70,65 @@ function detectFileExtension(contentType: string | null, data: Uint8Array): stri
   return null;
 }
 
+interface XhrDownloadResult {
+  data: Uint8Array;
+  contentType: string;
+  status: number;
+  statusText: string;
+}
+
+/**
+ * Download binary data via XHR instead of fetch.
+ * UXP's fetch has a bug where response.arrayBuffer() throws "Already read"
+ * after redirect following. XHR with responseType='arraybuffer' handles
+ * redirects correctly and avoids this issue.
+ */
+function xhrDownload(
+  url: string,
+  signal?: AbortSignal,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<XhrDownloadResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.responseType = "arraybuffer";
+
+    if (signal) {
+      if (signal.aborted) {
+        reject(new Error("Download aborted"));
+        return;
+      }
+      signal.addEventListener("abort", () => {
+        xhr.abort();
+        reject(new Error("Download aborted"));
+      });
+    }
+
+    if (onProgress) {
+      xhr.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onProgress(e.loaded, e.total);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      const data = new Uint8Array(xhr.response as ArrayBuffer);
+      resolve({
+        data,
+        contentType: xhr.getResponseHeader("content-type") || "",
+        status: xhr.status,
+        statusText: xhr.statusText,
+      });
+    };
+
+    xhr.onerror = () => reject(new NetworkError("Network error during download"));
+    xhr.ontimeout = () => reject(new NetworkError("Download timed out"));
+
+    xhr.send();
+  });
+}
+
 export interface DownloadProgress {
   entryId: string;
   loaded: number;
@@ -288,19 +347,24 @@ export class DownloadService {
         source: request.downloadUrl ? "api" : "cdn",
       });
 
-      const response = await fetch(downloadUrl, {
-        signal: controller.signal,
-        redirect: "follow",
+      // Use XHR instead of fetch to avoid UXP "Already read" bug on redirects
+      const progressCallback = this.onProgressCallbacks.get(request.entryId);
+      const result = await xhrDownload(downloadUrl, controller.signal, (loaded, total) => {
+        progressCallback?.({
+          entryId: request.entryId,
+          loaded,
+          total,
+          percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
+          speed: 0,
+        });
       });
 
-      if (!response.ok) {
-        throw new NetworkError(`Download failed: HTTP ${response.status} ${response.statusText}`);
+      if (result.status < 200 || result.status >= 300) {
+        throw new NetworkError(`Download failed: HTTP ${result.status} ${result.statusText}`);
       }
 
-      const buf = await response.arrayBuffer();
-      const downloadedData = new Uint8Array(buf);
-
-      const contentType = response.headers.get("content-type") || "";
+      const downloadedData = result.data;
+      const contentType = result.contentType;
       log.info("Downloaded entry data", {
         byteLength: downloadedData.byteLength,
         contentType,
@@ -325,7 +389,7 @@ export class DownloadService {
         : request.fileName;
       log.info("File type detection", { actualExt, correctedFileName });
 
-      const progressCallback = this.onProgressCallbacks.get(request.entryId);
+      // Report 100% progress (XHR may have already reported incremental progress)
       progressCallback?.({
         entryId: request.entryId,
         loaded: downloadedData.byteLength,
@@ -382,28 +446,28 @@ export class DownloadService {
       );
       log.info("Download URL", { url: downloadUrl.substring(0, 150) });
 
-      const response = await fetch(downloadUrl, {
-        signal: controller.signal,
-        redirect: "follow",
+      // Use XHR instead of fetch to avoid UXP "Already read" bug on redirects
+      const progressCallback = this.onProgressCallbacks.get(request.entryId);
+      const result = await xhrDownload(downloadUrl, controller.signal, (loaded, total) => {
+        progressCallback?.({
+          entryId: request.entryId,
+          loaded,
+          total,
+          percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
+          speed: 0,
+        });
       });
 
-      log.info("Fetch response", {
-        status: response.status,
-        ok: response.ok,
-        url: (response.url || "").substring(0, 150),
-        contentType: response.headers.get("content-type"),
-        contentLength: response.headers.get("content-length"),
-        redirected: response.redirected,
+      log.info("XHR response", {
+        status: result.status,
+        contentType: result.contentType,
       });
 
-      if (!response.ok) {
-        throw new NetworkError(`Download failed: HTTP ${response.status} ${response.statusText}`);
+      if (result.status < 200 || result.status >= 300) {
+        throw new NetworkError(`Download failed: HTTP ${result.status} ${result.statusText}`);
       }
 
-      // Use arrayBuffer() for maximum compatibility with UXP
-      // (ReadableStream may not work reliably across UXP versions)
-      const buf = await response.arrayBuffer();
-      const downloadedData = new Uint8Array(buf);
+      const downloadedData = result.data;
 
       log.info("Downloaded data", {
         byteLength: downloadedData.byteLength,
@@ -414,17 +478,13 @@ export class DownloadService {
       if (downloadedData.byteLength === 0) {
         throw new NetworkError(
           `Download returned 0 bytes.\n` +
-            `Status: ${response.status}\n` +
-            `Content-Type: ${response.headers.get("content-type")}\n` +
-            `Content-Length: ${response.headers.get("content-length")}\n` +
-            `Redirected: ${response.redirected}\n` +
-            `Final URL: ${(response.url || "").substring(0, 150)}\n` +
+            `Status: ${result.status}\n` +
+            `Content-Type: ${result.contentType}\n` +
             `Original URL: ${downloadUrl.substring(0, 150)}`,
         );
       }
 
-      // Report progress (100% since we used arrayBuffer)
-      const progressCallback = this.onProgressCallbacks.get(request.entryId);
+      // Report 100% progress
       progressCallback?.({
         entryId: request.entryId,
         loaded: downloadedData.byteLength,
