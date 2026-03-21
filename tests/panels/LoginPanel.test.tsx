@@ -21,7 +21,7 @@ describe("LoginPanel", () => {
 
   it("shows the plugin name", () => {
     render(<LoginPanel {...defaultProps} />);
-    expect(screen.getByText("Kaltura for Adobe Creative Cloud")).toBeTruthy();
+    expect(screen.getByText("Kaltura")).toBeTruthy();
   });
 
   it("shows loading spinner when isLoading is true", () => {
