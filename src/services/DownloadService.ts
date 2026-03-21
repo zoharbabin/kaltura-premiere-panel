@@ -185,7 +185,7 @@ export class DownloadService {
     try {
       log.info("Starting direct entry download", { entryId: request.entryId });
 
-      const downloadUrl = await this.mediaService.getEntryDownloadUrl(request.entryId);
+      const downloadUrl = this.mediaService.getEntryDownloadUrl(request.entryId, request.fileName);
       log.info("Entry download URL", { url: downloadUrl.substring(0, 150) });
 
       const response = await fetch(downloadUrl, {
