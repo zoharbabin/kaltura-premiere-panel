@@ -121,12 +121,6 @@ describe("DownloadService", () => {
 
   describe("downloadAndImportEntry()", () => {
     it("downloads an image entry directly without flavors", async () => {
-      // First fetch: getEntryDownloadUrl API call
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => "https://cdn.kaltura.com/download/image.jpg",
-      });
-      // Second fetch: actual file download
       mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([0xff, 0xd8, 0xff, 0xe0])));
 
       const result = await service.downloadAndImportEntry("0_img", "photo.jpg");
@@ -136,13 +130,12 @@ describe("DownloadService", () => {
       expect(result.localPath).toContain("0_img_source.jpg");
       expect(hostService.importFile).toHaveBeenCalled();
       expect(hostService.storeMapping).toHaveBeenCalledWith("0_img", expect.any(String));
+      // Verify the fetch URL uses raw CDN path (no API call)
+      const fetchUrl = mockFetch.mock.calls[0][0];
+      expect(fetchUrl).toContain("/raw/entry_id/0_img/direct_serve/1");
     });
 
     it("extracts file extension from entry name", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => "https://cdn.kaltura.com/download/doc.png",
-      });
       mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2, 3])));
 
       const result = await service.downloadAndImportEntry("0_png", "screenshot.PNG");
@@ -151,10 +144,6 @@ describe("DownloadService", () => {
     });
 
     it("defaults to jpg extension when entry name has no extension", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => "https://cdn.kaltura.com/download/file",
-      });
       mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([1, 2, 3])));
 
       const result = await service.downloadAndImportEntry("0_noext", "ImageWithoutExt");
@@ -163,10 +152,6 @@ describe("DownloadService", () => {
     });
 
     it("throws on empty download", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => "https://cdn.kaltura.com/download/empty",
-      });
       mockFetch.mockResolvedValueOnce(mockFetchResponse(new Uint8Array([])));
 
       await expect(service.downloadAndImportEntry("0_empty", "empty.jpg")).rejects.toThrow(

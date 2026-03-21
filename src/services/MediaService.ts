@@ -271,19 +271,22 @@ export class MediaService {
   }
 
   /**
-   * Get a direct download URL for an entry's source file.
-   * Works for all entry types including images and documents that have
-   * no flavor assets. Uses baseEntry/getDownloadUrl API.
+   * Build a direct download URL for an entry's source file.
+   * Uses the raw/direct_serve CDN path which works for all entry types
+   * including images (which don't support flavorAsset/getDownloadUrl).
    */
-  async getEntryDownloadUrl(entryId: string): Promise<string> {
-    const response = await this.client.request<string>({
-      service: "baseEntry",
-      action: "getDownloadUrl",
-      params: { entryId },
-    });
-
-    const url = typeof response === "string" ? response : String(response);
-    log.info("Entry download URL", { entryId, url: url.substring(0, 120) });
+  getEntryDownloadUrl(entryId: string, fileName?: string): string {
+    const partnerId = this.client.getPartnerId();
+    const serviceUrl = this.client.getServiceUrl();
+    // Derive CDN base: replace www. prefix with cdnapi-ev., or prepend cdnapi-ev. to domain
+    const cdnBase = serviceUrl.includes("://www.")
+      ? serviceUrl.replace("://www.", "://cdnapi-ev.")
+      : serviceUrl.replace("://", "://cdnapi-ev.");
+    const safeName = fileName ? `/${encodeURIComponent(fileName)}` : "";
+    const ks = this.client.getKs();
+    const ksParam = ks ? `?ks=${encodeURIComponent(ks)}` : "";
+    const url = `${cdnBase}/p/${partnerId}/raw/entry_id/${entryId}/direct_serve/1/forceproxy/true${safeName}${ksParam}`;
+    log.info("Entry download URL", { entryId, url: url.substring(0, 150) });
     return url;
   }
 

@@ -138,19 +138,15 @@ describe("MediaService", () => {
   });
 
   describe("getEntryDownloadUrl()", () => {
-    it("returns direct download URL using baseEntry service", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => "https://cdn.kaltura.com/download/entry_source",
-      });
+    it("constructs raw CDN download URL with partner ID and entry ID", () => {
+      const url = service.getEntryDownloadUrl("0_image");
+      expect(url).toContain("/p/12345/raw/entry_id/0_image/direct_serve/1/forceproxy/true");
+      expect(url).toContain("cdnapi-ev");
+    });
 
-      const url = await service.getEntryDownloadUrl("0_image");
-      expect(url).toBe("https://cdn.kaltura.com/download/entry_source");
-
-      const [fetchUrl, options] = mockFetch.mock.calls[0];
-      expect(fetchUrl).toContain("/service/baseEntry/action/getDownloadUrl");
-      const body = JSON.parse(options.body);
-      expect(body.entryId).toBe("0_image");
+    it("includes file name when provided", () => {
+      const url = service.getEntryDownloadUrl("0_image", "photo.jpg");
+      expect(url).toContain("/forceproxy/true/photo.jpg");
     });
   });
 
