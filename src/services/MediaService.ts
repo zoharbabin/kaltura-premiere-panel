@@ -540,6 +540,8 @@ export class MediaService {
     for (const entryResult of objects) {
       const entry = entryResult.object;
       if (!entry) continue;
+      // Skip internal system entries (e.g. KMS channel thumbnails)
+      if (entry.userId && entry.userId.startsWith("__")) continue;
       entries.push(entry);
 
       const entryHighlights: BrowseHighlight[] = [];
