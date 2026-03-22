@@ -6,8 +6,11 @@ import { PublishPanelRoot } from "./panels/PublishPanelRoot";
 import { runSettingsCommand, runSignOutCommand } from "./commands";
 import { hostService, offlineService, auditService, authService } from "./services/singleton";
 import { createLogger, LogLevel, setLogLevel } from "./utils/logger";
+import { I18nProvider, detectLocale } from "./i18n";
+import "./i18n/loadLocales";
 
 const log = createLogger("Plugin");
+const currentLocale = detectLocale();
 
 // Set log level based on environment
 if (process.env.NODE_ENV === "production") {
@@ -42,9 +45,11 @@ function setupPlugin(): void {
             log.info("Media Browser panel created");
             browseRoot = createRoot(rootNode);
             browseRoot.render(
-              <ErrorBoundary>
-                <BrowsePanelRoot />
-              </ErrorBoundary>,
+              <I18nProvider locale={currentLocale}>
+                <ErrorBoundary>
+                  <BrowsePanelRoot />
+                </ErrorBoundary>
+              </I18nProvider>,
             );
           },
           show() {
@@ -64,9 +69,11 @@ function setupPlugin(): void {
             log.info("Publish panel created");
             publishRoot = createRoot(rootNode);
             publishRoot.render(
-              <ErrorBoundary>
-                <PublishPanelRoot />
-              </ErrorBoundary>,
+              <I18nProvider locale={currentLocale}>
+                <ErrorBoundary>
+                  <PublishPanelRoot />
+                </ErrorBoundary>
+              </I18nProvider>,
             );
           },
           show() {
@@ -103,9 +110,11 @@ function setupPlugin(): void {
     if (container) {
       const root = createRoot(container);
       root.render(
-        <ErrorBoundary>
-          <BrowsePanelRoot />
-        </ErrorBoundary>,
+        <I18nProvider locale={currentLocale}>
+          <ErrorBoundary>
+            <BrowsePanelRoot />
+          </ErrorBoundary>
+        </I18nProvider>,
       );
     }
   }

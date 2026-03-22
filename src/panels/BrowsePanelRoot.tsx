@@ -8,6 +8,7 @@ import React, { useState, useCallback } from "react";
 import { KalturaMediaEntry, KalturaFlavorAsset } from "../types/kaltura";
 import type { CaptionSegment } from "../services/CaptionService";
 import { AuthGate, AuthGateContext } from "../components/AuthGate";
+import { useTranslation } from "../i18n";
 import { BrowsePanel } from "./BrowsePanel";
 import {
   mediaService,
@@ -29,6 +30,7 @@ export const BrowsePanelRoot: React.FC = () => (
 );
 
 const BrowseContent: React.FC<AuthGateContext> = ({ partnerId, userId }) => {
+  const { t } = useTranslation();
   const [importStatus, setImportStatus] = useState<{
     message: string;
     isError: boolean;
@@ -36,13 +38,13 @@ const BrowseContent: React.FC<AuthGateContext> = ({ partnerId, userId }) => {
 
   const handleImportEntry = useCallback(
     async (entry: KalturaMediaEntry, flavor: KalturaFlavorAsset) => {
-      setImportStatus({ message: `Downloading "${entry.name}"...`, isError: false });
+      setImportStatus({ message: t("browse.downloading", { name: entry.name }), isError: false });
       try {
         log.info("Importing entry", { entryId: entry.id, flavorId: flavor.id });
         await downloadService.downloadAndImport(entry.id, flavor);
         auditService.logAction("import", entry.id, `Imported flavor ${flavor.id}`);
         setImportStatus({
-          message: `"${entry.name}" imported to "Kaltura Assets" bin in the Project panel.`,
+          message: t("browse.importedToBin", { name: entry.name }),
           isError: false,
         });
         setTimeout(() => setImportStatus(null), 4000);
@@ -56,13 +58,13 @@ const BrowseContent: React.FC<AuthGateContext> = ({ partnerId, userId }) => {
   );
 
   const handleImportDirectEntry = useCallback(async (entry: KalturaMediaEntry) => {
-    setImportStatus({ message: `Downloading "${entry.name}"...`, isError: false });
+    setImportStatus({ message: t("browse.downloading", { name: entry.name }), isError: false });
     try {
       log.info("Importing entry directly (no flavor)", { entryId: entry.id });
       await downloadService.downloadAndImportEntry(entry.id, entry.name);
       auditService.logAction("import", entry.id, "Imported source file (no flavor)");
       setImportStatus({
-        message: `"${entry.name}" imported to "Kaltura Assets" bin in the Project panel.`,
+        message: t("browse.importedToBin", { name: entry.name }),
         isError: false,
       });
       setTimeout(() => setImportStatus(null), 4000);
@@ -75,7 +77,7 @@ const BrowseContent: React.FC<AuthGateContext> = ({ partnerId, userId }) => {
 
   const handleAttachToClip = useCallback(async (entryId: string, segments: CaptionSegment[]) => {
     if (!hostService.importTranscript) {
-      return { success: false, error: "Transcript attachment is not supported in this host app" };
+      return { success: false, error: t("browse.transcriptNotSupported") };
     }
     const result = await hostService.importTranscript(entryId, segments);
     if (result.success) {
@@ -118,7 +120,7 @@ const BrowseContent: React.FC<AuthGateContext> = ({ partnerId, userId }) => {
               <button
                 className="alert-dismiss"
                 onClick={() => setImportStatus(null)}
-                aria-label="Dismiss error"
+                aria-label={t("browse.dismissError")}
               >
                 {"\u2715"}
               </button>

@@ -1,5 +1,6 @@
 import React from "react";
 import { createLogger } from "../utils/logger";
+import { translate, detectLocale, SupportedLocale } from "../i18n";
 
 const log = createLogger("ErrorBoundary");
 
@@ -20,6 +21,7 @@ interface State {
 export class ErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false, errorMessage: "" };
   private recoverRef = React.createRef<HTMLDivElement>();
+  private locale: SupportedLocale = detectLocale();
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, errorMessage: error.message || "Unknown error" };
@@ -59,11 +61,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
             textAlign: "center",
           }}
         >
-          <sp-heading size="S">Something went wrong</sp-heading>
+          <sp-heading size="S">{translate(this.locale, "error.somethingWrong")}</sp-heading>
           <sp-body size="S">{this.state.errorMessage}</sp-body>
           <div ref={this.recoverRef} tabIndex={-1} style={{ outline: "none" }}>
             <sp-button variant="primary" onClick={this.handleRecover}>
-              Recover
+              {translate(this.locale, "error.recover")}
             </sp-button>
           </div>
         </div>

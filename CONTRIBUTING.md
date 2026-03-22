@@ -7,7 +7,7 @@ Thank you for your interest in contributing! This guide will help you get up and
 ### Prerequisites
 
 - **Node.js 18+** and **npm**
-- **Adobe Premiere Pro**, **After Effects**, or **Audition** v25.6+
+- **Adobe Premiere Pro** v25.6+ or **Photoshop** v25.1+
 - **[UXP Developer Tool](https://developer.adobe.com/premiere-pro/uxp/devtools/)** for loading the plugin during development
 
 ### Setup

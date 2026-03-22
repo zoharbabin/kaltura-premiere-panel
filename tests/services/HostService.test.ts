@@ -1,5 +1,4 @@
-import { AfterEffectsHostService } from "../../src/services/AfterEffectsHostService";
-import { AuditionHostService } from "../../src/services/AuditionHostService";
+import { PhotoshopHostService } from "../../src/services/PhotoshopHostService";
 import { detectHostApp, getHostAppName } from "../../src/services/HostService";
 import { createHostService } from "../../src/services/HostServiceFactory";
 
@@ -14,25 +13,18 @@ describe("HostService", () => {
   describe("getHostAppName()", () => {
     it("returns correct names", () => {
       expect(getHostAppName("premierepro")).toBe("Premiere Pro");
-      expect(getHostAppName("aftereffects")).toBe("After Effects");
-      expect(getHostAppName("audition")).toBe("Audition");
+      expect(getHostAppName("photoshop")).toBe("Photoshop");
     });
   });
 
   describe("createHostService()", () => {
-    it("creates AfterEffectsHostService when forced", () => {
-      const service = createHostService("aftereffects");
-      expect(service.getAppInfo().id).toBe("aftereffects");
-    });
-
-    it("creates AuditionHostService when forced", () => {
-      const service = createHostService("audition");
-      expect(service.getAppInfo().id).toBe("audition");
+    it("creates PhotoshopHostService when forced", () => {
+      const service = createHostService("photoshop");
+      expect(service.getAppInfo().id).toBe("photoshop");
     });
 
     it("creates PremiereService-compatible service by default", () => {
       const service = createHostService("premierepro");
-      // PremiereService is returned, verify it has the expected interface
       expect(typeof service.isAvailable).toBe("function");
       expect(typeof service.getVersion).toBe("function");
       expect(typeof service.getActiveSequence).toBe("function");
@@ -51,7 +43,7 @@ describe("HostService", () => {
     });
 
     it("all host services implement complete HostService interface", () => {
-      const hosts = ["premierepro", "aftereffects", "audition"] as const;
+      const hosts = ["premierepro", "photoshop"] as const;
       for (const hostId of hosts) {
         const service = createHostService(hostId);
         expect(typeof service.getAppInfo).toBe("function");
@@ -67,29 +59,33 @@ describe("HostService", () => {
       }
     });
 
-    it("Audition host reports no video support", () => {
-      const service = createHostService("audition");
+    it("Photoshop host reports image-only support", () => {
+      const service = createHostService("photoshop");
       const info = service.getAppInfo();
       expect(info.supportsVideo).toBe(false);
-      expect(info.supportsAudio).toBe(true);
+      expect(info.supportsAudio).toBe(false);
+      expect(info.supportsSequences).toBe(false);
+      expect(info.supportsMarkers).toBe(false);
     });
   });
 });
 
-describe("AfterEffectsHostService", () => {
-  let service: AfterEffectsHostService;
+describe("PhotoshopHostService", () => {
+  let service: PhotoshopHostService;
 
   beforeEach(() => {
     localStorage.clear();
-    service = new AfterEffectsHostService();
+    service = new PhotoshopHostService();
   });
 
   it("returns correct app info", () => {
     const info = service.getAppInfo();
-    expect(info.id).toBe("aftereffects");
-    expect(info.name).toBe("After Effects");
-    expect(info.supportsVideo).toBe(true);
-    expect(info.supportsAudio).toBe(true);
+    expect(info.id).toBe("photoshop");
+    expect(info.name).toBe("Photoshop");
+    expect(info.supportsVideo).toBe(false);
+    expect(info.supportsAudio).toBe(false);
+    expect(info.supportsSequences).toBe(false);
+    expect(info.supportsMarkers).toBe(false);
   });
 
   it("reports unavailable in test environment", () => {
@@ -106,66 +102,32 @@ describe("AfterEffectsHostService", () => {
   });
 
   it("returns error for import when unavailable", async () => {
-    const result = await service.importFile("/tmp/test.mp4");
+    const result = await service.importFile("/tmp/test.psd");
     expect(result.success).toBe(false);
   });
 
-  it("manages asset mappings", () => {
-    expect(service.isImported("0_abc")).toBe(false);
+  it("addMarkers is a no-op", async () => {
+    // Should not throw
+    await service.addMarkers([{ name: "test", start: 0, comments: "", colorIndex: 0 }]);
+  });
 
-    service.storeMapping("0_abc", "/tmp/test.mp4");
-    expect(service.isImported("0_abc")).toBe(true);
+  it("manages asset mappings", () => {
+    expect(service.isImported("0_img")).toBe(false);
+
+    service.storeMapping("0_img", "/tmp/test.psd");
+    expect(service.isImported("0_img")).toBe(true);
 
     const mappings = service.getAllMappings();
-    expect(mappings.get("0_abc")).toBe("/tmp/test.mp4");
+    expect(mappings.get("0_img")).toBe("/tmp/test.psd");
 
     service.clearMappings();
-    expect(service.isImported("0_abc")).toBe(false);
+    expect(service.isImported("0_img")).toBe(false);
   });
 
   it("persists mappings across instances", () => {
-    service.storeMapping("0_abc", "/tmp/test.mp4");
+    service.storeMapping("0_img", "/tmp/test.psd");
 
-    const service2 = new AfterEffectsHostService();
-    expect(service2.isImported("0_abc")).toBe(true);
-  });
-});
-
-describe("AuditionHostService", () => {
-  let service: AuditionHostService;
-
-  beforeEach(() => {
-    localStorage.clear();
-    service = new AuditionHostService();
-  });
-
-  it("returns correct app info", () => {
-    const info = service.getAppInfo();
-    expect(info.id).toBe("audition");
-    expect(info.name).toBe("Audition");
-    expect(info.supportsVideo).toBe(false);
-    expect(info.supportsAudio).toBe(true);
-  });
-
-  it("reports unavailable in test environment", () => {
-    expect(service.isAvailable()).toBe(false);
-  });
-
-  it("returns null for active sequence when unavailable", async () => {
-    const seq = await service.getActiveSequence();
-    expect(seq).toBeNull();
-  });
-
-  it("returns error for import when unavailable", async () => {
-    const result = await service.importFile("/tmp/test.wav");
-    expect(result.success).toBe(false);
-  });
-
-  it("manages asset mappings", () => {
-    service.storeMapping("0_audio", "/tmp/audio.wav");
-    expect(service.isImported("0_audio")).toBe(true);
-
-    service.clearMappings();
-    expect(service.isImported("0_audio")).toBe(false);
+    const service2 = new PhotoshopHostService();
+    expect(service2.isImported("0_img")).toBe(true);
   });
 });

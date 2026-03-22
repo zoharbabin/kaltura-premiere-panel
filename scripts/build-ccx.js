@@ -1,7 +1,7 @@
 /**
  * Build .ccx packages for distribution.
  *
- * Produces one .ccx per host application (Premiere Pro, After Effects, Audition).
+ * Produces one .ccx per host application (Premiere Pro, Photoshop).
  * Adobe requires each .ccx to target exactly one host — the manifest `host`
  * field must be a single HostDefinition object, not an array.
  *
@@ -20,11 +20,19 @@ const { execSync } = require("child_process");
 const distDir = path.resolve(__dirname, "../dist");
 const packageJson = require("../package.json");
 
-// Host applications to build .ccx packages for
+// Host applications to build .ccx packages for.
+// Each host needs a unique plugin id so both .ccx can be installed simultaneously.
+// The base id in manifest.json is the Premiere Pro id (primary host).
 const HOST_APPS = [
   { app: "premierepro", minVersion: "25.6", label: "Premiere Pro" },
-  { app: "aftereffects", minVersion: "25.6", label: "After Effects" },
-  { app: "audition", minVersion: "25.6", label: "Audition" },
+  {
+    app: "PS",
+    minVersion: "25.1.0",
+    label: "Photoshop",
+    slug: "photoshop",
+    id: "163a7b84.ps",
+    data: { apiVersion: 2 },
+  },
 ];
 
 // Files that should not be shipped in production .ccx packages
@@ -87,15 +95,23 @@ function collectFiles(dirPath, prefix) {
 
 /** Build a single .ccx for the given host app */
 function buildCcxForHost(manifest, hostDef) {
-  const filename = `kaltura-panel-${manifest.version}_${hostDef.app}.ccx`;
+  const fileSlug = hostDef.slug || hostDef.app;
+  const filename = `kaltura-panel-${manifest.version}_${fileSlug}.ccx`;
   const outputPath = path.join(outputDir, filename);
 
   console.log(`  Building ${filename} (${hostDef.label})...`);
 
-  // Create a host-specific manifest with a single HostDefinition object
+  // Create a host-specific manifest with a single HostDefinition object.
+  // Each host app gets a unique plugin ID so that both can be installed
+  // simultaneously — CC Desktop uses the id to disambiguate plugins.
+  const hostEntry = { app: hostDef.app, minVersion: hostDef.minVersion };
+  if (hostDef.data) {
+    hostEntry.data = hostDef.data;
+  }
   const hostManifest = {
     ...manifest,
-    host: { app: hostDef.app, minVersion: hostDef.minVersion },
+    id: hostDef.id || manifest.id,
+    host: hostEntry,
   };
 
   // Use a temporary staging directory to assemble the package contents
@@ -173,7 +189,7 @@ async function main() {
   const releaseManifest = {
     version: manifest.version,
     pluginName: manifest.name,
-    hosts: HOST_APPS.map((h) => h.app),
+    hosts: HOST_APPS.map((h) => h.slug || h.app),
     files: producedFiles,
   };
   fs.writeFileSync(

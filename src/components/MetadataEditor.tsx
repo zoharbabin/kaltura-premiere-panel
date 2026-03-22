@@ -5,6 +5,7 @@ import { useDebounce } from "../hooks/useDebounce";
 import { SEARCH_DEBOUNCE_MS } from "../utils/constants";
 import { ErrorBanner } from "./ErrorBanner";
 import { getUserMessage } from "../utils/errors";
+import { useTranslation } from "../i18n";
 
 interface MetadataEditorProps {
   entry: KalturaMediaEntry;
@@ -19,6 +20,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState(entry.name);
   const [description, setDescription] = useState(entry.description || "");
   const [tags, setTags] = useState(entry.tags || "");
@@ -104,7 +106,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
   const handleCancel = useCallback(() => {
     if (hasChanges) {
       // Simple confirmation — in UXP this would use a dialog
-      if (!confirm("You have unsaved changes. Discard them?")) return;
+      if (!confirm(t("metadata.unsavedConfirm"))) return;
     }
     onCancel();
   }, [hasChanges, onCancel]);
@@ -124,17 +126,19 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
           marginBottom: 12,
         }}
       >
-        <sp-detail size="M">Edit Metadata</sp-detail>
-        {hasChanges && <span style={{ fontSize: "10px", color: "#e68619" }}>Unsaved changes</span>}
+        <sp-detail size="M">{t("metadata.editMetadata")}</sp-detail>
+        {hasChanges && (
+          <span style={{ fontSize: "10px", color: "#e68619" }}>{t("metadata.unsavedChanges")}</span>
+        )}
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {/* Title */}
       <div style={{ marginBottom: 12 }}>
-        <sp-detail size="S">Title *</sp-detail>
+        <sp-detail size="S">{t("metadata.titleLabel")}</sp-detail>
         <sp-textfield
-          placeholder="Video title"
+          placeholder={t("metadata.titlePlaceholder")}
           value={name}
           onInput={(e: Event) => setName((e.target as HTMLInputElement).value)}
           style={{ width: "100%" }}
@@ -143,9 +147,9 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
 
       {/* Description */}
       <div style={{ marginBottom: 12 }}>
-        <sp-detail size="S">Description</sp-detail>
+        <sp-detail size="S">{t("metadata.descriptionLabel")}</sp-detail>
         <sp-textarea
-          placeholder="Video description"
+          placeholder={t("metadata.descriptionPlaceholder")}
           value={description}
           onInput={(e: Event) => setDescription((e.target as HTMLTextAreaElement).value)}
           style={{ width: "100%" }}
@@ -154,7 +158,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
 
       {/* Tags */}
       <div style={{ marginBottom: 12 }}>
-        <sp-detail size="S">Tags</sp-detail>
+        <sp-detail size="S">{t("metadata.tagsLabel")}</sp-detail>
         <div style={{ display: "flex", flexWrap: "wrap", marginBottom: "4px" }}>
           {tagList.map((tag) => (
             <span
@@ -181,7 +185,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
           ))}
         </div>
         <sp-textfield
-          placeholder="Type to add tags..."
+          placeholder={t("metadata.tagsPlaceholder")}
           value={tagInput}
           onInput={(e: Event) => setTagInput((e.target as HTMLInputElement).value)}
           onKeyDown={(e: KeyboardEvent) => {
@@ -222,7 +226,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
       {/* Actions */}
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <sp-button variant="secondary" size="s" onClick={handleCancel} style={{ marginRight: 8 }}>
-          Cancel
+          {t("metadata.cancel")}
         </sp-button>
         <sp-button
           variant="accent"
@@ -230,7 +234,7 @@ export const MetadataEditor: React.FC<MetadataEditorProps> = ({
           onClick={handleSave}
           disabled={!name.trim() || !hasChanges || isSaving || undefined}
         >
-          {isSaving ? "Saving..." : "Save Changes"}
+          {isSaving ? t("metadata.saving") : t("metadata.saveChanges")}
         </sp-button>
       </div>
     </div>

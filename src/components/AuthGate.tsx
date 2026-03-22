@@ -13,6 +13,7 @@ import { StatusBar } from "./StatusBar";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { client, authService, auditService, hostService } from "../services/singleton";
 import { AUTH_SIGNIN_EVENT } from "../utils/constants";
+import { useTranslation } from "../i18n";
 
 interface AuthGateProps {
   panelTitle?: string;
@@ -28,6 +29,7 @@ export interface AuthGateContext {
 }
 
 export const AuthGate: React.FC<AuthGateProps> = ({ panelTitle, children }) => {
+  const { t } = useTranslation();
   const { authState, login, loginWithSso, cancelSso, isLoading, error, clearError } = useAuth(
     client,
     authService,
@@ -74,7 +76,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ panelTitle, children }) => {
   if (isLoading && !authState.isAuthenticated) {
     return (
       <div className="panel-root">
-        <LoadingSpinner label="Loading..." size="large" />
+        <LoadingSpinner label={t("app.loading")} size="large" />
         <StatusBar connectionState={authState.connectionState} />
       </div>
     );

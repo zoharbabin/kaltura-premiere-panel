@@ -1,7 +1,6 @@
 import { HostService, HostAppInfo, detectHostApp, HostAppId } from "./HostService";
 import { PremiereService } from "./PremiereService";
-import { AfterEffectsHostService } from "./AfterEffectsHostService";
-import { AuditionHostService } from "./AuditionHostService";
+import { PhotoshopHostService } from "./PhotoshopHostService";
 import { SequenceInfo, ImportResult, MarkerData, TranscriptImportResult } from "../types/premiere";
 import type { CaptionSegment } from "./CaptionService";
 
@@ -102,10 +101,8 @@ export function createHostService(forceHost?: HostAppId): HostService {
   const hostId = forceHost ?? detectHostApp();
 
   switch (hostId) {
-    case "aftereffects":
-      return new AfterEffectsHostService();
-    case "audition":
-      return new AuditionHostService();
+    case "photoshop":
+      return new PhotoshopHostService();
     case "premierepro":
     default:
       return new PremiereHostAdapter();

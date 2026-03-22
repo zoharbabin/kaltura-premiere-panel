@@ -142,20 +142,20 @@ describe("SettingsPanel", () => {
     expect(mockAuditService.clearLocalLog).toHaveBeenCalled();
   });
 
-  it("hides caption language picker for Audition host", () => {
-    const auditionHost = {
+  it("hides caption language picker for Photoshop host", () => {
+    const photoshopHost = {
       ...mockHostService,
       getAppInfo: jest.fn().mockReturnValue({
-        id: "audition",
-        name: "Audition",
-        version: "25.2.0",
+        id: "photoshop",
+        name: "Photoshop",
+        version: "25.1.0",
         supportsVideo: false,
-        supportsAudio: true,
-        supportsSequences: true,
-        supportsMarkers: true,
+        supportsAudio: false,
+        supportsSequences: false,
+        supportsMarkers: false,
       }),
     };
-    render(<SettingsPanel {...defaultProps} hostService={auditionHost as never} />);
+    render(<SettingsPanel {...defaultProps} hostService={photoshopHost as never} />);
     expect(screen.queryByText("Default Caption Language")).toBeNull();
   });
 

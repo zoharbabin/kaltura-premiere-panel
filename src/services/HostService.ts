@@ -5,7 +5,7 @@ import { createLogger } from "../utils/logger";
 const log = createLogger("HostService");
 
 /** Supported Adobe host applications */
-export type HostAppId = "premierepro" | "aftereffects" | "audition";
+export type HostAppId = "premierepro" | "photoshop";
 
 /** Host application info */
 export interface HostAppInfo {
@@ -20,7 +20,7 @@ export interface HostAppInfo {
 
 /**
  * Abstract interface for Adobe host application interaction.
- * Each host app (Premiere, After Effects, Audition) implements this
+ * Each host app (Premiere Pro, Photoshop) implements this
  * to provide a unified API surface to the panel.
  */
 export interface HostService {
@@ -78,16 +78,10 @@ export function detectHostApp(): HostAppId {
     // Not Premiere Pro
   }
   try {
-    require("aftereffects");
-    return "aftereffects";
+    require("photoshop");
+    return "photoshop";
   } catch {
-    // Not After Effects
-  }
-  try {
-    require("audition");
-    return "audition";
-  } catch {
-    // Not Audition
+    // Not Photoshop
   }
 
   log.warn("No host app detected — defaulting to premierepro");
@@ -99,9 +93,7 @@ export function getHostAppName(id: HostAppId): string {
   switch (id) {
     case "premierepro":
       return "Premiere Pro";
-    case "aftereffects":
-      return "After Effects";
-    case "audition":
-      return "Audition";
+    case "photoshop":
+      return "Photoshop";
   }
 }

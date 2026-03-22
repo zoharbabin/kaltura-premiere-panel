@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { KalturaFlavorAsset } from "../types/kaltura";
 import { formatFileSize, formatBitrate, formatResolution } from "../utils/format";
 import { RESOLUTION_FULL_HD, RESOLUTION_HD, RESOLUTION_SD } from "../utils/constants";
+import { useTranslation } from "../i18n";
 
 interface QualityPickerProps {
   flavors: KalturaFlavorAsset[];
@@ -20,12 +21,15 @@ function sortFlavors(flavors: KalturaFlavorAsset[]): KalturaFlavorAsset[] {
   });
 }
 
-function getFlavorLabel(flavor: KalturaFlavorAsset): string {
-  if (flavor.isOriginal) return "Original";
+function getFlavorLabel(
+  flavor: KalturaFlavorAsset,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+  if (flavor.isOriginal) return t("quality.original");
   const res = formatResolution(flavor.width, flavor.height);
-  if (flavor.height >= RESOLUTION_FULL_HD) return `Full HD (${res})`;
-  if (flavor.height >= RESOLUTION_HD) return `HD (${res})`;
-  if (flavor.height >= RESOLUTION_SD) return `SD (${res})`;
+  if (flavor.height >= RESOLUTION_FULL_HD) return t("quality.fullHD", { res });
+  if (flavor.height >= RESOLUTION_HD) return t("quality.hd", { res });
+  if (flavor.height >= RESOLUTION_SD) return t("quality.sd", { res });
   return res || "Unknown";
 }
 
@@ -36,6 +40,7 @@ export const QualityPicker: React.FC<QualityPickerProps> = ({
   onCancel,
   onConfirm,
 }) => {
+  const { t } = useTranslation();
   const sorted = sortFlavors(flavors);
 
   const handleSelect = useCallback(
@@ -56,7 +61,7 @@ export const QualityPicker: React.FC<QualityPickerProps> = ({
       }}
     >
       <sp-detail size="M" style={{ marginBottom: 8 }}>
-        Select Quality
+        {t("quality.selectQuality")}
       </sp-detail>
 
       <div style={{ display: "flex", flexDirection: "column" }}>
@@ -76,7 +81,7 @@ export const QualityPicker: React.FC<QualityPickerProps> = ({
             }}
           >
             <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%" }}>
-              <div style={{ fontSize: "12px", fontWeight: 600 }}>{getFlavorLabel(flavor)}</div>
+              <div style={{ fontSize: "12px", fontWeight: 600 }}>{getFlavorLabel(flavor, t)}</div>
               <div
                 style={{
                   fontSize: "10px",
@@ -95,7 +100,9 @@ export const QualityPicker: React.FC<QualityPickerProps> = ({
               </div>
             </div>
             {flavor.isWeb && (
-              <span style={{ fontSize: "10px", color: "#2d9d78", marginLeft: 8 }}>Web</span>
+              <span style={{ fontSize: "10px", color: "#2d9d78", marginLeft: 8 }}>
+                {t("quality.web")}
+              </span>
             )}
           </div>
         ))}
@@ -103,7 +110,7 @@ export const QualityPicker: React.FC<QualityPickerProps> = ({
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
         <sp-button variant="secondary" size="s" onClick={onCancel} style={{ marginRight: 8 }}>
-          Cancel
+          {t("quality.cancel")}
         </sp-button>
         <sp-button
           variant="accent"
@@ -111,7 +118,7 @@ export const QualityPicker: React.FC<QualityPickerProps> = ({
           onClick={onConfirm}
           disabled={!selectedFlavorId || undefined}
         >
-          Import
+          {t("quality.import")}
         </sp-button>
       </div>
     </div>

@@ -9,6 +9,7 @@ import { MediaService, BrowseHighlight, ESearchSortField } from "../services/Med
 import { MetadataService } from "../services/MetadataService";
 import { CaptionService, CaptionSegment } from "../services/CaptionService";
 import { createLogger } from "../utils/logger";
+import { useTranslation } from "../i18n";
 
 const log = createLogger("BrowsePanel");
 import {
@@ -49,6 +50,7 @@ function isFlavorReady(f: KalturaFlavorAsset): boolean {
 
 /** Copyable text field — click to copy to clipboard */
 function CopyableValue({ value, mono }: { value: string; mono?: boolean }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(value).then(() => {
@@ -61,10 +63,10 @@ function CopyableValue({ value, mono }: { value: string; mono?: boolean }) {
       className={`detail-field-value copyable${mono ? " text-mono" : ""}`}
       onClick={handleCopy}
       role="button"
-      title="Click to copy"
+      title={t("browse.clickToCopy")}
     >
       {value}
-      {copied && <span className="copy-badge">Copied</span>}
+      {copied && <span className="copy-badge">{t("browse.copied")}</span>}
     </span>
   );
 }
@@ -94,20 +96,20 @@ function getLicenseStatus(entry: KalturaMediaEntry): "expired" | "expiring" | "a
   return "active";
 }
 
-function formatCaptionFormat(format: KalturaCaptionType): string {
+function formatCaptionFormat(format: KalturaCaptionType, t: (key: string) => string): string {
   switch (format) {
     case KalturaCaptionType.SRT:
-      return "SRT";
+      return t("caption.srt");
     case KalturaCaptionType.DFXP:
-      return "DFXP/TTML";
+      return t("caption.dfxp");
     case KalturaCaptionType.WEBVTT:
-      return "WebVTT";
+      return t("caption.webvtt");
     case KalturaCaptionType.CAP:
-      return "CAP";
+      return t("caption.cap");
     case KalturaCaptionType.SCC:
-      return "SCC";
+      return t("caption.scc");
     default:
-      return "Unknown";
+      return t("caption.unknown");
   }
 }
 
@@ -118,7 +120,10 @@ function truncateHighlight(text: string, max: number): string {
 }
 
 /** Format the first highlight for an entry into a short display string (grid cards) */
-function formatHighlightHint(highlights: BrowseHighlight[]): string | null {
+function formatHighlightHint(
+  highlights: BrowseHighlight[],
+  t: (key: string) => string,
+): string | null {
   if (highlights.length === 0) return null;
   const h = highlights[0];
   const snippet = h.text ? `: "${truncateHighlight(h.text, 40)}"` : "";
@@ -126,15 +131,18 @@ function formatHighlightHint(highlights: BrowseHighlight[]): string | null {
     const totalSec = Math.floor(h.startTime / 1000);
     const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
-    return `transcript \u23F1 ${m}:${String(s).padStart(2, "0")}${snippet}`;
+    return `${t("browse.highlightTranscript")} \u23F1 ${m}:${String(s).padStart(2, "0")}${snippet}`;
   }
-  if (h.type === "caption") return `transcript${snippet}`;
-  if (h.type === "metadata") return `metadata${snippet}`;
-  return `title/tags${snippet}`;
+  if (h.type === "caption") return `${t("browse.highlightTranscript")}${snippet}`;
+  if (h.type === "metadata") return `${t("browse.highlightMetadata")}${snippet}`;
+  return `${t("browse.highlightTitleTags")}${snippet}`;
 }
 
 /** Format highlight for list row (slightly more verbose) */
-function formatHighlightMeta(highlights: BrowseHighlight[]): string | null {
+function formatHighlightMeta(
+  highlights: BrowseHighlight[],
+  t: (key: string) => string,
+): string | null {
   if (highlights.length === 0) return null;
   const h = highlights[0];
   const snippet = h.text ? `: "${truncateHighlight(h.text, 60)}"` : "";
@@ -142,11 +150,11 @@ function formatHighlightMeta(highlights: BrowseHighlight[]): string | null {
     const totalSec = Math.floor(h.startTime / 1000);
     const m = Math.floor(totalSec / 60);
     const s = totalSec % 60;
-    return `transcript at ${m}:${String(s).padStart(2, "0")}${snippet}`;
+    return `${t("browse.highlightTranscript")} at ${m}:${String(s).padStart(2, "0")}${snippet}`;
   }
-  if (h.type === "caption") return `transcript${snippet}`;
-  if (h.type === "metadata") return `metadata${snippet}`;
-  return `title/tags${snippet}`;
+  if (h.type === "caption") return `${t("browse.highlightTranscript")}${snippet}`;
+  if (h.type === "metadata") return `${t("browse.highlightMetadata")}${snippet}`;
+  return `${t("browse.highlightTitleTags")}${snippet}`;
 }
 
 /** Duck-typed SearchService for enhanced transcript/in-video search */
@@ -222,6 +230,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
   onImportDirectEntry,
   onAttachToClip,
 }) => {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<KalturaMediaEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState("");
@@ -376,7 +385,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
     setImportError(null);
     if (!selectedEntry) return;
     if (isContentHeld(selectedEntry.entry)) {
-      setImportError("This entry is under content hold and cannot be imported.");
+      setImportError(t("browse.holdGeneric"));
       return;
     }
     const readyFlavors = selectedEntry.flavors.filter(isFlavorReady);
@@ -386,7 +395,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         onImportDirectEntry(selectedEntry.entry);
         return;
       }
-      setImportError("No ready renditions available for this entry.");
+      setImportError(t("browse.noRenditions"));
       return;
     }
     if (readyFlavors.length === 1) {
@@ -480,19 +489,19 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       {/* Search bar */}
       <div className="search-bar">
         <sp-textfield
-          placeholder="Search media library..."
+          placeholder={t("browse.searchPlaceholder")}
           value={searchText}
           onInput={(e: Event) => setSearchText((e.target as HTMLInputElement).value)}
           style={{ flexGrow: 1, flexShrink: 1, flexBasis: "0%", minWidth: 0, width: "100%" }}
           size="s"
-          aria-label="Search Kaltura media library"
+          aria-label={t("browse.searchAriaLabel")}
         />
         {searchText && (
           <sp-action-button
             quiet
             size="s"
             onClick={() => setSearchText("")}
-            title="Clear search"
+            title={t("browse.clearSearch")}
             style={{ marginLeft: 4 }}
           >
             {"\u2715"}
@@ -502,10 +511,10 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
           quiet
           size="s"
           onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-          title={viewMode === "grid" ? "Switch to list view" : "Switch to grid view"}
+          title={viewMode === "grid" ? t("browse.switchToList") : t("browse.switchToGrid")}
           style={{ marginLeft: 4 }}
         >
-          {viewMode === "grid" ? "List" : "Grid"}
+          {viewMode === "grid" ? t("browse.listView") : t("browse.gridView")}
         </sp-action-button>
       </div>
 
@@ -522,11 +531,11 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
       {/* Result count */}
       {!isLoading && totalCount > 0 && (
         <div className="result-count">
-          Showing {entries.length} of {totalCount} results
+          {t("browse.showingResults", { count: entries.length, total: totalCount })}
         </div>
       )}
       {!isLoading && totalCount === 0 && (searchText || activeFilterCount > 0) && (
-        <div className="result-count">No results</div>
+        <div className="result-count">{t("browse.noResults")}</div>
       )}
 
       {/* Offline mode banner */}
@@ -534,12 +543,14 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         <div className="offline-banner">
           <span style={{ fontSize: "14px" }}>{"\u26A0"}</span>
           <span>
-            <strong>Offline Mode</strong> — Showing {entries.length} cached assets.
+            <strong>{t("browse.offlineMode")}</strong> —{" "}
+            {t("browse.offlineCached", { count: entries.length })}
             {offlineService && offlineService.getSyncStatus().pendingOperations > 0 && (
               <span>
                 {" "}
-                {offlineService.getSyncStatus().pendingOperations} pending operations will sync when
-                online.
+                {t("browse.pendingOps", {
+                  count: offlineService.getSyncStatus().pendingOperations,
+                })}
               </span>
             )}
           </span>
@@ -556,11 +567,15 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
           </div>
         ) : entries.length === 0 ? (
           <EmptyState
-            title={searchText || activeFilterCount > 0 ? "No results found" : "No assets yet"}
+            title={
+              searchText || activeFilterCount > 0
+                ? t("browse.noResultsTitle")
+                : t("browse.emptyLibraryTitle")
+            }
             description={
               searchText || activeFilterCount > 0
-                ? "Try different search terms or clear filters."
-                : "Your Kaltura library is empty."
+                ? t("browse.noResultsDesc")
+                : t("browse.emptyLibraryDesc")
             }
           />
         ) : viewMode === "grid" ? (
@@ -572,7 +587,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 partnerId={partnerId}
                 imported={false}
                 cardWidth={cardWidth || undefined}
-                highlightHint={formatHighlightHint(highlights.get(entry.id) || [])}
+                highlightHint={formatHighlightHint(highlights.get(entry.id) || [], t)}
                 searchQuery={debouncedSearch}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => handleQuickImport(entry)}
@@ -587,7 +602,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
                 entry={entry}
                 partnerId={partnerId}
                 imported={false}
-                highlightMeta={formatHighlightMeta(highlights.get(entry.id) || [])}
+                highlightMeta={formatHighlightMeta(highlights.get(entry.id) || [], t)}
                 searchQuery={debouncedSearch}
                 onClick={() => handleEntryClick(entry)}
                 onDoubleClick={() => handleQuickImport(entry)}
@@ -596,7 +611,7 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
           </div>
         )}
 
-        {isLoadingMore && <LoadingSpinner label="Loading more..." size="small" />}
+        {isLoadingMore && <LoadingSpinner label={t("browse.loadingMore")} size="small" />}
       </div>
     </div>
   );
@@ -701,46 +716,51 @@ const ListRow: React.FC<ListRowProps> = ({
   searchQuery,
   onClick,
   onDoubleClick,
-}) => (
-  <div onClick={onClick} onDoubleClick={onDoubleClick} className="list-row">
-    <img
-      src={buildGridThumbnailUrl(partnerId, entry.id)}
-      alt=""
-      loading="lazy"
-      className="list-row-thumb"
-    />
-    <div className="list-row-info">
-      <div className={`list-row-name ellipsis${isContentHeld(entry) ? " text-error" : ""}`}>
-        {isContentHeld(entry) && <span className="badge-inline badge-hold">HOLD</span>}
-        {imported && "\u2713\u0020"}
-        <HighlightText text={entry.name} query={searchQuery || ""} />
-      </div>
-      <div className="list-row-meta">
-        {formatDuration(entry.duration)} {"\u00B7"} {formatDate(entry.createdAt)}
-        {isContentHeld(entry) && (
-          <span className="text-error" style={{ marginLeft: 4 }}>
-            {`Hold: ${getHoldReason(entry) || "Content held"}`}
-          </span>
-        )}
-        {getLicenseStatus(entry) === "expired" && (
-          <span className="text-warning-orange" style={{ marginLeft: 4 }}>
-            License expired
-          </span>
-        )}
-        {getLicenseStatus(entry) === "expiring" && (
-          <span className="text-warning-yellow" style={{ marginLeft: 4 }}>
-            Expiring: {formatDate(entry.endDate!)}
-          </span>
-        )}
-        {highlightMeta && (
-          <span className="highlight-source" style={{ marginLeft: 4 }}>
-            {"\u00B7"} {highlightMeta}
-          </span>
-        )}
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div onClick={onClick} onDoubleClick={onDoubleClick} className="list-row">
+      <img
+        src={buildGridThumbnailUrl(partnerId, entry.id)}
+        alt=""
+        loading="lazy"
+        className="list-row-thumb"
+      />
+      <div className="list-row-info">
+        <div className={`list-row-name ellipsis${isContentHeld(entry) ? " text-error" : ""}`}>
+          {isContentHeld(entry) && <span className="badge-inline badge-hold">HOLD</span>}
+          {imported && "\u2713\u0020"}
+          <HighlightText text={entry.name} query={searchQuery || ""} />
+        </div>
+        <div className="list-row-meta">
+          {formatDuration(entry.duration)} {"\u00B7"} {formatDate(entry.createdAt)}
+          {isContentHeld(entry) && (
+            <span className="text-error" style={{ marginLeft: 4 }}>
+              {getHoldReason(entry)
+                ? t("browse.holdReasonPrefix", { reason: getHoldReason(entry)! })
+                : t("browse.holdGeneric")}
+            </span>
+          )}
+          {getLicenseStatus(entry) === "expired" && (
+            <span className="text-warning-orange" style={{ marginLeft: 4 }}>
+              {t("browse.licenseExpired")}
+            </span>
+          )}
+          {getLicenseStatus(entry) === "expiring" && (
+            <span className="text-warning-yellow" style={{ marginLeft: 4 }}>
+              {t("browse.licenseExpiringSoon")}: {formatDate(entry.endDate!)}
+            </span>
+          )}
+          {highlightMeta && (
+            <span className="highlight-source" style={{ marginLeft: 4 }}>
+              {"\u00B7"} {highlightMeta}
+            </span>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // --- Asset Detail View ---
 
@@ -782,6 +802,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
   auditService,
   onAttachToClip,
 }) => {
+  const { t } = useTranslation();
   const { entry, flavors } = details;
   const readyFlavors = flavors.filter(isFlavorReady);
   const [activeSection, setActiveSection] = useState<DetailSection>("info");
@@ -812,7 +833,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
             if (e.key === "Enter" || e.key === " ") onBack();
           }}
         >
-          {"\u2190"} Back
+          {t("browse.back")}
         </div>
       </div>
 
@@ -837,13 +858,13 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
           className={`sub-tab${activeSection === "info" ? " sub-tab--active" : ""}`}
           onClick={() => setActiveSection("info")}
         >
-          Info
+          {t("browse.tabInfo")}
         </button>
         <button
           className={`sub-tab${activeSection === "captions" ? " sub-tab--active" : ""}`}
           onClick={() => setActiveSection("captions")}
         >
-          Captions
+          {t("browse.tabCaptions")}
         </button>
       </div>
 
@@ -913,7 +934,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
               if (e.key === "Enter" || e.key === " ") onEdit();
             }}
           >
-            Edit Metadata
+            {t("browse.editMetadata")}
           </div>
           <div
             className={`detail-btn ${isContentHeld(entry) ? "detail-btn--disabled" : "detail-btn--primary"}`}
@@ -929,7 +950,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
             }
             aria-disabled={isContentHeld(entry) || undefined}
           >
-            {isContentHeld(entry) ? "Import Blocked" : "Import to Project"}
+            {isContentHeld(entry) ? t("browse.importBlocked") : t("browse.importToProject")}
           </div>
         </div>
       </div>
@@ -944,6 +965,7 @@ const InfoSection: React.FC<{
   readyFlavors: KalturaFlavorAsset[];
   accessControl: { name: string; restrictions: { type: string; description: string }[] } | null;
 }> = ({ entry, readyFlavors, accessControl }) => {
+  const { t } = useTranslation();
   const holdReason = getHoldReason(entry);
   const licenseStatus = getLicenseStatus(entry);
 
@@ -952,11 +974,11 @@ const InfoSection: React.FC<{
       {/* Governance warnings */}
       {isContentHeld(entry) && (
         <div className="section-info section-info-error">
-          <strong>Content Hold</strong>
+          <strong>{t("browse.contentHold")}</strong>
           <div style={{ marginTop: 4 }}>
             {holdReason
-              ? `Reason: ${holdReason}`
-              : "This entry is under content hold and cannot be imported."}
+              ? t("browse.holdReasonPrefix", { reason: holdReason })
+              : t("browse.holdGeneric")}
           </div>
         </div>
       )}
@@ -965,19 +987,21 @@ const InfoSection: React.FC<{
           className={`section-info ${licenseStatus === "expired" ? "section-info-error" : "section-info-warning"}`}
         >
           <strong>
-            {licenseStatus === "expired" ? "License Expired" : "License Expiring Soon"}
+            {licenseStatus === "expired"
+              ? t("browse.licenseExpired")
+              : t("browse.licenseExpiringSoon")}
           </strong>
           <div style={{ marginTop: 4 }}>
             {licenseStatus === "expired"
-              ? `This content's license expired on ${formatDate(entry.endDate!)}.`
-              : `This content's license expires on ${formatDate(entry.endDate!)}. Review usage rights before importing.`}
+              ? t("browse.licenseExpiredMsg", { date: formatDate(entry.endDate!) })
+              : t("browse.licenseExpiringMsg", { date: formatDate(entry.endDate!) })}
           </div>
         </div>
       )}
 
       {/* Details */}
       <div className="detail-section">
-        <div className="detail-section-title">Details</div>
+        <div className="detail-section-title">{t("browse.details")}</div>
         {entry.description && (
           <div className="detail-field">
             <span className="detail-field-value">{entry.description}</span>
@@ -986,23 +1010,23 @@ const InfoSection: React.FC<{
         <div className="detail-fields-grid">
           {entry.tags && (
             <div className="detail-field">
-              <span className="detail-field-label">Tags</span>
+              <span className="detail-field-label">{t("browse.tags")}</span>
               <span className="detail-field-value">{entry.tags}</span>
             </div>
           )}
           {entry.categories && (
             <div className="detail-field">
-              <span className="detail-field-label">Categories</span>
+              <span className="detail-field-label">{t("browse.categories")}</span>
               <span className="detail-field-value">{entry.categories}</span>
             </div>
           )}
           <div className="detail-field">
-            <span className="detail-field-label">Entry ID</span>
+            <span className="detail-field-label">{t("browse.entryId")}</span>
             <CopyableValue value={entry.id} mono />
           </div>
           {entry.userId && (
             <div className="detail-field">
-              <span className="detail-field-label">Owner</span>
+              <span className="detail-field-label">{t("browse.owner")}</span>
               <CopyableValue value={entry.userId} />
             </div>
           )}
@@ -1012,9 +1036,9 @@ const InfoSection: React.FC<{
       {/* Access control */}
       {accessControl && (
         <div className="detail-section">
-          <div className="detail-section-title">Access Control</div>
+          <div className="detail-section-title">{t("browse.accessControl")}</div>
           <div className="detail-field">
-            <span className="detail-field-label">Profile</span>
+            <span className="detail-field-label">{t("browse.profile")}</span>
             <span className="detail-field-value">{accessControl.name}</span>
           </div>
           {accessControl.restrictions.length > 0 &&
@@ -1030,7 +1054,9 @@ const InfoSection: React.FC<{
       {/* Available qualities */}
       {readyFlavors.length > 0 && (
         <div className="detail-section">
-          <div className="detail-section-title">Available Qualities ({readyFlavors.length})</div>
+          <div className="detail-section-title">
+            {t("browse.availableQualities", { count: readyFlavors.length })}
+          </div>
           {readyFlavors.map((f) => (
             <div key={f.id} className="quality-item">
               <span className="quality-resolution">
@@ -1042,7 +1068,9 @@ const InfoSection: React.FC<{
                 {f.fileExt} {"\u00B7"} {formatFileSize(f.size * 1024)}
               </span>
               {(f.isOriginal || f.isWeb) && (
-                <span className="quality-badge">{f.isOriginal ? "Original" : "Web"}</span>
+                <span className="quality-badge">
+                  {f.isOriginal ? t("browse.original") : t("browse.web")}
+                </span>
               )}
             </div>
           ))}
@@ -1063,6 +1091,7 @@ const CaptionSection: React.FC<{
     segments: CaptionSegment[],
   ) => Promise<{ success: boolean; error?: string }>;
 }> = ({ entryId, captionService, initialCaptions, onAttachToClip }) => {
+  const { t } = useTranslation();
   const [captions, setCaptions] = useState<KalturaCaptionAsset[]>(initialCaptions);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1102,7 +1131,7 @@ const CaptionSection: React.FC<{
         const ppro = require("premierepro");
         const project = await ppro.Project.getActiveProject();
         await project.importFiles([nativePath], true);
-        setSuccessMsg("SRT imported to project panel.");
+        setSuccessMsg(t("browse.srtImported"));
         setTimeout(() => setSuccessMsg(null), 4000);
       } catch (err) {
         setError(getUserMessage(err));
@@ -1124,19 +1153,19 @@ const CaptionSection: React.FC<{
         const segments = captionService.parseKalturaJson(jsonSegments);
 
         if (segments.length === 0) {
-          setError("No transcript segments found in this caption track.");
+          setError(t("browse.noTranscriptSegments"));
           return;
         }
 
         const result = await onAttachToClip(entryId, segments);
         if (result.success) {
-          setSuccessMsg("Transcript attached \u2014 open the Transcript panel to view.");
+          setSuccessMsg(t("browse.transcriptAttached"));
           setTimeout(() => setSuccessMsg(null), 6000);
         } else {
-          setError(`Attach failed: ${result.error}. Use "Import SRT" as an alternative.`);
+          setError(t("browse.attachFailedAlt", { error: result.error ?? "" }));
         }
       } catch (err) {
-        setError(`Attach failed: ${getUserMessage(err)}. Use "Import SRT" as an alternative.`);
+        setError(t("browse.attachFailedAlt", { error: getUserMessage(err) }));
       } finally {
         setBusyId(null);
       }
@@ -1145,7 +1174,7 @@ const CaptionSection: React.FC<{
   );
 
   if (isLoading) {
-    return <LoadingSpinner label="Loading captions..." size="small" />;
+    return <LoadingSpinner label={t("browse.loadingCaptions")} size="small" />;
   }
 
   return (
@@ -1170,13 +1199,13 @@ const CaptionSection: React.FC<{
                 </strong>
                 {caption.isDefault && (
                   <span className="text-success" style={{ marginLeft: 4, fontSize: 10 }}>
-                    Default
+                    {t("browse.captionDefault")}
                   </span>
                 )}
               </div>
             </div>
             <div className="text-muted" style={{ marginTop: 2 }}>
-              {formatCaptionFormat(caption.format)} {"\u00B7"} {formatDate(caption.createdAt)}
+              {formatCaptionFormat(caption.format, t)} {"\u00B7"} {formatDate(caption.createdAt)}
               {caption.accuracy && ` \u00B7 ${caption.accuracy}% accuracy`}
             </div>
             <div style={{ display: "flex", marginTop: 4 }}>
@@ -1190,7 +1219,7 @@ const CaptionSection: React.FC<{
                   if (e.key === "Enter" || e.key === " ") handleImportSrt(caption);
                 }}
               >
-                {busyId === caption.id ? "Working..." : "Import SRT"}
+                {busyId === caption.id ? t("browse.working") : t("browse.importSRT")}
               </div>
               {onAttachToClip && (
                 <div
@@ -1203,7 +1232,7 @@ const CaptionSection: React.FC<{
                     if (e.key === "Enter" || e.key === " ") handleAttachToClip(caption);
                   }}
                 >
-                  {busyId === caption.id ? "Working..." : "Attach to Clip"}
+                  {busyId === caption.id ? t("browse.working") : t("browse.attachToClip")}
                 </div>
               )}
             </div>
@@ -1215,7 +1244,7 @@ const CaptionSection: React.FC<{
             className="text-muted-light"
             style={{ padding: 16, textAlign: "center", fontSize: 11 }}
           >
-            No caption tracks available for this entry.
+            {t("browse.noCaptions")}
           </div>
         )}
       </div>

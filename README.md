@@ -1,6 +1,6 @@
 # Kaltura for Adobe Creative Cloud
 
-> **From Timeline to Audience.** A native [Adobe UXP](https://developer.adobe.com/premiere-pro/uxp/) panel integrating [Kaltura's](https://corp.kaltura.com/) enterprise video platform with Adobe Premiere Pro, After Effects, and Audition.
+> **From Timeline to Audience.** A native [Adobe UXP](https://developer.adobe.com/premiere-pro/uxp/) panel integrating [Kaltura's](https://corp.kaltura.com/) enterprise video platform with Adobe Premiere Pro and Photoshop.
 
 Browse, search, import, and publish video content — all without leaving your Adobe app.
 
@@ -8,7 +8,7 @@ Browse, search, import, and publish video content — all without leaving your A
 
 ### What is this?
 
-[Kaltura](https://corp.kaltura.com/) is an enterprise video platform used by Fortune 500 companies, universities, and media organizations for video management, hosting, and streaming. This open-source plugin brings Kaltura directly into Adobe's creative tools — editors can browse their organization's video library, import assets, attach captions to timeline clips, and publish finished work back to Kaltura, all from within Premiere Pro (or After Effects / Audition).
+[Kaltura](https://corp.kaltura.com/) is an enterprise video platform used by Fortune 500 companies, universities, and media organizations for video management, hosting, and streaming. This open-source plugin brings Kaltura directly into Adobe's creative tools — editors can browse their organization's video library, import assets, attach captions to timeline clips, and publish finished work back to Kaltura, all from within Premiere Pro or Photoshop.
 
 ## Features
 
@@ -20,13 +20,13 @@ Browse, search, import, and publish video content — all without leaving your A
 | **Captions**        | List, download, and parse caption tracks (SRT, VTT, DFXP, JSON); attach transcripts directly to timeline clips via Premiere's native Transcript API                                                             |
 | **Governance**      | Content hold detection, license expiry warnings, access control profiles, local audit trail                                                                                                                     |
 | **Offline Cache**   | LRU cache for browsing asset metadata offline; operation queue syncs when reconnected                                                                                                                           |
-| **Multi-App**       | Runs in Premiere Pro, After Effects, and Audition with host-specific adapters                                                                                                                                   |
+| **Multi-App**       | Runs in Premiere Pro and Photoshop with host-specific adapters                                                                                                                                                  |
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Adobe Premiere Pro**, **After Effects**, or **Audition** v25.6 or later
+- **Adobe Premiere Pro** v25.6+ or **Photoshop** v25.1+
 - **Node.js** 18+ and **npm** (for development only)
 - A **Kaltura** account with API access ([sign up](https://developer.kaltura.com/))
 
@@ -34,7 +34,7 @@ Browse, search, import, and publish video content — all without leaving your A
 
 1. Go to the **[Latest Release](../../releases/latest)** page
 2. Download the `kaltura-panel-x.x.x.ccx` file
-3. **Double-click** the `.ccx` file to install (works for Premiere Pro, After Effects, and Audition)
+3. **Double-click** the `.ccx` file for your app to install
 4. Open your Adobe app > **Window > UXP Plugins > Kaltura**
 
 ### Development Setup
@@ -52,7 +52,7 @@ npm run dev
 #    a. Install the UXP Developer Tool from https://developer.adobe.com/premiere-pro/uxp/devtools/
 #    b. Open UXP Developer Tool
 #    c. Click "Add Plugin" and select dist/manifest.json
-#    d. Click "Load" to sideload into Premiere Pro (or After Effects / Audition)
+#    d. Click "Load" to sideload into your Adobe app
 #    e. The panel appears under Window > UXP Plugins > Kaltura
 #
 # Every time you save a source file, webpack rebuilds automatically.
@@ -91,17 +91,16 @@ cp .env.example .env
 - **[Spectrum Web Components](https://opensource.adobe.com/spectrum-web-components/)** — Adobe's design system (`sp-button`, `sp-textfield`, etc.) for native look and feel
 - **Kaltura REST API** — multi-request batching, chunked resumable uploads, eSearch
 - **TypeScript** — strict mode, no `any` types except at API boundaries
-- **Webpack** — bundles to a single `index.js` with UXP externals (`uxp`, `premierepro`, `aftereffects`, `audition`)
+- **Webpack** — bundles to a single `index.js` with UXP externals (`uxp`, `premierepro`, `photoshop`)
 
 ### Multi-App Support
 
-The plugin runs in three Adobe hosts via a `HostService` abstraction layer:
+The plugin runs in two Adobe hosts via a `HostService` abstraction layer:
 
-| Host          | Adapter                   | Capabilities                                                  |
-| ------------- | ------------------------- | ------------------------------------------------------------- |
-| Premiere Pro  | `PremiereHostAdapter`     | Sequences, video/audio import, timeline markers, project bins |
-| After Effects | `AfterEffectsHostService` | Compositions, footage import, layer management                |
-| Audition      | `AuditionHostService`     | Audio sessions, audio file import, audio markers              |
+| Host         | Adapter                | Capabilities                                                  |
+| ------------ | ---------------------- | ------------------------------------------------------------- |
+| Premiere Pro | `PremiereHostAdapter`  | Sequences, video/audio import, timeline markers, project bins |
+| Photoshop    | `PhotoshopHostService` | Document open, image import, browse Kaltura assets            |
 
 The `HostServiceFactory` auto-detects the running host at startup and returns the appropriate adapter.
 
@@ -151,8 +150,7 @@ kaltura-premiere-panel/
       PremiereService.ts      #   UXP Premiere API: sequences, import, markers, export
       HostService.ts          #   Abstract host interface definition
       HostServiceFactory.ts   #   Auto-detect host app and create appropriate adapter
-      AfterEffectsHostService.ts  # AE compositions, footage import
-      AuditionHostService.ts  #   Audio sessions, audio import
+      PhotoshopHostService.ts #   Document open, image import
     hooks/                    # 3 custom React hooks
       useAuth.ts              #   Authentication state machine with cross-panel sync
       useDebounce.ts          #   Debounced value for search input
@@ -192,7 +190,7 @@ Services are **module-level singletons** in `src/services/singleton.ts`. All pan
 | `BatchService`           | Multi-entry operations, offline cache integration, governance tags          |
 | `AuditService`           | Audit trail logging, access control profiles, license expiry                |
 | `OfflineService`         | LRU cache (200 entries / 50 MB), operation queue for offline-to-online sync |
-| `HostService` (factory)  | Auto-detects host app, returns PremiereHostAdapter / AE / Audition adapter  |
+| `HostService` (factory)  | Auto-detects host app, returns PremiereHostAdapter or PhotoshopHostService  |
 
 Panels consume services through duck-typed prop interfaces for loose coupling and easy testing.
 
@@ -231,7 +229,7 @@ npm run package              # Validate build + generate Exchange metadata
 node scripts/build-ccx.js   # Build per-host .ccx files into release/
 ```
 
-`npm run package` validates the build, syncs the manifest version, verifies icons, and generates Exchange metadata. `build-ccx.js` then creates per-host `.ccx` files for Premiere Pro, After Effects, and Audition.
+`npm run package` validates the build, syncs the manifest version, verifies icons, and generates Exchange metadata. `build-ccx.js` then creates per-host `.ccx` files for Premiere Pro and Photoshop.
 
 **Automated releases:** Push a version tag (e.g. `git tag v1.14.0 && git push --tags`) and the [Release workflow](.github/workflows/release.yml) runs CI, builds all `.ccx` files, and publishes a GitHub Release with install instructions and downloadable assets.
 
