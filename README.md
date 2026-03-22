@@ -26,7 +26,7 @@ Browse, search, import, and publish video content — all without leaving your A
 
 ### Prerequisites
 
-- **Adobe Premiere Pro**, **After Effects**, or **Audition** v25.2 or later
+- **Adobe Premiere Pro**, **After Effects**, or **Audition** v25.6 or later
 - **Node.js** 18+ and **npm** (for development only)
 - A **Kaltura** account with API access ([sign up](https://developer.kaltura.com/))
 
@@ -115,28 +115,27 @@ kaltura-premiere-panel/
     styles.css                # Spectrum design token CSS
     icons/                    # Plugin icons (24, 48, 96, 192 px)
   src/
-    index.tsx                 # UXP entrypoints.setup() + React root render
-    App.tsx                   # Auth gate, service initialization, tab router (Browse/Publish/Settings)
-    panels/                   # 4 panel components
-      LoginPanel.tsx          #   Email/password + SSO login form
+    index.tsx                 # UXP entrypoints.setup() — registers 2 panels + 2 commands
+    panels/                   # Panel root components + inner panels
+      BrowsePanelRoot.tsx     #   Media Browser panel entry (AuthGate → BrowseContent)
+      PublishPanelRoot.tsx    #   Publish panel entry (AuthGate → PublishContent)
       BrowsePanel.tsx         #   Asset browser with search, filters, grid/list, detail flyout
-      PublishPanel.tsx         #   Export sequence + upload workflow
-      SettingsPanel.tsx        #   Preferences, cache management, about (lazy-loaded)
-    components/               # 13 shared UI components
+      PublishPanel.tsx        #   Export sequence + upload workflow
+      LoginPanel.tsx          #   Email/password + SSO login form (rendered by AuthGate)
+      SettingsPanel.tsx       #   Preferences, cache, about (rendered by SettingsCommand)
+    commands/                 # Command entrypoints (vanilla JS, no React)
+      SettingsCommand.ts      #   Opens settings modal dialog via uxpShowModal()
+      SignOutCommand.ts       #   Clears session + dispatches cross-panel signout event
+    components/               # Shared UI components
+      AuthGate.tsx            #   Auth wrapper: inline login per panel, cross-panel sync
       ErrorBoundary.tsx       #   Top-level crash protection (mandatory for UXP)
       FilterBar.tsx           #   Search filters (media type, date, owner)
-      ConfirmDialog.tsx       #   Modal confirmation dialog
-      ErrorBanner.tsx         #   Dismissible error display with retry
-      LoadingSpinner.tsx      #   Spectrum-styled spinner
-      ProgressBar.tsx         #   Upload/download progress (native HTML, not sp-progress-bar)
-      StatusBar.tsx           #   Connection state indicator
-      QualityPicker.tsx       #   Flavor/quality selection for import
+      QualityPicker.tsx       #   Flavor/quality selection overlay for import
       MetadataEditor.tsx      #   Entry metadata form (name, description, tags, categories)
-      Accordion.tsx           #   Collapsible section
-      SegmentedControl.tsx    #   Grid/list view toggle
-      SkeletonGrid.tsx        #   Loading placeholder grid
-      EmptyState.tsx          #   Empty search results / no content guidance
+      StatusBar.tsx           #   Connection state indicator
+      ...                     #   + LoadingSpinner, ErrorBanner, ProgressBar, etc.
     services/                 # Service modules
+      singleton.ts            #   Shared singleton instances (all panels/commands share these)
       KalturaClient.ts        #   Low-level HTTP: single/multi-request, KS injection, HTTPS validation
       AuthService.ts          #   Email/password, App Token, SSO (three-party OAuth), session refresh
       MediaService.ts         #   Media CRUD, eSearch, batched detail fetching, download URLs
@@ -155,15 +154,12 @@ kaltura-premiere-panel/
       AfterEffectsHostService.ts  # AE compositions, footage import
       AuditionHostService.ts  #   Audio sessions, audio import
     hooks/                    # 3 custom React hooks
-      useAuth.ts              #   Authentication state machine with session restore
+      useAuth.ts              #   Authentication state machine with cross-panel sync
       useDebounce.ts          #   Debounced value for search input
       useContainerWidth.ts    #   Responsive grid column calculation
     types/                    # TypeScript type definitions
-      kaltura.ts              #   Kaltura API types (entries, flavors, captions, filters, enums)
-      premiere.ts             #   Premiere Pro UXP API type stubs
-      spectrum.d.ts           #   Spectrum Web Components JSX declarations
-      index.ts                #   Shared types (AuthState, TabId, ConnectionState, PluginSettings)
     utils/                    # Pure utility functions
+      settings.ts             #   Shared settings load/save utilities
       constants.ts            #   All magic numbers, URLs, storage keys, timeouts
       errors.ts               #   Custom error classes (KalturaApiError, NetworkError, AuthenticationError)
       format.ts               #   Date, duration, file size formatters
@@ -180,7 +176,7 @@ kaltura-premiere-panel/
 
 ### Service Layer
 
-12 services are instantiated in `App.tsx` via `useMemo`:
+Services are **module-level singletons** in `src/services/singleton.ts`. All panels and commands import from this module, so login from any panel authenticates every panel.
 
 | Service                  | Purpose                                                                     |
 | ------------------------ | --------------------------------------------------------------------------- |
@@ -198,7 +194,7 @@ kaltura-premiere-panel/
 | `OfflineService`         | LRU cache (200 entries / 50 MB), operation queue for offline-to-online sync |
 | `HostService` (factory)  | Auto-detects host app, returns PremiereHostAdapter / AE / Audition adapter  |
 
-Panels consume services through duck-typed interfaces for loose coupling — no panel imports a concrete service class directly.
+Panels consume services through duck-typed prop interfaces for loose coupling and easy testing.
 
 ## Configuration
 
@@ -216,7 +212,7 @@ Enterprise admins can pre-configure the plugin with a JSON config file — see t
 
 ## Testing
 
-**452 tests** across **37 suites** — all passing.
+**493 tests** across **40 suites** — all passing.
 
 ```bash
 npm test                  # Run all tests
@@ -235,7 +231,7 @@ npm run package              # Validate build + generate Exchange metadata
 node scripts/build-ccx.js   # Build per-host .ccx files into release/
 ```
 
-`npm run package` validates the build, syncs the manifest version, verifies icons, and generates Exchange metadata. `build-ccx.js` then creates a single `.ccx` containing a multi-host manifest that works across Premiere Pro, After Effects, and Audition.
+`npm run package` validates the build, syncs the manifest version, verifies icons, and generates Exchange metadata. `build-ccx.js` then creates per-host `.ccx` files for Premiere Pro, After Effects, and Audition.
 
 **Automated releases:** Push a version tag (e.g. `git tag v1.14.0 && git push --tags`) and the [Release workflow](.github/workflows/release.yml) runs CI, builds all `.ccx` files, and publishes a GitHub Release with install instructions and downloadable assets.
 
