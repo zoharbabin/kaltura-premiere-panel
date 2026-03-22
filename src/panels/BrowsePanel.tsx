@@ -463,7 +463,6 @@ export const BrowsePanel: React.FC<BrowsePanelProps> = ({
         onBack={handleBackToGrid}
         onImport={handleImportClick}
         onEdit={() => setIsEditing(true)}
-        isImported={false}
         importError={importError}
         showQualityPicker={showQualityPicker}
         selectedFlavor={selectedFlavor}
@@ -754,7 +753,6 @@ interface AssetDetailProps {
   onBack: () => void;
   onImport: () => void;
   onEdit: () => void;
-  isImported: boolean;
   importError: string | null;
   showQualityPicker: boolean;
   selectedFlavor: KalturaFlavorAsset | null;
@@ -775,7 +773,6 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
   onBack,
   onImport,
   onEdit,
-  isImported,
   importError,
   showQualityPicker,
   selectedFlavor,
@@ -850,30 +847,53 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         </button>
       </div>
 
-      {/* Quality picker overlay */}
-      {showQualityPicker && (
-        <QualityPicker
-          flavors={readyFlavors}
-          selectedFlavorId={selectedFlavor?.id ?? null}
-          onSelect={onFlavorSelect}
-          onCancel={onQualityCancel}
-          onConfirm={onQualityConfirm}
-        />
-      )}
+      <div
+        style={{ position: "relative", flexGrow: 1, flexShrink: 1, flexBasis: "0%", minHeight: 0 }}
+      >
+        {/* Quality picker overlay */}
+        {showQualityPicker && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 10,
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              padding: "12px",
+              overflowY: "auto",
+            }}
+          >
+            <QualityPicker
+              flavors={readyFlavors}
+              selectedFlavorId={selectedFlavor?.id ?? null}
+              onSelect={onFlavorSelect}
+              onCancel={onQualityCancel}
+              onConfirm={onQualityConfirm}
+            />
+          </div>
+        )}
 
-      <div className="detail-scroll">
-        {activeSection === "info" && (
-          <InfoSection entry={entry} readyFlavors={readyFlavors} accessControl={accessControl} />
-        )}
-        {activeSection === "captions" && (
-          <CaptionSection
-            entryId={entry.id}
-            captionService={captionService}
-            initialCaptions={details.captions}
-            isVideoImported={isImported}
-            onAttachToClip={onAttachToClip}
-          />
-        )}
+        <div
+          className="detail-scroll"
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflowY: "auto" }}
+        >
+          {activeSection === "info" && (
+            <InfoSection entry={entry} readyFlavors={readyFlavors} accessControl={accessControl} />
+          )}
+          {activeSection === "captions" && (
+            <CaptionSection
+              entryId={entry.id}
+              captionService={captionService}
+              initialCaptions={details.captions}
+              onAttachToClip={onAttachToClip}
+            />
+          )}
+        </div>
       </div>
 
       {/* Action bar */}
@@ -881,12 +901,6 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
         {importError && (
           <div className="alert-error" style={{ margin: 0 }}>
             {importError}
-          </div>
-        )}
-        {isImported && !importError && (
-          <div className="alert-info" style={{ margin: 0 }}>
-            {"\u2713"} Previously imported. Look in <strong>Kaltura Assets</strong> bin in the
-            Project panel.
           </div>
         )}
         <div className="detail-actions-row">
@@ -915,11 +929,7 @@ const AssetDetail: React.FC<AssetDetailProps> = ({
             }
             aria-disabled={isContentHeld(entry) || undefined}
           >
-            {isContentHeld(entry)
-              ? "Import Blocked"
-              : isImported
-                ? "Re-import to Project"
-                : "Import to Project"}
+            {isContentHeld(entry) ? "Import Blocked" : "Import to Project"}
           </div>
         </div>
       </div>
@@ -1048,12 +1058,11 @@ const CaptionSection: React.FC<{
   entryId: string;
   captionService: CaptionService;
   initialCaptions: KalturaCaptionAsset[];
-  isVideoImported: boolean;
   onAttachToClip?: (
     entryId: string,
     segments: CaptionSegment[],
   ) => Promise<{ success: boolean; error?: string }>;
-}> = ({ entryId, captionService, initialCaptions, isVideoImported, onAttachToClip }) => {
+}> = ({ entryId, captionService, initialCaptions, onAttachToClip }) => {
   const [captions, setCaptions] = useState<KalturaCaptionAsset[]>(initialCaptions);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1107,10 +1116,6 @@ const CaptionSection: React.FC<{
   const handleAttachToClip = useCallback(
     async (caption: KalturaCaptionAsset) => {
       if (!onAttachToClip) return;
-      if (!isVideoImported) {
-        setError("Import the video first before attaching captions.");
-        return;
-      }
       setBusyId(caption.id);
       setError(null);
       setSuccessMsg(null);
@@ -1136,7 +1141,7 @@ const CaptionSection: React.FC<{
         setBusyId(null);
       }
     },
-    [captionService, entryId, isVideoImported, onAttachToClip],
+    [captionService, entryId, onAttachToClip],
   );
 
   if (isLoading) {
@@ -1187,7 +1192,7 @@ const CaptionSection: React.FC<{
               >
                 {busyId === caption.id ? "Working..." : "Import SRT"}
               </div>
-              {onAttachToClip && isVideoImported && (
+              {onAttachToClip && (
                 <div
                   role="button"
                   tabIndex={0}
