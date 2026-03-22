@@ -235,7 +235,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
    * Step 4: Create/update entry + metadata
    */
   const handlePublish = useCallback(async () => {
-    if (!title.trim()) return;
+    if (publishMode === "new" && !title.trim()) return;
     setError(null);
 
     try {

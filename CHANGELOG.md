@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.18.2
+
+### Bug Fixes
+
+- **Fix panel layout not filling height** — UXP multi-panel `create(rootNode)` provides a container without `height: 100%`. Set height and overflow on rootNode so panels fill the available space with StatusBar pinned to bottom.
+- **Fix "Replace Content" button not responding** — In Replace Existing mode, `handlePublish` had an early return if title was empty, but title is optional for replacements. Guard now only applies to New Entry mode.
+
 ## 1.18.1
 
 ### Internationalization
