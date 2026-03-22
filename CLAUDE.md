@@ -3,7 +3,7 @@
 ## Project Overview
 
 Native Adobe UXP panel integrating Kaltura's enterprise video platform with Adobe Premiere Pro, After Effects, and Audition.
-UXP-only (no CEP/ExtendScript). React 18 + Spectrum Web Components. Minimum host version v25.2.
+UXP-only (no CEP/ExtendScript). React 18 + Spectrum Web Components. Minimum host version v25.6.
 
 ## Architecture
 
@@ -19,15 +19,21 @@ UXP-only (no CEP/ExtendScript). React 18 + Spectrum Web Components. Minimum host
 ```
 plugin/manifest.json          # UXP manifest v5
 src/
-  index.tsx                   # UXP entrypoints.setup() + React render
-  App.tsx                     # Root: auth gate, tab router (Browse/Publish/Settings), 13 services
-  panels/                     # 4 panels
-    LoginPanel.tsx            # Email/password + SSO login
+  index.tsx                   # UXP entrypoints.setup() — registers 2 panels + 2 commands
+  panels/                     # Panel root components + inner panels
+    BrowsePanelRoot.tsx       # Media Browser panel entry (AuthGate → BrowseContent)
+    PublishPanelRoot.tsx       # Publish panel entry (AuthGate → PublishContent)
     BrowsePanel.tsx           # Asset browser: search, filters, grid/list, detail flyout
     PublishPanel.tsx           # Export + upload workflow
-    SettingsPanel.tsx          # Preferences, cache, about (lazy-loaded)
-  components/                 # 13 shared UI components (incl. ErrorBoundary at app root)
-  services/                   # 19 service modules
+    LoginPanel.tsx            # Email/password + SSO login (rendered by AuthGate)
+    SettingsPanel.tsx          # Preferences, cache, about (rendered by SettingsCommand)
+  commands/                   # Command entrypoints (no React — vanilla JS + UXP dialogs)
+    SettingsCommand.ts        # Opens settings modal via uxpShowModal()
+    SignOutCommand.ts         # Clears session + dispatches kaltura:signout event
+  components/                 # Shared UI components (incl. ErrorBoundary, AuthGate)
+    AuthGate.tsx              # Auth wrapper: inline login per panel, cross-panel sync
+  services/                   # Service modules
+    singleton.ts              # Shared singleton instances (all panels/commands share these)
     KalturaClient.ts          # Low-level HTTP: single/multi-request, KS injection, HTTPS validation
     AuthService.ts            # Login, session persistence, auto-refresh
     MediaService.ts           # CRUD, eSearch, batched detail fetching, download URLs
@@ -35,9 +41,7 @@ src/
     DownloadService.ts        # Download + import with progress tracking
     MetadataService.ts        # Metadata, tags, categories, custom schemas
     CaptionService.ts         # REACH captioning/translation, JSON/SRT/VTT parsing, serveAsJson transcript
-    NotificationService.ts    # WebSocket push notifications with polling fallback
     SearchService.ts          # eSearch-powered transcript/visual/in-video search
-    ProxyService.ts           # Proxy download for editing, reconnect to original
     PublishWorkflowService.ts # Multi-destination, approval, versioning, scheduling
     BatchService.ts           # Multi-request batch ops, offline cache, governance
     PremiereService.ts        # UXP API: sequence, import, markers, transcript attach, export
@@ -50,8 +54,9 @@ src/
   hooks/                      # 3 custom React hooks (useAuth, useDebounce, useContainerWidth)
   types/                      # TypeScript type definitions
   utils/                      # Constants, error classes, formatters, logger, thumbnail URLs
+    settings.ts               # Shared settings load/save utilities
 tests/                        # Jest unit tests (mirrors src/ structure)
-scripts/                      # Build, package, install, and dev scripts
+scripts/                      # Build, package, and dev scripts
 docs/                         # Documentation
 ```
 
@@ -102,7 +107,7 @@ docs/                         # Documentation
 - Jest + jsdom for unit tests; `tests/` mirrors `src/` directory structure
 - Mock `premierepro` and `uxp` modules globally in `tests/setup.ts` (`aftereffects` and `audition` are NOT mocked — host services test unavailable state)
 - Mock `fetch` globally — never hit live API in CI
-- 452 tests across 37 suites — all passing
+- 493 tests across 40 suites — all passing
 - Panel tests use duck-typed service mocks and React Testing Library
 - Use `renderHook` + `act` for hook tests; `jest.useFakeTimers()` for debounce tests
 - Coverage thresholds enforced (`jest.config.js`): statements 65%, branches 50%, functions 64%, lines 66%
@@ -123,11 +128,12 @@ docs/                         # Documentation
 - `npm run typecheck` — TypeScript type checking
 - `npm run package` — build + verify + Exchange metadata for .ccx distribution
 
-## Service Wiring (App.tsx)
+## Service Wiring
 
-13 services instantiated in `App.tsx` via `useMemo` (including host service via factory):
+Services are **module-level singletons** in `src/services/singleton.ts`. All panels and commands
+import from this module, so login from any panel authenticates every panel.
 
-- `KalturaClient` → base HTTP client
+- `KalturaClient` → base HTTP client (partner ID updated on login)
 - `AuthService`, `MediaService`, `UploadService`, `MetadataService` → core CRUD
 - `DownloadService`, `CaptionService`, `SearchService` → import/search
 - `PublishWorkflowService`, `BatchService` → publish/batch
@@ -135,13 +141,22 @@ docs/                         # Documentation
 - `OfflineService` → offline caching and operation queue
 - `createHostService()` → auto-detects host app, returns PremiereHostAdapter | AfterEffectsHostService | AuditionHostService
 
-Not directly instantiated in App.tsx (used internally or available for future wiring):
+Not directly instantiated (used internally):
 
 - `PremiereService` → wrapped by `PremiereHostAdapter` inside factory
-- `NotificationService` → WebSocket push (available but not currently wired)
-- `ProxyService` → proxy download/reconnect (available for BrowsePanel wiring)
 
 ## Panel Architecture
+
+Multi-panel + command architecture (UXP Manifest v5 entrypoints):
+
+- **Media Browser** (panel) — `BrowsePanelRoot` → `AuthGate` → `BrowsePanel`
+- **Publish** (panel) — `PublishPanelRoot` → `AuthGate` → `PublishPanel`
+- **Settings** (command) — `SettingsCommand` → `uxpShowModal()` dialog (no auth needed)
+- **Sign Out** (command) — `SignOutCommand` → clears session, dispatches `kaltura:signout`
+
+Cross-panel auth sync uses DOM events (`kaltura:signin`, `kaltura:signout`) since panels
+share the same document context but have separate React trees. `AuthGate` wraps each panel
+with inline login UI and listens for these events via `useAuth`.
 
 Panels use duck-typed service interfaces for loose coupling. All panels follow:
 

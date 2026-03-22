@@ -7,7 +7,7 @@ Thank you for your interest in contributing! This guide will help you get up and
 ### Prerequisites
 
 - **Node.js 18+** and **npm**
-- **Adobe Premiere Pro**, **After Effects**, or **Audition** v25.2+
+- **Adobe Premiere Pro**, **After Effects**, or **Audition** v25.6+
 - **[UXP Developer Tool](https://developer.adobe.com/premiere-pro/uxp/devtools/)** for loading the plugin during development
 
 ### Setup
@@ -100,16 +100,17 @@ npm run test:coverage       # With coverage report
 
 ```
 src/
-  App.tsx             # Auth gate + tab router + 13 service instances
-  panels/             # 4 panels: Login, Browse, Publish, Settings
-  components/         # 13 shared UI components
-  services/           # 19 service modules (Kaltura API + host abstractions)
+  index.tsx           # UXP entrypoints.setup() — registers 2 panels + 2 commands
+  panels/             # BrowsePanelRoot, PublishPanelRoot, BrowsePanel, PublishPanel, LoginPanel, SettingsPanel
+  commands/           # SettingsCommand (modal dialog), SignOutCommand (session clear)
+  components/         # Shared UI: AuthGate, ErrorBoundary, FilterBar, QualityPicker, etc.
+  services/           # Service modules + singleton.ts (shared instances across all panels)
   hooks/              # 3 custom hooks (useAuth, useDebounce, useContainerWidth)
   types/              # TypeScript types for Kaltura API, Premiere API, Spectrum
-  utils/              # Constants, errors, formatters, logger, thumbnails
+  utils/              # Constants, errors, formatters, logger, thumbnails, settings
 ```
 
-Panels consume services via **duck-typed interfaces** — they declare local interfaces for the service methods they need, rather than importing the concrete class. This keeps coupling loose and testing easy.
+Panels consume services via **duck-typed prop interfaces** — they declare local interfaces for the service methods they need, rather than importing the concrete class. Service instances are shared singletons from `src/services/singleton.ts`. This keeps coupling loose and testing easy.
 
 ## Submitting Changes
 

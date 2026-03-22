@@ -43,7 +43,6 @@ interface PublishPanelProps {
   premiereService: HostServiceLike;
   publishWorkflowService?: PublishWorkflowServiceLike;
   auditService?: AuditServiceLike;
-  onPublished?: (entry: KalturaMediaEntry) => void;
 }
 
 type PublishPhase =
@@ -115,7 +114,6 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   premiereService,
   publishWorkflowService,
   auditService,
-  onPublished,
 }) => {
   // Form state
   const [title, setTitle] = useState("");
@@ -426,11 +424,6 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           <sp-button variant="primary" onClick={handleReset}>
             Publish Another
           </sp-button>
-          {onPublished && (
-            <sp-button variant="secondary" onClick={() => onPublished(publishedEntry!)}>
-              Back to Browse
-            </sp-button>
-          )}
         </div>
       </div>
     );

@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.18.0
+
+### Architecture
+
+- **Multi-panel + command architecture** — Refactored from single tabbed panel to UXP best practices: two independent panels (Media Browser, Publish) and two commands (Settings, Sign Out). Each panel has its own React tree wrapped in `AuthGate` for inline login.
+- **Shared singleton services** — Services moved from `App.tsx` `useMemo` to module-level singletons in `src/services/singleton.ts`. All panels and commands share the same `KalturaClient`, `AuthService`, and derived services.
+- **Cross-panel auth sync** — Login/logout in one panel automatically syncs to all other panels via DOM events (`kaltura:signin`, `kaltura:signout`).
+- **Settings as command** — Settings is now a command that opens a modal dialog via `uxpShowModal()` instead of a panel tab. No authentication required.
+- **Sign Out as command** — Dedicated command in the Plugins menu. Clears session and dispatches signout event to reset all panel UIs.
+- **Deleted `App.tsx`** — No longer the entry point. `src/index.tsx` registers entrypoints directly.
+
+### Improvements
+
+- **Quality picker overlay** — Renders as a proper absolute-positioned overlay with backdrop instead of inline (which caused layout overlap).
+- **Removed `isImported` mechanism** — "Import to Project" always shown (no "Re-import" variant). "Attach to Clip" always available for entries with captions (not gated by import status).
+- **Removed "Back to Browse" button** — No longer relevant since Publish is an independent panel.
+- **In-panel headers** — Each panel shows a subtle header ("MEDIA BROWSER" / "PUBLISH") to distinguish docked panels since Premiere Pro uses the plugin name for all tab titles.
+- **XSS prevention** — `escapeHtml()` applied to audit trail data rendered via innerHTML in SettingsCommand.
+
+### Tests
+
+- 493 tests across 40 suites — all passing
+- New tests: SignOutCommand (event dispatch), singleton services, cross-panel auth sync
+
 ## 1.16.3
 
 ### Improvements
