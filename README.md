@@ -12,15 +12,16 @@ Browse, search, import, and publish video content — all without leaving your A
 
 ## Features
 
-| Capability          | Description                                                                                                                                                                                                     |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Browse & Search** | Search your Kaltura library with [eSearch](https://developer.kaltura.com/api-docs/service/eSearch) across titles, tags, and metadata. Grid or list view with filters, infinite scroll, and keyboard navigation. |
-| **Import**          | Download Kaltura assets and import them into your project with quality picker and proxy/original workflow                                                                                                       |
-| **Publish**         | Export sequences or pick a file, upload to Kaltura with chunked resumable uploads, set metadata, categories, and access controls                                                                                |
-| **Captions**        | List, download, and parse caption tracks (SRT, VTT, DFXP, JSON); attach transcripts directly to timeline clips via Premiere's native Transcript API                                                             |
-| **Governance**      | Content hold detection, license expiry warnings, access control profiles, local audit trail                                                                                                                     |
-| **Offline Cache**   | LRU cache for browsing asset metadata offline; operation queue syncs when reconnected                                                                                                                           |
-| **Multi-App**       | Runs in Premiere Pro and Photoshop with host-specific adapters                                                                                                                                                  |
+| Capability          | Description                                                                                                                                                                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Browse & Search** | Search your Kaltura library with [eSearch](https://developer.kaltura.com/api-docs/service/eSearch) across titles, tags, and metadata. Grid or list view with filters, infinite scroll, and keyboard navigation.                                             |
+| **Import**          | Download Kaltura assets and import them into your project with quality picker and proxy/original workflow                                                                                                                                                   |
+| **Publish**         | Export sequences or pick a file, upload to Kaltura with chunked resumable uploads, set metadata, categories, and access controls                                                                                                                            |
+| **Captions**        | List, download, and parse caption tracks (SRT, VTT, DFXP, JSON); attach transcripts directly to timeline clips via Premiere's native Transcript API                                                                                                         |
+| **Governance**      | Content hold detection, license expiry warnings, access control profiles, local audit trail                                                                                                                                                                 |
+| **Offline Cache**   | LRU cache for browsing asset metadata offline; operation queue syncs when reconnected                                                                                                                                                                       |
+| **Multi-App**       | Runs in Premiere Pro and Photoshop with host-specific adapters                                                                                                                                                                                              |
+| **Localization**    | Full UI in 20 languages — auto-detects Adobe host locale. English, German, French, Japanese, Korean, Spanish, Chinese (Simplified/Traditional), Portuguese, Italian, Russian, Czech, Danish, Finnish, Norwegian, Dutch, Polish, Swedish, Turkish, Ukrainian |
 
 ## Quick Start
 
@@ -151,6 +152,10 @@ kaltura-premiere-panel/
       HostService.ts          #   Abstract host interface definition
       HostServiceFactory.ts   #   Auto-detect host app and create appropriate adapter
       PhotoshopHostService.ts #   Document open, image import
+    i18n/                     # Internationalization (20 languages)
+      index.ts                #   i18n system: locale detection, translate(), React context
+      loadLocales.ts          #   Eagerly registers all locale bundles at startup
+      locales/                #   Translation JSON files (en, de, fr, ja, ko, es, ...)
     hooks/                    # 3 custom React hooks
       useAuth.ts              #   Authentication state machine with cross-panel sync
       useDebounce.ts          #   Debounced value for search input
@@ -210,7 +215,7 @@ Enterprise admins can pre-configure the plugin with a JSON config file — see t
 
 ## Testing
 
-**493 tests** across **40 suites** — all passing.
+**488 tests** across **40 suites** — all passing.
 
 ```bash
 npm test                  # Run all tests
