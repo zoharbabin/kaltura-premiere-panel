@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { KalturaLoginCredentials } from "../types";
 import { ErrorBanner, LoadingSpinner } from "../components";
 import { DEFAULT_SERVICE_URL, PLUGIN_NAME } from "../utils/constants";
+import { useTranslation } from "../i18n";
 
 interface LoginPanelProps {
   onLogin: (credentials: KalturaLoginCredentials) => Promise<void>;
@@ -22,6 +23,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   error,
   onClearError,
 }) => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [partnerId, setPartnerId] = useState("");
@@ -83,7 +85,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   if (isLoading || ssoStatus) {
     return (
       <div className="login-container">
-        <LoadingSpinner label={ssoStatus || "Signing in..."} size="large" />
+        <LoadingSpinner label={ssoStatus || t("login.signingIn")} size="large" />
         {ssoStatus && onCancelSso && (
           <sp-button
             variant="secondary"
@@ -93,7 +95,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
               setSsoStatus(null);
             }}
           >
-            Cancel
+            {t("login.cancel")}
           </sp-button>
         )}
       </div>
@@ -107,9 +109,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
         <sp-heading size="M">{PLUGIN_NAME}</sp-heading>
         <div className="login-divider" />
       </div>
-      <div className="login-subtitle">
-        Sign in to your Kaltura account to browse, import, and publish video content.
-      </div>
+      <div className="login-subtitle">{t("login.subtitle")}</div>
 
       {error && <ErrorBanner message={error} onDismiss={onClearError} />}
 
@@ -126,7 +126,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
                 if (e.key === "Enter" || e.key === " ") setAuthMode("email");
               }}
             >
-              Email
+              {t("login.tabEmail")}
             </div>
             <div
               role="button"
@@ -137,7 +137,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
                 if (e.key === "Enter" || e.key === " ") setAuthMode("sso");
               }}
             >
-              SSO
+              {t("login.tabSSO")}
             </div>
           </div>
         )}
@@ -145,8 +145,8 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
         {authMode === "email" ? (
           <>
             <sp-textfield
-              placeholder="Email"
-              aria-label="Email address"
+              placeholder={t("login.emailPlaceholder")}
+              aria-label={t("login.emailAriaLabel")}
               value={email}
               onInput={(e: Event) => setEmail((e.target as HTMLInputElement).value)}
               onKeyDown={handleKeyDown}
@@ -154,8 +154,8 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
               type="email"
             />
             <sp-textfield
-              placeholder="Password"
-              aria-label="Password"
+              placeholder={t("login.passwordPlaceholder")}
+              aria-label={t("login.passwordAriaLabel")}
               value={password}
               onInput={(e: Event) => setPassword((e.target as HTMLInputElement).value)}
               onKeyDown={handleKeyDown}
@@ -166,8 +166,8 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
         ) : null}
 
         <sp-textfield
-          placeholder="Partner ID"
-          aria-label="Partner ID"
+          placeholder={t("login.partnerIdPlaceholder")}
+          aria-label={t("login.partnerIdAriaLabel")}
           value={partnerId}
           onInput={(e: Event) => {
             const val = (e.target as HTMLInputElement).value.replace(/\D/g, "");
@@ -188,7 +188,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
             }}
             aria-disabled={!isFormValid || undefined}
           >
-            Sign In
+            {t("login.signIn")}
           </div>
         ) : (
           <div
@@ -201,26 +201,26 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
             }}
             aria-disabled={!partnerId || undefined}
           >
-            Sign In with SSO
+            {t("login.signInSSO")}
           </div>
         )}
 
         <div className="login-links">
           {authMode === "email" && (
             <sp-action-button quiet size="s" onClick={handleForgotPassword}>
-              Forgot password?
+              {t("login.forgotPassword")}
             </sp-action-button>
           )}
 
           <sp-action-button quiet size="s" onClick={() => setShowAdvanced(!showAdvanced)}>
-            {showAdvanced ? "Hide server settings" : "Configure server"}
+            {showAdvanced ? t("login.hideServer") : t("login.configureServer")}
           </sp-action-button>
         </div>
 
         {showAdvanced && (
           <sp-textfield
-            placeholder="Server URL"
-            aria-label="Kaltura server URL"
+            placeholder={t("login.serverUrlPlaceholder")}
+            aria-label={t("login.serverUrlAriaLabel")}
             value={serverUrl}
             onInput={(e: Event) => handleServerUrlChange((e.target as HTMLInputElement).value)}
             style={{ width: "100%" }}

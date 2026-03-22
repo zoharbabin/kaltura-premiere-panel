@@ -10,6 +10,7 @@ import {
 import { formatFileSize } from "../utils/format";
 import { loadSettings, saveSettings, estimateCacheSize, formatTimestamp } from "../utils/settings";
 import { ConfirmDialog } from "../components";
+import { useTranslation } from "../i18n";
 
 /** Duck-typed AuditService for audit trail display */
 interface AuditServiceLike {
@@ -54,6 +55,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   auditService,
   onLogout,
 }) => {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<PluginSettings>(loadSettings);
   const [hostAppInfo, setHostAppInfo] = useState<HostAppInfo | null>(null);
   const [cacheSize, setCacheSize] = useState(estimateCacheSize());
@@ -128,9 +130,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {/* Logout confirmation */}
       {showLogoutConfirm && (
         <ConfirmDialog
-          title="Sign Out"
-          message="Are you sure you want to sign out? Any cached data will be preserved."
-          confirmLabel="Sign Out"
+          title={t("settings.signOutTitle")}
+          message={t("settings.confirmSignOut")}
+          confirmLabel={t("settings.signOut")}
           variant="negative"
           onConfirm={handleLogout}
           onCancel={() => setShowLogoutConfirm(false)}
@@ -139,25 +141,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* Account */}
       <sp-detail size="M" style={{ padding: "8px 0 4px" }}>
-        Account
+        {t("settings.account")}
       </sp-detail>
       <div className="settings-section">
         {userName && (
           <div>
-            <strong>User:</strong> {userName}
+            <strong>{t("settings.user")}</strong> {userName}
           </div>
         )}
         {userEmail && (
           <div>
-            <strong>Email:</strong> {userEmail}
+            <strong>{t("settings.email")}</strong> {userEmail}
           </div>
         )}
         <div>
-          <strong>Server:</strong> {currentServerUrl}
+          <strong>{t("settings.server")}</strong> {currentServerUrl}
         </div>
         {currentPartnerId && (
           <div>
-            <strong>Partner ID:</strong> {currentPartnerId}
+            <strong>{t("settings.partnerId")}</strong> {currentPartnerId}
           </div>
         )}
       </div>
@@ -167,53 +169,57 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         onClick={() => setShowLogoutConfirm(true)}
         style={{ marginTop: "8px" }}
       >
-        Sign Out
+        {t("settings.signOut")}
       </sp-button>
 
       <sp-divider size="s" className="settings-section-divider" />
 
       {/* Preferences */}
       <sp-detail size="M" style={{ marginBottom: "8px" }}>
-        Preferences
+        {t("settings.preferences")}
       </sp-detail>
 
       <div style={{ marginBottom: 12 }}>
-        <div className="form-label">Default Export Preset</div>
+        <div className="form-label">{t("settings.exportPreset")}</div>
         <select
           className="native-select"
           value={settings.defaultExportPreset}
           onChange={(e) => updateSetting("defaultExportPreset", e.target.value)}
         >
           <option value="Match Source - Adaptive High Bitrate">
-            Match Source - Adaptive High Bitrate
+            {t("settings.presetMatchSource")}
           </option>
-          <option value="H.264 - Match Source - High Bitrate">H.264 - High Bitrate</option>
-          <option value="H.264 - Match Source - Medium Bitrate">H.264 - Medium Bitrate</option>
-          <option value="ProRes 422">ProRes 422</option>
-          <option value="ProRes 422 HQ">ProRes 422 HQ</option>
+          <option value="H.264 - Match Source - High Bitrate">
+            {t("settings.presetH264High")}
+          </option>
+          <option value="H.264 - Match Source - Medium Bitrate">
+            {t("settings.presetH264Medium")}
+          </option>
+          <option value="ProRes 422">{t("settings.presetProRes422")}</option>
+          <option value="ProRes 422 HQ">{t("settings.presetProRes422HQ")}</option>
         </select>
       </div>
 
       {hostAppInfo?.supportsVideo && (
         <div style={{ marginBottom: 12 }}>
-          <div className="form-label">Default Caption Language</div>
+          <div className="form-label">{t("settings.captionLanguage")}</div>
           <select
             className="native-select"
             value={settings.defaultCaptionLanguage}
             onChange={(e) => updateSetting("defaultCaptionLanguage", e.target.value)}
           >
-            <option value="en">English</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <option value="de">German</option>
-            <option value="ja">Japanese</option>
-            <option value="zh">Chinese</option>
-            <option value="ar">Arabic</option>
-            <option value="pt">Portuguese</option>
-            <option value="ko">Korean</option>
-            <option value="it">Italian</option>
-            <option value="ru">Russian</option>
-            <option value="hi">Hindi</option>
+            <option value="en">{t("lang.english")}</option>
+            <option value="es">{t("lang.spanish")}</option>
+            <option value="fr">{t("lang.french")}</option>
+            <option value="de">{t("lang.german")}</option>
+            <option value="ja">{t("lang.japanese")}</option>
+            <option value="zh">{t("lang.chinese")}</option>
+            <option value="ar">{t("lang.arabic")}</option>
+            <option value="pt">{t("lang.portuguese")}</option>
+            <option value="ko">{t("lang.korean")}</option>
+            <option value="it">{t("lang.italian")}</option>
+            <option value="ru">{t("lang.russian")}</option>
+            <option value="hi">{t("lang.hindi")}</option>
           </select>
         </div>
       )}
@@ -222,17 +228,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* Cache & Storage */}
       <sp-detail size="M" style={{ padding: "0 0 8px" }}>
-        Cache & Storage
+        {t("settings.cacheStorage")}
       </sp-detail>
       <div className="text-muted" style={{ fontSize: 11, marginBottom: 8 }}>
-        <div>Cache size: {formatFileSize(cacheSize)}</div>
-        <div>Imported assets: {mappingCount}</div>
+        <div>{t("settings.cacheSize", { size: formatFileSize(cacheSize) })}</div>
+        <div>{t("settings.importedAssets", { count: mappingCount })}</div>
         {offlineStatus && (
           <>
-            <div>Offline cached entries: {offlineStatus.cacheEntryCount}</div>
-            <div>Offline cache: {offlineStatus.cacheSizeMB.toFixed(1)} MB</div>
+            <div>
+              {t("settings.offlineCachedEntries", { count: offlineStatus.cacheEntryCount })}
+            </div>
+            <div>
+              {t("settings.offlineCacheSize", { size: offlineStatus.cacheSizeMB.toFixed(1) })}
+            </div>
             {offlineStatus.pendingOperations > 0 && (
-              <div>Pending sync operations: {offlineStatus.pendingOperations}</div>
+              <div>{t("settings.pendingSyncOps", { count: offlineStatus.pendingOperations })}</div>
             )}
           </>
         )}
@@ -240,7 +250,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* Offline cache size setting */}
       <div style={{ marginBottom: "8px" }}>
-        <div className="form-label">Max Cache Size (MB)</div>
+        <div className="form-label">{t("settings.maxCacheSize")}</div>
         <sp-textfield
           type="number"
           value={String(settings.maxCacheSizeMB)}
@@ -254,10 +264,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       <div style={{ display: "flex", flexWrap: "wrap" }}>
         <sp-button variant="secondary" size="s" onClick={handleClearThumbnailCache}>
-          Clear Cache
+          {t("settings.clearCache")}
         </sp-button>
         <sp-button variant="secondary" size="s" onClick={handleClearAssetMappings}>
-          Clear Mappings
+          {t("settings.clearMappings")}
         </sp-button>
         {offlineService && offlineStatus && offlineStatus.pendingOperations > 0 && (
           <sp-button
@@ -268,7 +278,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               setCacheSize(estimateCacheSize());
             }}
           >
-            Clear Pending Ops
+            {t("settings.clearPendingOps")}
           </sp-button>
         )}
       </div>
@@ -279,21 +289,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       {auditService && (
         <>
           <sp-detail size="M" style={{ padding: "0 0 8px" }}>
-            Audit Trail
+            {t("settings.auditTrail")}
           </sp-detail>
 
           {!showAuditLog ? (
             <sp-button variant="secondary" size="s" onClick={handleShowAuditLog}>
-              View Audit Log ({auditService.getLocalLog().length} entries)
+              {t("settings.viewAuditLog", { count: auditService.getLocalLog().length })}
             </sp-button>
           ) : (
             <div>
               <div style={{ display: "flex", marginBottom: "8px" }}>
                 <sp-button variant="secondary" size="s" onClick={() => setShowAuditLog(false)}>
-                  Hide Log
+                  {t("settings.hideLog")}
                 </sp-button>
                 <sp-button variant="secondary" size="s" onClick={handleClearAuditLog}>
-                  Clear Log
+                  {t("settings.clearLog")}
                 </sp-button>
               </div>
               <div className="audit-log">
@@ -302,7 +312,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     className="text-muted-light"
                     style={{ padding: 12, textAlign: "center", fontSize: 11 }}
                   >
-                    No audit entries yet
+                    {t("settings.noAuditEntries")}
                   </div>
                 ) : (
                   auditEntries.map((entry, i) => (
@@ -334,20 +344,23 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* About */}
       <sp-detail size="M" style={{ padding: "0 0 4px" }}>
-        About
+        {t("settings.about")}
       </sp-detail>
       <div className="text-muted" style={{ fontSize: 11 }}>
         <div>
           <strong>{PLUGIN_NAME}</strong>
         </div>
-        <div>Plugin Version: {PLUGIN_VERSION}</div>
+        <div>{t("settings.pluginVersion", { version: PLUGIN_VERSION })}</div>
         <div>
-          Host: {hostAppInfo?.name ?? "Unknown"} {hostAppInfo?.version ?? ""}
+          {t("settings.host", {
+            name: hostAppInfo?.name ?? "Unknown",
+            version: hostAppInfo?.version ?? "",
+          })}
         </div>
-        <div>License: AGPL-3.0</div>
+        <div>{t("settings.license")}</div>
       </div>
       <sp-action-button quiet size="s" onClick={handleSupportLink} style={{ marginTop: "8px" }}>
-        Report an Issue
+        {t("settings.reportIssue")}
       </sp-action-button>
     </div>
   );

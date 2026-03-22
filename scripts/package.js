@@ -191,7 +191,7 @@ function generateExchangeMetadata(manifest) {
       "- Enterprise governance: content holds, audit trail, DRM",
       "- Proxy workflow for large files",
       "",
-      `Requires Premiere Pro, After Effects, or Audition ${hosts[0].minVersion} or later.`,
+      `Requires Premiere Pro ${hosts[0].minVersion}+ or Photoshop 25.1+.`,
       "Requires an active Kaltura account.",
     ].join("\n"),
     supportUrl: (() => {

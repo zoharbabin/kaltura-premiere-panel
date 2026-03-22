@@ -2,15 +2,15 @@
 
 ## Project Overview
 
-Native Adobe UXP panel integrating Kaltura's enterprise video platform with Adobe Premiere Pro, After Effects, and Audition.
-UXP-only (no CEP/ExtendScript). React 18 + Spectrum Web Components. Minimum host version v25.6.
+Native Adobe UXP panel integrating Kaltura's enterprise video platform with Adobe Premiere Pro and Photoshop.
+UXP-only (no CEP/ExtendScript). React 18 + Spectrum Web Components. Minimum versions: Premiere Pro v25.6, Photoshop v25.1.0.
 
 ## Architecture
 
 - **Runtime:** Adobe UXP (Manifest v5) — lightweight JS engine, NOT a browser
 - **UI:** React 18 + Spectrum Web Components (custom elements: `sp-button`, `sp-textfield`, etc.)
 - **API Client:** Custom `KalturaClient` with multi-request batching and error normalization
-- **Host API:** HostService interface → PremiereHostAdapter, AfterEffectsHostService, AuditionHostService
+- **Host API:** HostService interface → PremiereHostAdapter, PhotoshopHostService
 - **Auth:** Email/password login + App Token (`appToken.startSession`) + SSO (three-party OAuth)
 - **Distribution:** `.ccx` package via installer scripts or Adobe Admin Console
 
@@ -48,8 +48,7 @@ src/
     AuditService.ts           # Audit trail, access control, DRM, license expiry
     OfflineService.ts         # LRU cache, operation queue, offline/online detection
     HostService.ts            # Host app abstraction interface
-    AfterEffectsHostService.ts # AE compositions, footage import
-    AuditionHostService.ts    # Audio sessions, audio import
+    PhotoshopHostService.ts   # Document open, image import
     HostServiceFactory.ts     # Auto-detect host app and create service
   hooks/                      # 3 custom React hooks (useAuth, useDebounce, useContainerWidth)
   types/                      # TypeScript type definitions
@@ -105,9 +104,9 @@ docs/                         # Documentation
 ### Testing
 
 - Jest + jsdom for unit tests; `tests/` mirrors `src/` directory structure
-- Mock `premierepro` and `uxp` modules globally in `tests/setup.ts` (`aftereffects` and `audition` are NOT mocked — host services test unavailable state)
+- Mock `premierepro` and `uxp` modules globally in `tests/setup.ts` (`photoshop` is NOT mocked — host service tests unavailable state)
 - Mock `fetch` globally — never hit live API in CI
-- 493 tests across 40 suites — all passing
+- 503 tests across 40 suites — all passing
 - Panel tests use duck-typed service mocks and React Testing Library
 - Use `renderHook` + `act` for hook tests; `jest.useFakeTimers()` for debounce tests
 - Coverage thresholds enforced (`jest.config.js`): statements 65%, branches 50%, functions 64%, lines 66%
@@ -139,7 +138,7 @@ import from this module, so login from any panel authenticates every panel.
 - `PublishWorkflowService`, `BatchService` → publish/batch
 - `AuditService` → governance audit trail, access control, DRM, compliance
 - `OfflineService` → offline caching and operation queue
-- `createHostService()` → auto-detects host app, returns PremiereHostAdapter | AfterEffectsHostService | AuditionHostService
+- `createHostService()` → auto-detects host app, returns PremiereHostAdapter | PhotoshopHostService
 
 Not directly instantiated (used internally):
 

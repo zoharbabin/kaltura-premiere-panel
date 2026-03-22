@@ -51,8 +51,7 @@ module.exports = (env, argv) => {
       uxp: "commonjs2 uxp",
       fs: "commonjs2 fs",
       premierepro: "commonjs2 premierepro",
-      aftereffects: "commonjs2 aftereffects",
-      audition: "commonjs2 audition",
+      photoshop: "commonjs2 photoshop",
     },
     target: "web",
     optimization: {

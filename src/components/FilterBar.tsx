@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { KalturaMediaType } from "../types/kaltura";
 import type { ESearchSortField } from "../services/MediaService";
+import { useTranslation } from "../i18n";
 
 export interface FilterState {
   mediaType: KalturaMediaType | null;
@@ -38,6 +39,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   onSortChange,
   hasSearchText,
 }) => {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   const updateFilter = useCallback(
@@ -55,11 +57,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     <div className="filter-bar">
       <div style={{ display: "flex", alignItems: "center", padding: "4px 8px" }}>
         <sp-action-button quiet size="s" onClick={() => setExpanded(!expanded)}>
-          Filters and sort{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          {t("filter.filtersAndSort")}
+          {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </sp-action-button>
         {activeFilterCount > 0 && (
           <sp-action-button quiet size="s" onClick={clearAll}>
-            Clear all
+            {t("filter.clearAll")}
           </sp-action-button>
         )}
       </div>
@@ -79,12 +82,12 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             onChange={(e) => onSortChange(e.target.value as ESearchSortField)}
             style={{ minWidth: "100px", maxWidth: "160px", marginRight: "8px" }}
           >
-            {hasSearchText && <option value="relevance">Relevance</option>}
-            <option value="updated_at">Recently updated</option>
-            <option value="created_at">Recently created</option>
-            <option value="name">Name A-Z</option>
-            <option value="plays">Most played</option>
-            <option value="last_played_at">Last played</option>
+            {hasSearchText && <option value="relevance">{t("filter.relevance")}</option>}
+            <option value="updated_at">{t("filter.recentlyUpdated")}</option>
+            <option value="created_at">{t("filter.recentlyCreated")}</option>
+            <option value="name">{t("filter.nameAZ")}</option>
+            <option value="plays">{t("filter.mostPlayed")}</option>
+            <option value="last_played_at">{t("filter.lastPlayed")}</option>
           </select>
 
           {/* Media Type */}
@@ -97,10 +100,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             }}
             style={{ minWidth: "100px", maxWidth: "140px", marginRight: "8px" }}
           >
-            <option value="">All types</option>
-            <option value={String(KalturaMediaType.VIDEO)}>Video</option>
-            <option value={String(KalturaMediaType.AUDIO)}>Audio</option>
-            <option value={String(KalturaMediaType.IMAGE)}>Image</option>
+            <option value="">{t("filter.allTypes")}</option>
+            <option value={String(KalturaMediaType.VIDEO)}>{t("filter.video")}</option>
+            <option value={String(KalturaMediaType.AUDIO)}>{t("filter.audio")}</option>
+            <option value={String(KalturaMediaType.IMAGE)}>{t("filter.image")}</option>
           </select>
 
           {/* Date Range */}
@@ -113,11 +116,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             }}
             style={{ minWidth: "100px", maxWidth: "140px", marginRight: "8px" }}
           >
-            <option value="">Any time</option>
-            <option value="week">Last week</option>
-            <option value="month">Last month</option>
-            <option value="quarter">Last quarter</option>
-            <option value="year">Last year</option>
+            <option value="">{t("filter.anyTime")}</option>
+            <option value="week">{t("filter.lastWeek")}</option>
+            <option value="month">{t("filter.lastMonth")}</option>
+            <option value="quarter">{t("filter.lastQuarter")}</option>
+            <option value="year">{t("filter.lastYear")}</option>
           </select>
 
           {/* Owner */}
@@ -129,8 +132,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             }}
             style={{ minWidth: "100px", maxWidth: "140px", marginRight: "8px" }}
           >
-            <option value="all">All content</option>
-            <option value="mine">My content</option>
+            <option value="all">{t("filter.allContent")}</option>
+            <option value="mine">{t("filter.myContent")}</option>
           </select>
 
           {/* Has captions */}
@@ -151,7 +154,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               onChange={(e) => updateFilter("withCaptionsOnly", e.target.checked)}
               style={{ marginRight: "4px" }}
             />
-            Has captions
+            {t("filter.hasCaptions")}
           </label>
         </div>
       )}

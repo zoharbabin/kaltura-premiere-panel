@@ -19,6 +19,7 @@ import {
 } from "../utils/constants";
 import { formatFileSize } from "../utils/format";
 import { loadSettings, saveSettings, estimateCacheSize, formatTimestamp } from "../utils/settings";
+import { translate, detectLocale } from "../i18n";
 import type { PluginSettings } from "../types";
 
 /** Escape HTML to prevent XSS when rendering user/API data into innerHTML. */
@@ -36,6 +37,8 @@ export async function runSettingsCommand(
   offlineService: OfflineService,
   auditService: AuditService,
 ): Promise<void> {
+  const locale = detectLocale();
+  const t = (key: string, vars?: Record<string, string | number>) => translate(locale, key, vars);
   const settings = loadSettings();
   const hostAppInfo: HostAppInfo | null = hostService.getAppInfo();
   const cacheSize = estimateCacheSize();
@@ -48,71 +51,71 @@ export async function runSettingsCommand(
 
   dialog.innerHTML = `
     <div style="padding: 16px; min-width: 320px; max-width: 500px;">
-      <sp-heading size="S" style="margin-bottom: 12px;">Settings</sp-heading>
+      <sp-heading size="S" style="margin-bottom: 12px;">${escapeHtml(t("command.settings"))}</sp-heading>
 
       <!-- Preferences -->
-      <sp-detail size="M" style="padding: 8px 0 4px;">Preferences</sp-detail>
+      <sp-detail size="M" style="padding: 8px 0 4px;">${escapeHtml(t("settings.preferences"))}</sp-detail>
 
       <div style="margin-bottom: 12px;">
-        <div style="font-size: 11px; color: #999; margin-bottom: 4px;">Default Export Preset</div>
+        <div style="font-size: 11px; color: #999; margin-bottom: 4px;">${escapeHtml(t("settings.exportPreset"))}</div>
         <select id="settings-export-preset" style="width: 100%; padding: 4px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 4px;">
-          <option value="Match Source - Adaptive High Bitrate">Match Source - Adaptive High Bitrate</option>
-          <option value="H.264 - Match Source - High Bitrate">H.264 - High Bitrate</option>
-          <option value="H.264 - Match Source - Medium Bitrate">H.264 - Medium Bitrate</option>
-          <option value="ProRes 422">ProRes 422</option>
-          <option value="ProRes 422 HQ">ProRes 422 HQ</option>
+          <option value="Match Source - Adaptive High Bitrate">${escapeHtml(t("settings.presetMatchSource"))}</option>
+          <option value="H.264 - Match Source - High Bitrate">${escapeHtml(t("settings.presetH264High"))}</option>
+          <option value="H.264 - Match Source - Medium Bitrate">${escapeHtml(t("settings.presetH264Medium"))}</option>
+          <option value="ProRes 422">${escapeHtml(t("settings.presetProRes422"))}</option>
+          <option value="ProRes 422 HQ">${escapeHtml(t("settings.presetProRes422HQ"))}</option>
         </select>
       </div>
 
       <div style="margin-bottom: 12px;">
-        <div style="font-size: 11px; color: #999; margin-bottom: 4px;">Default Caption Language</div>
+        <div style="font-size: 11px; color: #999; margin-bottom: 4px;">${escapeHtml(t("settings.captionLanguage"))}</div>
         <select id="settings-caption-lang" style="width: 100%; padding: 4px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 4px;">
-          <option value="en">English</option>
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="ja">Japanese</option>
-          <option value="zh">Chinese</option>
-          <option value="ar">Arabic</option>
-          <option value="pt">Portuguese</option>
-          <option value="ko">Korean</option>
-          <option value="it">Italian</option>
-          <option value="ru">Russian</option>
-          <option value="hi">Hindi</option>
+          <option value="en">${escapeHtml(t("lang.english"))}</option>
+          <option value="es">${escapeHtml(t("lang.spanish"))}</option>
+          <option value="fr">${escapeHtml(t("lang.french"))}</option>
+          <option value="de">${escapeHtml(t("lang.german"))}</option>
+          <option value="ja">${escapeHtml(t("lang.japanese"))}</option>
+          <option value="zh">${escapeHtml(t("lang.chinese"))}</option>
+          <option value="ar">${escapeHtml(t("lang.arabic"))}</option>
+          <option value="pt">${escapeHtml(t("lang.portuguese"))}</option>
+          <option value="ko">${escapeHtml(t("lang.korean"))}</option>
+          <option value="it">${escapeHtml(t("lang.italian"))}</option>
+          <option value="ru">${escapeHtml(t("lang.russian"))}</option>
+          <option value="hi">${escapeHtml(t("lang.hindi"))}</option>
         </select>
       </div>
 
       <div style="height: 1px; background: #444; margin: 12px 0;"></div>
 
       <!-- Cache & Storage -->
-      <sp-detail size="M" style="padding: 0 0 8px;">Cache & Storage</sp-detail>
+      <sp-detail size="M" style="padding: 0 0 8px;">${escapeHtml(t("settings.cacheStorage"))}</sp-detail>
       <div style="font-size: 11px; color: #999; margin-bottom: 8px;">
-        <div>Cache size: <span id="settings-cache-size">${formatFileSize(cacheSize)}</span></div>
-        <div>Imported assets: ${mappingCount}</div>
-        <div>Offline cached entries: ${offlineStatus.cacheEntryCount}</div>
-        <div>Offline cache: ${offlineStatus.cacheSizeMB.toFixed(1)} MB</div>
-        ${offlineStatus.pendingOperations > 0 ? `<div>Pending sync operations: ${offlineStatus.pendingOperations}</div>` : ""}
+        <div><span id="settings-cache-size">${escapeHtml(t("settings.cacheSize", { size: formatFileSize(cacheSize) }))}</span></div>
+        <div>${escapeHtml(t("settings.importedAssets", { count: mappingCount }))}</div>
+        <div>${escapeHtml(t("settings.offlineCachedEntries", { count: offlineStatus.cacheEntryCount }))}</div>
+        <div>${escapeHtml(t("settings.offlineCacheSize", { size: offlineStatus.cacheSizeMB.toFixed(1) }))}</div>
+        ${offlineStatus.pendingOperations > 0 ? `<div>${escapeHtml(t("settings.pendingSyncOps", { count: offlineStatus.pendingOperations }))}</div>` : ""}
       </div>
 
       <div style="margin-bottom: 8px;">
-        <div style="font-size: 11px; color: #999; margin-bottom: 4px;">Max Cache Size (MB)</div>
+        <div style="font-size: 11px; color: #999; margin-bottom: 4px;">${escapeHtml(t("settings.maxCacheSize"))}</div>
         <input id="settings-cache-max" type="number" value="${settings.maxCacheSizeMB}"
           style="width: 80px; padding: 4px; background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; border-radius: 4px;" />
       </div>
 
       <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
-        <sp-button id="settings-clear-cache" variant="secondary" size="s">Clear Cache</sp-button>
-        <sp-button id="settings-clear-mappings" variant="secondary" size="s">Clear Mappings</sp-button>
+        <sp-button id="settings-clear-cache" variant="secondary" size="s">${escapeHtml(t("settings.clearCache"))}</sp-button>
+        <sp-button id="settings-clear-mappings" variant="secondary" size="s">${escapeHtml(t("settings.clearMappings"))}</sp-button>
       </div>
 
       <div style="height: 1px; background: #444; margin: 12px 0;"></div>
 
       <!-- Audit Trail -->
-      <sp-detail size="M" style="padding: 0 0 8px;">Audit Trail</sp-detail>
+      <sp-detail size="M" style="padding: 0 0 8px;">${escapeHtml(t("settings.auditTrail"))}</sp-detail>
       <div id="settings-audit" style="max-height: 120px; overflow-y: auto; font-size: 10px; margin-bottom: 8px;">
         ${
           auditEntries.length === 0
-            ? '<div style="color: #666; text-align: center; padding: 8px;">No audit entries yet</div>'
+            ? `<div style="color: #666; text-align: center; padding: 8px;">${escapeHtml(t("settings.noAuditEntries"))}</div>`
             : auditEntries
                 .map(
                   (e) =>
@@ -125,25 +128,25 @@ export async function runSettingsCommand(
                 .join("")
         }
       </div>
-      <sp-button id="settings-clear-audit" variant="secondary" size="s">Clear Audit Log</sp-button>
+      <sp-button id="settings-clear-audit" variant="secondary" size="s">${escapeHtml(t("settings.clearLog"))}</sp-button>
 
       <div style="height: 1px; background: #444; margin: 12px 0;"></div>
 
       <!-- About -->
-      <sp-detail size="M" style="padding: 0 0 4px;">About</sp-detail>
+      <sp-detail size="M" style="padding: 0 0 4px;">${escapeHtml(t("settings.about"))}</sp-detail>
       <div style="font-size: 11px; color: #999;">
         <div><strong>${PLUGIN_NAME}</strong></div>
-        <div>Plugin Version: ${PLUGIN_VERSION}</div>
-        <div>Host: ${hostAppInfo?.name ?? "Unknown"} ${hostAppInfo?.version ?? ""}</div>
-        <div>License: AGPL-3.0</div>
+        <div>${escapeHtml(t("settings.pluginVersion", { version: PLUGIN_VERSION }))}</div>
+        <div>${escapeHtml(t("settings.host", { name: hostAppInfo?.name ?? "Unknown", version: hostAppInfo?.version ?? "" }))}</div>
+        <div>${escapeHtml(t("settings.license"))}</div>
       </div>
-      <sp-button id="settings-support" variant="secondary" size="s" style="margin-top: 8px;">Report an Issue</sp-button>
+      <sp-button id="settings-support" variant="secondary" size="s" style="margin-top: 8px;">${escapeHtml(t("settings.reportIssue"))}</sp-button>
 
       <div style="height: 1px; background: #444; margin: 16px 0 12px;"></div>
 
       <!-- Dialog actions -->
       <div style="display: flex; justify-content: flex-end;">
-        <sp-button id="settings-close" variant="cta" size="s">Done</sp-button>
+        <sp-button id="settings-close" variant="cta" size="s">${escapeHtml(t("command.done"))}</sp-button>
       </div>
     </div>
   `.trim();
@@ -168,7 +171,8 @@ export async function runSettingsCommand(
     localStorage.removeItem("kaltura_search_cache");
     offlineService.clearCache();
     const sizeEl = dialog.querySelector("#settings-cache-size");
-    if (sizeEl) sizeEl.textContent = formatFileSize(estimateCacheSize());
+    if (sizeEl)
+      sizeEl.textContent = t("settings.cacheSize", { size: formatFileSize(estimateCacheSize()) });
   });
 
   const clearMappingsBtn = dialog.querySelector("#settings-clear-mappings")!;
@@ -182,8 +186,7 @@ export async function runSettingsCommand(
     auditService.clearLocalLog();
     const auditEl = dialog.querySelector("#settings-audit");
     if (auditEl)
-      auditEl.innerHTML =
-        '<div style="color: #666; text-align: center; padding: 8px;">No audit entries yet</div>';
+      auditEl.innerHTML = `<div style="color: #666; text-align: center; padding: 8px;">${escapeHtml(t("settings.noAuditEntries"))}</div>`;
   });
 
   const supportBtn = dialog.querySelector("#settings-support")!;
@@ -201,7 +204,7 @@ export async function runSettingsCommand(
     await (
       dialog as HTMLDialogElement & { uxpShowModal: (opts: unknown) => Promise<string> }
     ).uxpShowModal({
-      title: "Kaltura Settings",
+      title: t("command.settings"),
       resize: "both",
       size: { width: 420, height: 580 },
     });

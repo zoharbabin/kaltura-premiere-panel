@@ -6,6 +6,7 @@ import { ProgressBar, ErrorBanner, AccordionSection, SegmentedControl } from "..
 import { getUserMessage } from "../utils/errors";
 import { formatCategoryName, formatFileSize } from "../utils/format";
 import { createLogger } from "../utils/logger";
+import { useTranslation } from "../i18n";
 
 const log = createLogger("PublishPanel");
 
@@ -99,12 +100,19 @@ function buildOptionsSummary(
   categoryCount: number,
   scheduledDate: string,
   accessControlName: string | null,
+  t: (key: string, vars?: Record<string, string | number>) => string,
 ): string {
   const parts: string[] = [];
-  if (categoryCount > 0) parts.push(`${categoryCount} categor${categoryCount === 1 ? "y" : "ies"}`);
-  if (scheduledDate) parts.push("Scheduled");
+  if (categoryCount > 0)
+    parts.push(
+      t("publish.categoriesCount", {
+        count: categoryCount,
+        suffix: categoryCount === 1 ? "y" : "ies",
+      }),
+    );
+  if (scheduledDate) parts.push(t("publish.scheduled"));
   if (accessControlName && accessControlName !== "Default") parts.push(accessControlName);
-  return parts.length > 0 ? parts.join(" \u00B7 ") : "Default settings";
+  return parts.length > 0 ? parts.join(" \u00B7 ") : t("publish.defaultSettings");
 }
 
 export const PublishPanel: React.FC<PublishPanelProps> = ({
@@ -115,6 +123,8 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   publishWorkflowService,
   auditService,
 }) => {
+  const { t } = useTranslation();
+
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -208,8 +218,9 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   }, [selectedAccessControlId, accessControlProfiles]);
 
   const optionsSummary = useMemo(
-    () => buildOptionsSummary(selectedCategoryIds.length, scheduledDate, selectedAccessControlName),
-    [selectedCategoryIds.length, scheduledDate, selectedAccessControlName],
+    () =>
+      buildOptionsSummary(selectedCategoryIds.length, scheduledDate, selectedAccessControlName, t),
+    [selectedCategoryIds.length, scheduledDate, selectedAccessControlName, t],
   );
 
   const hasSource = sourceMode === "sequence" || !!selectedFile;
@@ -233,24 +244,24 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       // Step 1: Get the file
       if (sourceMode === "sequence") {
         if (!premiereService.exportActiveSequence) {
-          throw new Error("Sequence export is not available in this host application");
+          throw new Error(t("publish.exportNotAvailable"));
         }
         setPhase("exporting");
         setCurrentStep(1);
-        setProgress({ progress: 0, phase: "exporting", message: "Rendering sequence..." });
+        setProgress({ progress: 0, phase: "exporting", message: t("publish.rendering") });
         log.info("Exporting active sequence for publish");
 
         fileInfo = await premiereService.exportActiveSequence((percent) => {
           setProgress({
             progress: Math.round(percent * 0.3),
             phase: "exporting",
-            message: `Rendering... ${percent}%`,
+            message: t("publish.renderingPercent", { percent }),
           });
         });
         log.info("Sequence exported", { path: fileInfo.nativePath, size: fileInfo.size });
       } else {
         if (!selectedFile) {
-          setError("Please select a file to upload.");
+          setError(t("publish.selectFileError"));
           return;
         }
         fileInfo = selectedFile;
@@ -262,25 +273,25 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       setProgress({
         progress: sourceMode === "sequence" ? 30 : 5,
         phase: "exporting",
-        message: `Reading file (${formatFileSize(fileInfo.size)})...`,
+        message: t("publish.readingFile", { size: formatFileSize(fileInfo.size) }),
       });
 
       const fileData = await readFileAsArrayBuffer(fileInfo.nativePath);
       log.info("File read complete", { byteLength: fileData.byteLength });
 
       if (fileData.byteLength === 0) {
-        throw new Error(`File is empty (0 bytes): ${fileInfo.name}`);
+        throw new Error(t("publish.fileEmpty", { name: fileInfo.name }));
       }
 
       // Step 3: Upload
       setPhase("uploading");
       setCurrentStep(3);
-      setProgress({ progress: 35, phase: "uploading", message: "Creating upload token..." });
+      setProgress({ progress: 35, phase: "uploading", message: t("publish.creatingToken") });
 
       const token = await uploadService.createToken(fileInfo.name, fileInfo.size);
       log.info("Upload token created", { tokenId: token.id });
 
-      setProgress({ progress: 38, phase: "uploading", message: "Uploading..." });
+      setProgress({ progress: 38, phase: "uploading", message: t("publish.uploading") });
       await uploadService.uploadFile(token.id, fileData, (p) => {
         const mappedProgress = 38 + Math.round(p.percent * 0.47);
         const uploaded = formatFileSize(p.loaded);
@@ -288,7 +299,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         setProgress({
           progress: mappedProgress,
           phase: "uploading",
-          message: `${uploaded} / ${total} uploaded`,
+          message: t("publish.uploadProgress", { uploaded, total }),
         });
       });
       log.info("File upload complete", { tokenId: token.id });
@@ -296,7 +307,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       // Step 4: Create or update entry
       setPhase("processing");
       setCurrentStep(4);
-      setProgress({ progress: 88, phase: "processing", message: "Creating entry..." });
+      setProgress({ progress: 88, phase: "processing", message: t("publish.creatingEntry") });
 
       let entry: KalturaMediaEntry;
 
@@ -319,13 +330,21 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
 
         // Multi-category assignment
         if (publishWorkflowService && selectedCategoryIds.length > 1) {
-          setProgress({ progress: 92, phase: "processing", message: "Assigning categories..." });
+          setProgress({
+            progress: 92,
+            phase: "processing",
+            message: t("publish.assigningCategories"),
+          });
           await publishWorkflowService.publishToCategories(entry.id, selectedCategoryIds);
         }
 
         // Schedule if set
         if (publishWorkflowService && scheduledDate) {
-          setProgress({ progress: 96, phase: "processing", message: "Scheduling publish..." });
+          setProgress({
+            progress: 96,
+            phase: "processing",
+            message: t("publish.schedulingPublish"),
+          });
           const startDate = Math.floor(new Date(scheduledDate).getTime() / 1000);
           await publishWorkflowService.schedulePublish(entry.id, startDate);
         }
@@ -333,7 +352,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         auditService?.logAction("publish", entry.id, `New entry: ${entry.name}`);
       } else {
         // Update existing entry
-        setProgress({ progress: 88, phase: "processing", message: "Replacing content..." });
+        setProgress({ progress: 88, phase: "processing", message: t("publish.replacingContent") });
         await mediaService.updateContent(existingEntryId, token.id);
 
         const updateData: Partial<KalturaMediaEntry> = {};
@@ -342,7 +361,11 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         if (tags.trim()) updateData.tags = tags.trim();
 
         if (Object.keys(updateData).length > 0) {
-          setProgress({ progress: 94, phase: "processing", message: "Updating metadata..." });
+          setProgress({
+            progress: 94,
+            phase: "processing",
+            message: t("publish.updatingMetadata"),
+          });
           entry = await mediaService.update(existingEntryId, updateData);
         } else {
           entry = await mediaService.get(existingEntryId);
@@ -352,7 +375,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
       }
 
       setPhase("complete");
-      setProgress({ progress: 100, phase: "complete", message: "Published!" });
+      setProgress({ progress: 100, phase: "complete", message: t("publish.published") });
       setPublishedEntry(entry);
     } catch (err) {
       setPhase("error");
@@ -375,6 +398,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     uploadService,
     publishWorkflowService,
     auditService,
+    t,
   ]);
 
   const handleReset = useCallback(() => {
@@ -409,20 +433,23 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
     return (
       <div className="login-container">
         <div className="success-circle">{"\u2713"}</div>
-        <sp-heading size="S">{publishMode === "new" ? "Published!" : "Updated!"}</sp-heading>
+        <sp-heading size="S">
+          {publishMode === "new" ? t("publish.published") : t("publish.updated")}
+        </sp-heading>
         <sp-body size="S" style={{ textAlign: "center" }}>
-          &quot;{publishedEntry.name}&quot; has been{" "}
-          {publishMode === "new" ? "created in" : "updated on"} Kaltura.
+          {publishMode === "new"
+            ? t("publish.createdMsg", { name: publishedEntry.name })
+            : t("publish.updatedMsg", { name: publishedEntry.name })}
         </sp-body>
         <sp-detail size="S" className="text-muted">
-          Entry ID: {publishedEntry.id}
+          {t("publish.entryIdResult", { id: publishedEntry.id })}
         </sp-detail>
         <div className="flex-row gap-8">
           <sp-button variant="secondary" onClick={handleViewInKaltura}>
-            View in Kaltura
+            {t("publish.viewInKaltura")}
           </sp-button>
           <sp-button variant="primary" onClick={handleReset}>
-            Publish Another
+            {t("publish.publishAnother")}
           </sp-button>
         </div>
       </div>
@@ -433,12 +460,12 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
   if (phase !== "form" && phase !== "error") {
     const stepLabel =
       phase === "exporting"
-        ? "Rendering sequence"
+        ? t("publish.stepRendering")
         : phase === "reading"
-          ? "Reading file"
+          ? t("publish.stepReading")
           : phase === "uploading"
-            ? "Uploading"
-            : "Creating entry";
+            ? t("publish.stepUploading")
+            : t("publish.stepCreating");
 
     return (
       <div
@@ -472,7 +499,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         </div>
 
         <div className="progress-detail">
-          Step {currentStep} of {TOTAL_STEPS}
+          {t("publish.stepProgress", { current: currentStep, total: TOTAL_STEPS })}
           {progress.message ? ` \u00B7 ${progress.message}` : ""}
         </div>
       </div>
@@ -493,8 +520,8 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         <div style={{ marginBottom: "8px" }}>
           <SegmentedControl
             options={[
-              { value: "new" as PublishMode, label: "New Entry" },
-              { value: "update" as PublishMode, label: "Replace Existing" },
+              { value: "new" as PublishMode, label: t("publish.newEntry") },
+              { value: "update" as PublishMode, label: t("publish.replaceExisting") },
             ]}
             value={publishMode}
             onChange={(mode: PublishMode) => {
@@ -511,9 +538,9 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         {/* Source section — always visible */}
         {publishMode === "update" && (
           <div style={{ marginBottom: 12 }}>
-            <div className="form-label">Entry ID *</div>
+            <div className="form-label">{t("publish.entryIdLabel")}</div>
             <sp-textfield
-              placeholder="Kaltura Entry ID (e.g. 0_abc123)"
+              placeholder={t("publish.entryIdPlaceholder")}
               value={existingEntryId}
               onInput={(e: Event) => setExistingEntryId((e.target as HTMLInputElement).value)}
               style={{ width: "100%" }}
@@ -526,7 +553,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
             <div className="source-card-icon">{"\u25B6"}</div>
             <div className="source-card-info">
               <div className="source-card-name">{sequenceName}</div>
-              <div className="source-card-meta">Current sequence will be exported</div>
+              <div className="source-card-meta">{t("publish.sequenceSource")}</div>
             </div>
           </div>
         ) : sourceMode === "file" && selectedFile ? (
@@ -543,46 +570,54 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
         <div style={{ display: "flex", alignItems: "center", marginTop: 4, marginBottom: 8 }}>
           {sourceMode === "file" && (
             <sp-action-button quiet size="s" onClick={handleSelectFile}>
-              {selectedFile ? "Change file" : "Select a file"}
+              {selectedFile ? t("publish.changeFile") : t("publish.selectFile")}
             </sp-action-button>
           )}
           {canExportSequence && sourceMode === "file" && sequenceName && (
             <sp-action-button quiet size="s" onClick={() => setSourceMode("sequence")}>
-              Use sequence instead
+              {t("publish.useSequence")}
             </sp-action-button>
           )}
           {sourceMode === "sequence" && (
             <sp-action-button quiet size="s" onClick={() => setSourceMode("file")}>
-              Select a file instead
+              {t("publish.selectFileInstead")}
             </sp-action-button>
           )}
         </div>
 
         {/* Basic Info — shown directly (no accordion for required fields) */}
-        <div className="form-label">{publishMode === "new" ? "Title *" : "Title (optional)"}</div>
+        <div className="form-label">
+          {publishMode === "new" ? t("publish.titleRequired") : t("publish.titleOptional")}
+        </div>
         <sp-textfield
-          placeholder={publishMode === "new" ? "Video title" : "Leave empty to keep current title"}
+          placeholder={
+            publishMode === "new" ? t("publish.titlePlaceholder") : t("publish.titleKeepCurrent")
+          }
           value={title}
           onInput={(e: Event) => setTitle((e.target as HTMLInputElement).value)}
           style={{ width: "100%", marginBottom: 12 }}
         />
 
         <div className="form-label">
-          {publishMode === "new" ? "Description" : "Description (optional)"}
+          {publishMode === "new" ? t("publish.descriptionLabel") : t("publish.descriptionOptional")}
         </div>
         <sp-textarea
           placeholder={
-            publishMode === "new" ? "Video description" : "Leave empty to keep current description"
+            publishMode === "new"
+              ? t("publish.descriptionPlaceholder")
+              : t("publish.descriptionKeepCurrent")
           }
           value={description}
           onInput={(e: Event) => setDescription((e.target as HTMLTextAreaElement).value)}
           style={{ width: "100%", marginBottom: 12 }}
         />
 
-        <div className="form-label">{publishMode === "new" ? "Tags" : "Tags (optional)"}</div>
+        <div className="form-label">
+          {publishMode === "new" ? t("publish.tagsLabel") : t("publish.tagsOptional")}
+        </div>
         <sp-textfield
           placeholder={
-            publishMode === "new" ? "Comma-separated tags" : "Leave empty to keep current tags"
+            publishMode === "new" ? t("publish.tagsPlaceholder") : t("publish.tagsKeepCurrent")
           }
           value={tags}
           onInput={(e: Event) => setTags((e.target as HTMLInputElement).value)}
@@ -591,12 +626,12 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
 
         {/* Publishing Options — collapsed by default */}
         {publishMode === "new" && (
-          <AccordionSection title="PUBLISHING OPTIONS" summary={optionsSummary}>
+          <AccordionSection title={t("publish.publishingOptions")} summary={optionsSummary}>
             {/* Categories */}
             {categories.length > 0 && (
               <div style={{ marginBottom: 12 }}>
                 <div className="form-label">
-                  Categories
+                  {t("publish.categoriesLabel")}
                   {selectedCategoryIds.length > 0 ? ` (${selectedCategoryIds.length})` : ""}
                 </div>
                 <div
@@ -642,22 +677,22 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
             {/* Schedule */}
             {publishWorkflowService && (
               <div style={{ marginBottom: 12 }}>
-                <div className="form-label">Schedule</div>
+                <div className="form-label">{t("publish.scheduleLabel")}</div>
                 <sp-textfield
                   type="datetime-local"
                   value={scheduledDate}
                   onInput={(e: Event) => setScheduledDate((e.target as HTMLInputElement).value)}
                   style={{ width: "100%" }}
-                  placeholder="Leave empty to publish immediately"
+                  placeholder={t("publish.schedulePlaceholder")}
                 />
-                <div className="form-helper">Leave empty to publish immediately</div>
+                <div className="form-helper">{t("publish.scheduleHelper")}</div>
               </div>
             )}
 
             {/* Access control */}
             {accessControlProfiles.length > 0 && (
               <div style={{ marginBottom: 12 }}>
-                <div className="form-label">Access Control</div>
+                <div className="form-label">{t("publish.accessControlLabel")}</div>
                 <select
                   className="native-select"
                   value={selectedAccessControlId != null ? String(selectedAccessControlId) : ""}
@@ -673,7 +708,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
                     </option>
                   ))}
                 </select>
-                <div className="form-helper">Controls who can view the published content</div>
+                <div className="form-helper">{t("publish.accessControlHelper")}</div>
               </div>
             )}
           </AccordionSection>
@@ -692,7 +727,7 @@ export const PublishPanel: React.FC<PublishPanelProps> = ({
           }}
           aria-disabled={!canPublish || undefined}
         >
-          {publishMode === "new" ? "Publish to Kaltura" : "Replace Content"}
+          {publishMode === "new" ? t("publish.publishToKaltura") : t("publish.replaceContent")}
         </div>
       </div>
     </div>

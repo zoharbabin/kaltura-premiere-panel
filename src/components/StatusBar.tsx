@@ -1,6 +1,7 @@
 import React from "react";
 import { ConnectionState } from "../types";
 import { PLUGIN_VERSION } from "../utils/constants";
+import { useTranslation } from "../i18n";
 
 interface StatusBarProps {
   connectionState: ConnectionState;
@@ -14,19 +15,23 @@ const stateColors: Record<ConnectionState, string> = {
   [ConnectionState.ERROR]: "#e34850",
 };
 
-const stateLabels: Record<ConnectionState, string> = {
-  [ConnectionState.CONNECTED]: "Connected",
-  [ConnectionState.CONNECTING]: "Connecting\u2026",
-  [ConnectionState.DISCONNECTED]: "Disconnected",
-  [ConnectionState.ERROR]: "Connection Error",
+const stateKeys: Record<ConnectionState, string> = {
+  [ConnectionState.CONNECTED]: "status.connected",
+  [ConnectionState.CONNECTING]: "status.connecting",
+  [ConnectionState.DISCONNECTED]: "status.disconnected",
+  [ConnectionState.ERROR]: "status.connectionError",
 };
 
-export const StatusBar: React.FC<StatusBarProps> = ({ connectionState, statusMessage }) => (
-  <div className="status-bar">
-    <div className="flex-row">
-      <div className="status-dot" style={{ backgroundColor: stateColors[connectionState] }} />
-      <span>{statusMessage || stateLabels[connectionState]}</span>
+export const StatusBar: React.FC<StatusBarProps> = ({ connectionState, statusMessage }) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="status-bar">
+      <div className="flex-row">
+        <div className="status-dot" style={{ backgroundColor: stateColors[connectionState] }} />
+        <span>{statusMessage || t(stateKeys[connectionState])}</span>
+      </div>
+      <span>v{PLUGIN_VERSION}</span>
     </div>
-    <span>v{PLUGIN_VERSION}</span>
-  </div>
-);
+  );
+};
