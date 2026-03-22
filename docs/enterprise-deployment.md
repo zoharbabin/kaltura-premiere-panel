@@ -41,7 +41,7 @@ The **UnifiedPluginInstallerAgent (UPIA)** is Adobe's command-line tool for plug
 cd "/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/macOS"
 
 # Install
-./UnifiedPluginInstallerAgent --install "/path/to/kaltura-panel-1.18.0_premierepro.ccx"
+./UnifiedPluginInstallerAgent --install "/path/to/kaltura-panel-1.18.1_premierepro.ccx"
 
 # List all installed plugins
 ./UnifiedPluginInstallerAgent --list all
@@ -56,7 +56,7 @@ cd "/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI
 cd "C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent"
 
 REM Install
-UnifiedPluginInstallerAgent.exe /install "C:\path\to\kaltura-panel-1.18.0_premierepro.ccx"
+UnifiedPluginInstallerAgent.exe /install "C:\path\to\kaltura-panel-1.18.1_premierepro.ccx"
 
 REM List all installed plugins
 UnifiedPluginInstallerAgent.exe /list all
@@ -99,7 +99,7 @@ node scripts/build-ccx.js
 
 This outputs one `.ccx` per host app into `release/`. Each `.ccx` targets a single host application (UXP requirement — the `host` property must be a single object). ([Source](https://developer.adobe.com/premiere-pro/uxp/plugins/distribution/package/))
 
-Alternatively, push a version tag (e.g., `git tag v1.18.0 && git push --tags`) to trigger the automated [Release workflow](../.github/workflows/release.yml) which builds all `.ccx` files and publishes them as GitHub Release assets.
+Alternatively, push a version tag (e.g., `git tag v1.18.1 && git push --tags`) to trigger the automated [Release workflow](../.github/workflows/release.yml) which builds all `.ccx` files and publishes them as GitHub Release assets.
 
 ## Network Requirements
 

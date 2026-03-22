@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.18.1
+
+### Internationalization
+
+- **Full i18n support** — 246 translation keys across 20 languages (English + cs, da, de, es, fi, fr, it, ja, ko, nb, nl, pl, pt-BR, ru, sv, tr, uk, zh-Hans, zh-Hant).
+- **Lightweight i18n system** — No external dependencies. React context + `useTranslation()` hook for components; `translate()` for vanilla JS commands.
+- **All UI localized** — Panels, components, commands, settings dialog, error messages, filter labels, quality picker, and metadata editor.
+- **Locale detection** — Automatically detects Adobe host app UI locale via `require("uxp").host.uiLocale`.
+
+### Host App Support
+
+- **Photoshop support** — Added `PhotoshopHostService` with `executeAsModal()` document open. Unique plugin ID (`163a7b84.ps`) so both .ccx files install side by side.
+- **Removed After Effects and Audition** — No third-party UXP plugin support exists for these apps. Deleted host services, updated all configs and docs.
+
+### Fixes
+
+- **Fixed .ccx install conflict** — Each host app now gets a unique manifest `id` so installing one no longer overwrites the other.
+- **Fixed manifest labels** — Premiere Pro v26 rejects `LocalizedString` objects on entrypoint labels; reverted to plain strings.
+- **Marketplace icons** — Added 48×48, 96×96, 192×192 px PNG icons for Adobe Marketplace submission.
+
+### Tests
+
+- 488 tests across 40 suites — all passing
+
 ## 1.18.0
 
 ### Architecture
@@ -21,7 +45,7 @@
 
 ### Tests
 
-- 493 tests across 40 suites — all passing
+- 493 tests across 40 suites
 - New tests: SignOutCommand (event dispatch), singleton services, cross-panel auth sync
 
 ## 1.16.3

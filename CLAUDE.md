@@ -50,6 +50,10 @@ src/
     HostService.ts            # Host app abstraction interface
     PhotoshopHostService.ts   # Document open, image import
     HostServiceFactory.ts     # Auto-detect host app and create service
+  i18n/                       # Internationalization (20 languages)
+    index.ts                  # i18n system: locale detection, translate(), React context + useTranslation()
+    loadLocales.ts            # Eagerly registers all locale bundles at startup
+    locales/                  # Translation JSON files (en + 19 languages)
   hooks/                      # 3 custom React hooks (useAuth, useDebounce, useContainerWidth)
   types/                      # TypeScript type definitions
   utils/                      # Constants, error classes, formatters, logger, thumbnail URLs
@@ -106,7 +110,7 @@ docs/                         # Documentation
 - Jest + jsdom for unit tests; `tests/` mirrors `src/` directory structure
 - Mock `premierepro` and `uxp` modules globally in `tests/setup.ts` (`photoshop` is NOT mocked — host service tests unavailable state)
 - Mock `fetch` globally — never hit live API in CI
-- 503 tests across 40 suites — all passing
+- 488 tests across 40 suites — all passing
 - Panel tests use duck-typed service mocks and React Testing Library
 - Use `renderHook` + `act` for hook tests; `jest.useFakeTimers()` for debounce tests
 - Coverage thresholds enforced (`jest.config.js`): statements 65%, branches 50%, functions 64%, lines 66%
