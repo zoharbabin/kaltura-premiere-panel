@@ -43,6 +43,8 @@ function setupPlugin(): void {
         kalturaMediaBrowser: {
           create(rootNode: HTMLElement) {
             log.info("Media Browser panel created");
+            rootNode.style.height = "100%";
+            rootNode.style.overflow = "hidden";
             browseRoot = createRoot(rootNode);
             browseRoot.render(
               <I18nProvider locale={currentLocale}>
@@ -67,6 +69,8 @@ function setupPlugin(): void {
         kalturaPublish: {
           create(rootNode: HTMLElement) {
             log.info("Publish panel created");
+            rootNode.style.height = "100%";
+            rootNode.style.overflow = "hidden";
             publishRoot = createRoot(rootNode);
             publishRoot.render(
               <I18nProvider locale={currentLocale}>
