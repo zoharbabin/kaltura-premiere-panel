@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { AuthState, ConnectionState, KalturaLoginCredentials } from "../types";
 import { AuthService, KalturaClient } from "../services";
 import { getUserMessage } from "../utils/errors";
-import { DEFAULT_SERVICE_URL } from "../utils/constants";
+import { DEFAULT_SERVICE_URL, AUTH_SIGNIN_EVENT, AUTH_SIGNOUT_EVENT } from "../utils/constants";
 
 interface UseAuthReturn {
   authState: AuthState;
@@ -160,6 +160,44 @@ export function useAuth(client: KalturaClient, authService: AuthService): UseAut
       connectionState: ConnectionState.DISCONNECTED,
     });
     setError(null);
+  }, [authService, client]);
+
+  // Listen for cross-panel auth broadcasts (login from another panel, sign-out from command)
+  useEffect(() => {
+    const handleSignIn = async () => {
+      try {
+        const session = await authService.restoreSession();
+        if (session) {
+          setAuthState({
+            isAuthenticated: true,
+            user: session.user,
+            ks: session.ks,
+            partnerId: session.partnerId,
+            serverUrl: client.getServiceUrl(),
+            connectionState: ConnectionState.CONNECTED,
+          });
+        }
+      } catch {
+        // Ignore — if restore fails, panel stays on login screen
+      }
+    };
+    const handleSignOut = () => {
+      setAuthState({
+        isAuthenticated: false,
+        user: null,
+        ks: null,
+        partnerId: null,
+        serverUrl: client.getServiceUrl(),
+        connectionState: ConnectionState.DISCONNECTED,
+      });
+      setError(null);
+    };
+    document.addEventListener(AUTH_SIGNIN_EVENT, handleSignIn);
+    document.addEventListener(AUTH_SIGNOUT_EVENT, handleSignOut);
+    return () => {
+      document.removeEventListener(AUTH_SIGNIN_EVENT, handleSignIn);
+      document.removeEventListener(AUTH_SIGNOUT_EVENT, handleSignOut);
+    };
   }, [authService, client]);
 
   const clearError = useCallback(() => setError(null), []);

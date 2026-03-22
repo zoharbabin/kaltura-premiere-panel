@@ -20,14 +20,11 @@ const mockPremiereService = {
   getActiveSequence: jest.fn().mockResolvedValue(null),
 } as never;
 
-const mockOnPublished = jest.fn();
-
 const defaultProps = {
   mediaService: mockMediaService,
   uploadService: mockUploadService,
   metadataService: mockMetadataService,
   premiereService: mockPremiereService,
-  onPublished: mockOnPublished,
 };
 
 describe("PublishPanel", () => {

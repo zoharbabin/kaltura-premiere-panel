@@ -1,7 +1,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { BrowsePanelRoot } from "./panels/BrowsePanelRoot";
+import { PublishPanelRoot } from "./panels/PublishPanelRoot";
+import { runSettingsCommand, runSignOutCommand } from "./commands";
+import { hostService, offlineService, auditService, authService } from "./services/singleton";
 import { createLogger, LogLevel, setLogLevel } from "./utils/logger";
 
 const log = createLogger("Plugin");
@@ -13,58 +16,95 @@ if (process.env.NODE_ENV === "production") {
 
 /**
  * UXP Plugin Entry Point.
- * Registers panel lifecycle callbacks and renders the React app.
+ *
+ * Registers two panels (Media Browser, Publish) and two commands
+ * (Settings, Sign Out) via entrypoints.setup().
  */
 function setupPlugin(): void {
   try {
     const { entrypoints } = require("uxp");
 
-    let panelRoot: ReturnType<typeof createRoot> | null = null;
+    let browseRoot: ReturnType<typeof createRoot> | null = null;
+    let publishRoot: ReturnType<typeof createRoot> | null = null;
 
     entrypoints.setup({
       plugin: {
         create() {
-          log.info("Kaltura panel plugin created");
+          log.info("Kaltura plugin created");
         },
         destroy() {
-          log.info("Kaltura panel plugin destroyed");
+          log.info("Kaltura plugin destroyed");
         },
       },
       panels: {
-        kalturaMainPanel: {
+        kalturaMediaBrowser: {
           create(rootNode: HTMLElement) {
-            log.info("Panel created");
-            panelRoot = createRoot(rootNode);
-            panelRoot.render(
+            log.info("Media Browser panel created");
+            browseRoot = createRoot(rootNode);
+            browseRoot.render(
               <ErrorBoundary>
-                <App />
+                <BrowsePanelRoot />
               </ErrorBoundary>,
             );
           },
           show() {
-            log.debug("Panel shown");
+            log.debug("Media Browser panel shown");
           },
           hide() {
-            log.debug("Panel hidden");
+            log.debug("Media Browser panel hidden");
           },
           destroy() {
-            log.info("Panel destroyed");
-            panelRoot?.unmount();
-            panelRoot = null;
+            log.info("Media Browser panel destroyed");
+            browseRoot?.unmount();
+            browseRoot = null;
+          },
+        },
+        kalturaPublish: {
+          create(rootNode: HTMLElement) {
+            log.info("Publish panel created");
+            publishRoot = createRoot(rootNode);
+            publishRoot.render(
+              <ErrorBoundary>
+                <PublishPanelRoot />
+              </ErrorBoundary>,
+            );
+          },
+          show() {
+            log.debug("Publish panel shown");
+          },
+          hide() {
+            log.debug("Publish panel hidden");
+          },
+          destroy() {
+            log.info("Publish panel destroyed");
+            publishRoot?.unmount();
+            publishRoot = null;
+          },
+        },
+      },
+      commands: {
+        kalturaSettings: {
+          run() {
+            return runSettingsCommand(hostService, offlineService, auditService);
+          },
+        },
+        kalturaSignOut: {
+          run() {
+            return runSignOutCommand(authService);
           },
         },
       },
     });
   } catch {
     // Not running inside UXP (development/test environment)
-    // Render to a DOM element for standalone testing
+    // Render the browse panel for standalone testing
     log.info("UXP not available — rendering in standalone mode");
     const container = document.getElementById("root");
     if (container) {
       const root = createRoot(container);
       root.render(
         <ErrorBoundary>
-          <App />
+          <BrowsePanelRoot />
         </ErrorBoundary>,
       );
     }

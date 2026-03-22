@@ -1,4 +1,6 @@
 export { ErrorBoundary } from "./ErrorBoundary";
+export { AuthGate } from "./AuthGate";
+export type { AuthGateContext } from "./AuthGate";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { ErrorBanner } from "./ErrorBanner";
 export { EmptyState } from "./EmptyState";

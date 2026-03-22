@@ -1,7 +1,7 @@
 /** Plugin identity */
 export const PLUGIN_ID = "com.kaltura.premiere.panel";
 export const PLUGIN_NAME = "Kaltura";
-export const PLUGIN_VERSION = "1.17.20";
+export const PLUGIN_VERSION = "1.18.0";
 export const CLIENT_TAG = `kaltura-premiere-panel:v${PLUGIN_VERSION}`;
 
 /** Default Kaltura service URL */
@@ -53,6 +53,10 @@ export const KALTURA_BIN_NAME = "Kaltura Assets";
 export const THUMBNAIL_GRID_WIDTH = 200;
 export const THUMBNAIL_GRID_HEIGHT = 120;
 export const THUMBNAIL_GRID_QUALITY = 75;
+
+/** Cross-panel auth events */
+export const AUTH_SIGNIN_EVENT = "kaltura:signin";
+export const AUTH_SIGNOUT_EVENT = "kaltura:signout";
 
 /** Support */
 export const ISSUES_URL = "https://github.com/zoharbabin/kaltura-premiere-panel/issues";

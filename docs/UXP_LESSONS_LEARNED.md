@@ -113,17 +113,16 @@ root.render(
 
 The ErrorBoundary catches errors before they reach UXP, logs them, and shows a recovery screen.
 
-### Avoid Simultaneous State Updates During Navigation
+### Avoid Simultaneous State Updates During View Transitions
 
-Do not call both a parent callback (that changes the view) and a local state reset in the same click handler:
+Do not call multiple state-changing callbacks that destroy and create SWC elements in the same click handler:
 
 ```typescript
 // BAD — conflicting state updates crash SWC
-onClick={() => { onPublished(entry); handleReset(); }}
+onClick={() => { setPhase("form"); setPublishedEntry(null); }}
 
-// GOOD — separate concerns
+// GOOD — separate into distinct buttons, or use setTimeout(0) to defer
 <sp-button onClick={handleReset}>Publish Another</sp-button>
-<sp-button onClick={() => onPublished(entry)}>Back to Browse</sp-button>
 ```
 
 ---
@@ -412,3 +411,51 @@ Key files per crash:
 - `attachments/{uuid}/__sentry-breadcrumb1` — event timeline leading to the crash
 
 Look for `ScriptContext`, `EventType`, and `pluginid` fields to identify plugin-related crashes.
+
+---
+
+## Multi-Panel Architecture Constraints
+
+### Panel Tab Titles Cannot Be Customized Per-Panel
+
+Premiere Pro displays the plugin `name` (from manifest.json) as the tab title for **all** panels. The per-entrypoint `label` field only controls the **Window > UXP Plugins** submenu items, not the docked tab titles.
+
+- `UxpPanelInfo.title` and `.label` are **read-only** — no `setTitle()` API exists.
+- This is host-app behavior, not a manifest configuration issue.
+- **Workaround**: Render an in-panel header bar (e.g., "MEDIA BROWSER" / "PUBLISH") to distinguish panels visually. Our `AuthGate` component does this via the `panelTitle` prop.
+
+### `entrypoints.setup()` Can Only Be Called Once
+
+The UXP entry point registration is **static and one-time-only**:
+
+- `entrypoints.setup()` throws if called more than once.
+- All panels declared in `manifest.json` must be registered in `setup()`.
+- Panels cannot be dynamically added, removed, or hidden at runtime.
+- `pluginManager.showPanel(id)` can open a panel, but there is **no `hidePanel()` or `closePanel()`** — users must close panels manually.
+
+This means you cannot make single-panel vs. multi-panel configurable within a single plugin. The only way to offer both modes is to ship separate `.ccx` packages with different manifests.
+
+### Panel Lifecycle Hooks — Known Limitations in Premiere Pro
+
+- `hide(rootNode, data)` — **not working reliably** in Premiere Pro (documented Adobe bug).
+- `destroy(rootNode)` — **also not working reliably** in Premiere Pro.
+- In multi-panel plugins, lifecycle hooks may **fire for all panels** without distinguishing which panel triggered the event. Always check panel identity in your hooks.
+
+### Cross-Panel Communication
+
+Panels in the same plugin share the same HTML document and JavaScript context. This enables:
+
+- **Shared singleton services** — module-level instances in a common file (e.g., `singleton.ts`)
+- **DOM event-based sync** — `document.dispatchEvent(new Event("custom-event"))` to notify across panels
+- **Shared `SecureStorage`** — all panels access the same credential store
+
+We use `kaltura:signin` and `kaltura:signout` DOM events to keep auth state synchronized across the Media Browser and Publish panels. The `useAuth` hook listens for these events and updates React state accordingly.
+
+### References
+
+- [Manifest reference](https://developer.adobe.com/premiere-pro/uxp/plugins/concepts/manifest/)
+- [Panels & Commands concepts](https://developer.adobe.com/premiere-pro/uxp/plugins/concepts/panels-and-commands/)
+- [Multiple Panels tutorial](https://developer.adobe.com/premiere-pro/uxp/plugins/tutorials/add-panels/)
+- [Lifecycle Hooks tutorial](https://developer.adobe.com/premiere-pro/uxp/plugins/tutorials/add-lifecycle-hooks/)
+- [EntryPoints API](https://developer.adobe.com/premiere-pro/uxp/uxp-api/reference-js/Modules/uxp/Entry%20Points/EntryPoints/)
+- [UxpPanelInfo API](https://developer.adobe.com/premiere-pro/uxp/uxp-api/reference-js/Modules/uxp/Entry%20Points/UxpPanelInfo/)
