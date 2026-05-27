@@ -198,7 +198,7 @@ function generateExchangeMetadata(manifest) {
       const repo = packageJson.repository;
       if (typeof repo === "string") return `https://github.com/${repo}/issues`;
       if (repo && repo.url) return repo.url.replace(/\.git$/, "") + "/issues";
-      return "https://github.com/zoharbabin/kaltura-premiere-panel/issues";
+      return "https://github.com/kaltura/kaltura-premiere-panel/issues";
     })(),
     privacyPolicyUrl: "https://corp.kaltura.com/privacy-policy/",
     compatibility: hosts.map((h) => ({
