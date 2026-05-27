@@ -66,6 +66,12 @@ export function getUserMessage(error: unknown): string {
     if (error.code === "AUTH_EXPIRED") {
       return "Your session has expired. Please sign in again.";
     }
+    if (error.code === "SSO_INVALID_TOKEN") {
+      return "Invalid or expired token. Please authenticate again and copy the new token.";
+    }
+    if (error.code === "SSO_VALIDATION_FAILED") {
+      return "Token validation failed. Please try authenticating again.";
+    }
     return "Authentication failed. Please try signing in again.";
   }
 

@@ -33,8 +33,12 @@ export const API_TIMEOUT_MS = 30_000;
 export const UPLOAD_TIMEOUT_MS = 600_000; // 10 minutes per chunk
 export const WEBSOCKET_RECONNECT_BASE_MS = 1_000;
 export const WEBSOCKET_RECONNECT_MAX_MS = 30_000;
-export const SSO_POLL_INTERVAL_MS = 2_000;
-export const SSO_TIMEOUT_MS = 300_000; // 5 minutes
+
+/** SSO / Auth Broker */
+export const SSO_CALLBACK_URL =
+  "https://zoharbabin.github.io/kaltura-premiere-panel/sso-callback.html";
+export const AUTH_BROKER_DEFAULT_REGION = "nvp1";
+export const SSO_APP_TYPE = "test";
 
 /** Governance */
 export const CONTENT_HOLD_TAG = "content_hold";

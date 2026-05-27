@@ -6,8 +6,10 @@ import { useTranslation } from "../i18n";
 
 interface LoginPanelProps {
   onLogin: (credentials: KalturaLoginCredentials) => Promise<void>;
-  onSsoLogin?: (serverUrl: string, partnerId: number) => Promise<void>;
+  onSsoInitiate?: (email: string, region?: string) => void;
+  onSsoComplete?: (ks: string, partnerId: number, serverUrl: string) => Promise<void>;
   onCancelSso?: () => void;
+  ssoWaitingForToken?: boolean;
   onServerUrlChange?: (url: string) => void;
   isLoading: boolean;
   error: string | null;
@@ -16,8 +18,10 @@ interface LoginPanelProps {
 
 export const LoginPanel: React.FC<LoginPanelProps> = ({
   onLogin,
-  onSsoLogin,
+  onSsoInitiate,
+  onSsoComplete,
   onCancelSso,
+  ssoWaitingForToken,
   onServerUrlChange,
   isLoading,
   error,
@@ -30,7 +34,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   const [serverUrl, setServerUrl] = useState(DEFAULT_SERVICE_URL);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [authMode, setAuthMode] = useState<"email" | "sso">("email");
-  const [ssoStatus, setSsoStatus] = useState<string | null>(null);
+  const [ssoToken, setSsoToken] = useState("");
 
   const handleServerUrlChange = useCallback(
     (url: string) => {
@@ -50,17 +54,22 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
     });
   }, [email, password, partnerId, onLogin, onClearError]);
 
-  const handleSsoLogin = useCallback(async () => {
-    if (!partnerId || !onSsoLogin) return;
+  const handleSsoInitiate = useCallback(() => {
+    if (!email || !onSsoInitiate) return;
     onClearError();
-    setSsoStatus("Opening browser for SSO...");
+    onSsoInitiate(email);
+  }, [email, onSsoInitiate, onClearError]);
 
-    try {
-      await onSsoLogin(serverUrl, parseInt(partnerId, 10));
-    } catch {
-      setSsoStatus(null);
-    }
-  }, [partnerId, serverUrl, onSsoLogin, onClearError]);
+  const handleSsoComplete = useCallback(async () => {
+    if (!ssoToken || !partnerId || !onSsoComplete) return;
+    onClearError();
+    await onSsoComplete(ssoToken.trim(), parseInt(partnerId, 10), serverUrl);
+  }, [ssoToken, partnerId, serverUrl, onSsoComplete, onClearError]);
+
+  const handleReopenBrowser = useCallback(() => {
+    if (!email || !onSsoInitiate) return;
+    onSsoInitiate(email);
+  }, [email, onSsoInitiate]);
 
   const handleForgotPassword = useCallback(() => {
     const url = `${serverUrl}/index.php/kmcng/login`;
@@ -82,22 +91,10 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
 
   const isFormValid = email.length > 0 && password.length > 0 && partnerId.length > 0;
 
-  if (isLoading || ssoStatus) {
+  if (isLoading) {
     return (
       <div className="login-container">
-        <LoadingSpinner label={ssoStatus || t("login.signingIn")} size="large" />
-        {ssoStatus && onCancelSso && (
-          <sp-button
-            variant="secondary"
-            size="s"
-            onClick={() => {
-              onCancelSso();
-              setSsoStatus(null);
-            }}
-          >
-            {t("login.cancel")}
-          </sp-button>
-        )}
+        <LoadingSpinner label={t("login.signingIn")} size="large" />
       </div>
     );
   }
@@ -115,7 +112,7 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
 
       <div className="login-form">
         {/* Auth mode toggle */}
-        {onSsoLogin && (
+        {onSsoInitiate && (
           <div className="login-toggle">
             <div
               role="button"
@@ -162,62 +159,114 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
               style={{ width: "100%" }}
               type="password"
             />
+            <sp-textfield
+              placeholder={t("login.partnerIdPlaceholder")}
+              aria-label={t("login.partnerIdAriaLabel")}
+              value={partnerId}
+              onInput={(e: Event) => {
+                const val = (e.target as HTMLInputElement).value.replace(/\D/g, "");
+                setPartnerId(val);
+              }}
+              onKeyDown={handleKeyDown}
+              style={{ width: "100%" }}
+            />
+            <div
+              role="button"
+              tabIndex={isFormValid ? 0 : -1}
+              className={`btn-kaltura${!isFormValid ? " btn-kaltura--disabled" : ""}`}
+              onClick={isFormValid ? handleSubmit : undefined}
+              onKeyDown={(e) => {
+                if (isFormValid && (e.key === "Enter" || e.key === " ")) handleSubmit();
+              }}
+              aria-disabled={!isFormValid || undefined}
+            >
+              {t("login.signIn")}
+            </div>
           </>
-        ) : null}
-
-        <sp-textfield
-          placeholder={t("login.partnerIdPlaceholder")}
-          aria-label={t("login.partnerIdAriaLabel")}
-          value={partnerId}
-          onInput={(e: Event) => {
-            const val = (e.target as HTMLInputElement).value.replace(/\D/g, "");
-            setPartnerId(val);
-          }}
-          onKeyDown={handleKeyDown}
-          style={{ width: "100%" }}
-        />
-
-        {authMode === "email" ? (
-          <div
-            role="button"
-            tabIndex={isFormValid ? 0 : -1}
-            className={`btn-kaltura${!isFormValid ? " btn-kaltura--disabled" : ""}`}
-            onClick={isFormValid ? handleSubmit : undefined}
-            onKeyDown={(e) => {
-              if (isFormValid && (e.key === "Enter" || e.key === " ")) handleSubmit();
-            }}
-            aria-disabled={!isFormValid || undefined}
-          >
-            {t("login.signIn")}
-          </div>
+        ) : ssoWaitingForToken ? (
+          <>
+            <div className="login-sso-info">{t("login.ssoTokenInfo")}</div>
+            <sp-textfield
+              placeholder={t("login.ssoTokenPlaceholder")}
+              aria-label={t("login.ssoTokenAriaLabel")}
+              value={ssoToken}
+              onInput={(e: Event) => setSsoToken((e.target as HTMLInputElement).value)}
+              style={{ width: "100%" }}
+              type="password"
+            />
+            <sp-textfield
+              placeholder={t("login.partnerIdPlaceholder")}
+              aria-label={t("login.partnerIdAriaLabel")}
+              value={partnerId}
+              onInput={(e: Event) => {
+                const val = (e.target as HTMLInputElement).value.replace(/\D/g, "");
+                setPartnerId(val);
+              }}
+              style={{ width: "100%" }}
+            />
+            <div
+              role="button"
+              tabIndex={ssoToken && partnerId ? 0 : -1}
+              className={`btn-kaltura${!ssoToken || !partnerId ? " btn-kaltura--disabled" : ""}`}
+              onClick={ssoToken && partnerId ? handleSsoComplete : undefined}
+              onKeyDown={(e) => {
+                if (ssoToken && partnerId && (e.key === "Enter" || e.key === " "))
+                  handleSsoComplete();
+              }}
+              aria-disabled={!ssoToken || !partnerId || undefined}
+            >
+              {t("login.completeLogin")}
+            </div>
+            <div className="login-links">
+              <sp-action-button quiet size="s" onClick={handleReopenBrowser}>
+                {t("login.reopenBrowser")}
+              </sp-action-button>
+              <sp-action-button quiet size="s" onClick={onCancelSso}>
+                {t("login.cancel")}
+              </sp-action-button>
+            </div>
+          </>
         ) : (
-          <div
-            role="button"
-            tabIndex={partnerId ? 0 : -1}
-            className={`btn-kaltura${!partnerId ? " btn-kaltura--disabled" : ""}`}
-            onClick={partnerId ? handleSsoLogin : undefined}
-            onKeyDown={(e) => {
-              if (partnerId && (e.key === "Enter" || e.key === " ")) handleSsoLogin();
-            }}
-            aria-disabled={!partnerId || undefined}
-          >
-            {t("login.signInSSO")}
-          </div>
+          <>
+            <sp-textfield
+              placeholder={t("login.ssoEmailPlaceholder")}
+              aria-label={t("login.emailAriaLabel")}
+              value={email}
+              onInput={(e: Event) => setEmail((e.target as HTMLInputElement).value)}
+              onKeyDown={(e: React.KeyboardEvent) => {
+                if (e.key === "Enter") handleSsoInitiate();
+              }}
+              style={{ width: "100%" }}
+              type="email"
+            />
+            <div
+              role="button"
+              tabIndex={email ? 0 : -1}
+              className={`btn-kaltura${!email ? " btn-kaltura--disabled" : ""}`}
+              onClick={email ? handleSsoInitiate : undefined}
+              onKeyDown={(e) => {
+                if (email && (e.key === "Enter" || e.key === " ")) handleSsoInitiate();
+              }}
+              aria-disabled={!email || undefined}
+            >
+              {t("login.signInSSO")}
+            </div>
+          </>
         )}
 
-        <div className="login-links">
-          {authMode === "email" && (
+        {authMode === "email" && (
+          <div className="login-links">
             <sp-action-button quiet size="s" onClick={handleForgotPassword}>
               {t("login.forgotPassword")}
             </sp-action-button>
-          )}
 
-          <sp-action-button quiet size="s" onClick={() => setShowAdvanced(!showAdvanced)}>
-            {showAdvanced ? t("login.hideServer") : t("login.configureServer")}
-          </sp-action-button>
-        </div>
+            <sp-action-button quiet size="s" onClick={() => setShowAdvanced(!showAdvanced)}>
+              {showAdvanced ? t("login.hideServer") : t("login.configureServer")}
+            </sp-action-button>
+          </div>
+        )}
 
-        {showAdvanced && (
+        {showAdvanced && authMode === "email" && (
           <sp-textfield
             placeholder={t("login.serverUrlPlaceholder")}
             aria-label={t("login.serverUrlAriaLabel")}

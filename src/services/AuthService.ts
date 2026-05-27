@@ -10,8 +10,9 @@ import {
   SESSION_REFRESH_THRESHOLD,
   SECURE_STORAGE_KEY_KS,
   SECURE_STORAGE_KEY_USER,
-  SSO_POLL_INTERVAL_MS,
-  SSO_TIMEOUT_MS,
+  SSO_CALLBACK_URL,
+  AUTH_BROKER_DEFAULT_REGION,
+  SSO_APP_TYPE,
 } from "../utils/constants";
 import { createLogger } from "../utils/logger";
 
@@ -204,92 +205,66 @@ export class AuthService {
   }
 
   /**
-   * Login via SSO (three-party OAuth).
+   * Initiate SSO login via Auth Broker (SPA Proxy flow).
    *
-   * 1. Request a one-time login token from Kaltura (creates a pending session)
-   * 2. Open the system browser to the IdP login page
-   * 3. Poll Kaltura until the token is exchanged for a KS
-   * 4. Store the session and return
-   *
-   * Call `cancelSso()` to abort a pending SSO flow.
+   * Opens the system browser to the SSO callback page which handles:
+   * 1. Calling the SPA Proxy with the user's email
+   * 2. Redirecting to the customer's IdP
+   * 3. Receiving the KS back from Auth Broker
+   * 4. Displaying it for the user to copy/paste back into the plugin
    */
-  async loginWithSso(
-    serverUrl: string,
-    partnerId: number,
-    signal?: AbortSignal,
-  ): Promise<AuthSession> {
-    log.info("Starting SSO login flow");
+  initiateSso(email: string, region: string = AUTH_BROKER_DEFAULT_REGION): void {
+    log.info("Initiating SSO via Auth Broker", { email, region });
 
-    // Step 1: Request a one-time login token
-    const tokenResponse = await this.client.request<{
-      objectType?: string;
-      id: string;
-      loginUrl: string;
-    }>({
-      service: "sso",
-      action: "getLoginToken",
-      params: { partnerId },
-    });
+    const callbackUrl = new URL(SSO_CALLBACK_URL);
+    callbackUrl.searchParams.set("action", "login");
+    callbackUrl.searchParams.set("email", email);
+    callbackUrl.searchParams.set("appType", SSO_APP_TYPE);
+    callbackUrl.searchParams.set("region", region);
 
-    const { id: tokenId, loginUrl } = tokenResponse;
-    log.info("SSO token created, opening browser", { tokenId });
-
-    // Step 2: Open system browser to IdP (validate URL is HTTPS to prevent open-redirect attacks)
-    if (!/^https:\/\//i.test(loginUrl)) {
-      throw new AuthenticationError("SSO login URL must use HTTPS", "SSO_INVALID_URL");
-    }
+    const url = callbackUrl.toString();
     try {
       const uxp = require("uxp");
-      uxp.shell.openExternal(loginUrl);
+      uxp.shell.openExternal(url);
     } catch {
-      window.open(loginUrl, "_blank");
+      window.open(url, "_blank");
     }
+  }
 
-    // Step 3: Poll for completion
-    const deadline = Date.now() + SSO_TIMEOUT_MS;
+  /**
+   * Complete SSO login by validating a pasted KS token.
+   * Called after the user authenticates in the browser and pastes the token back.
+   */
+  async validateSsoToken(ks: string, partnerId: number, serverUrl: string): Promise<AuthSession> {
+    log.info("Validating SSO token");
 
-    while (Date.now() < deadline) {
-      if (signal?.aborted) {
-        throw new AuthenticationError("SSO login cancelled", "SSO_CANCELLED");
+    this.client.configure({ serviceUrl: serverUrl, partnerId });
+    this.client.setKs(ks);
+
+    try {
+      const user = await this.fetchUserInfo();
+      const session: AuthSession = {
+        ks,
+        user,
+        expiry: Date.now() / 1000 + 86400,
+        partnerId,
+      };
+      await this.setSession(session);
+      log.info("SSO token validated, login complete");
+      return session;
+    } catch (error) {
+      this.client.setKs(null);
+      if (error instanceof Error && error.message.includes("INVALID_KS")) {
+        throw new AuthenticationError(
+          "Invalid or expired token. Please authenticate again.",
+          "SSO_INVALID_TOKEN",
+        );
       }
-
-      await this.sleep(SSO_POLL_INTERVAL_MS);
-
-      try {
-        const pollResponse = await this.client.request<{
-          objectType?: string;
-          status: "pending" | "complete" | "expired";
-          ks?: string;
-        }>({
-          service: "sso",
-          action: "checkLoginToken",
-          params: { id: tokenId, partnerId },
-        });
-
-        if (pollResponse.status === "complete" && pollResponse.ks) {
-          this.client.setKs(pollResponse.ks);
-          const user = await this.fetchUserInfo();
-          const session: AuthSession = {
-            ks: pollResponse.ks,
-            user,
-            expiry: Date.now() / 1000 + 86400,
-            partnerId,
-          };
-          await this.setSession(session);
-          log.info("SSO login complete");
-          return session;
-        }
-
-        if (pollResponse.status === "expired") {
-          throw new AuthenticationError("SSO login token expired", "SSO_EXPIRED");
-        }
-      } catch (err) {
-        if (err instanceof AuthenticationError) throw err;
-        log.debug("SSO poll attempt failed, retrying", err);
-      }
+      throw new AuthenticationError(
+        "Token validation failed. Please try again.",
+        "SSO_VALIDATION_FAILED",
+      );
     }
-
-    throw new AuthenticationError("SSO login timed out", "SSO_TIMEOUT");
   }
 
   /**
@@ -438,10 +413,6 @@ export class AuthService {
     } catch (error) {
       log.error("Session refresh failed", error);
     }
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async sha256(input: string): Promise<string> {

@@ -5,7 +5,8 @@ describe("SignOutCommand", () => {
     logout: jest.fn().mockResolvedValue(undefined),
     restoreSession: jest.fn().mockResolvedValue(null),
     loginWithCredentials: jest.fn(),
-    loginWithSso: jest.fn(),
+    initiateSso: jest.fn(),
+    validateSsoToken: jest.fn(),
   };
 
   beforeEach(() => {

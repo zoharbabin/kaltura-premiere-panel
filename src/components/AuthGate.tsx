@@ -30,10 +30,17 @@ export interface AuthGateContext {
 
 export const AuthGate: React.FC<AuthGateProps> = ({ panelTitle, children }) => {
   const { t } = useTranslation();
-  const { authState, login, loginWithSso, cancelSso, isLoading, error, clearError } = useAuth(
-    client,
-    authService,
-  );
+  const {
+    authState,
+    login,
+    initiateSso,
+    completeSso,
+    cancelSso,
+    ssoWaitingForToken,
+    isLoading,
+    error,
+    clearError,
+  } = useAuth(client, authService);
 
   // Configure client when auth changes
   useEffect(() => {
@@ -59,13 +66,20 @@ export const AuthGate: React.FC<AuthGateProps> = ({ panelTitle, children }) => {
     [login],
   );
 
-  const handleSsoLogin = useCallback(
-    async (serverUrl: string, partnerId: number) => {
-      await loginWithSso(serverUrl, partnerId);
+  const handleSsoInitiate = useCallback(
+    (email: string, region?: string) => {
+      initiateSso(email, region);
+    },
+    [initiateSso],
+  );
+
+  const handleSsoComplete = useCallback(
+    async (ks: string, partnerId: number, serverUrl: string) => {
+      await completeSso(ks, partnerId, serverUrl);
       auditService.logAction("login", undefined, "SSO login");
       document.dispatchEvent(new Event(AUTH_SIGNIN_EVENT));
     },
-    [loginWithSso],
+    [completeSso],
   );
 
   const handleServerUrlChange = useCallback((url: string) => {
@@ -97,8 +111,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ panelTitle, children }) => {
         >
           <LoginPanel
             onLogin={handleLogin}
-            onSsoLogin={handleSsoLogin}
+            onSsoInitiate={handleSsoInitiate}
+            onSsoComplete={handleSsoComplete}
             onCancelSso={cancelSso}
+            ssoWaitingForToken={ssoWaitingForToken}
             onServerUrlChange={handleServerUrlChange}
             isLoading={isLoading}
             error={error}

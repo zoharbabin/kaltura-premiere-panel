@@ -22,7 +22,8 @@ function createMockAuthService(
   return {
     restoreSession: jest.fn().mockResolvedValue(null),
     loginWithCredentials: jest.fn(),
-    loginWithSso: jest.fn(),
+    initiateSso: jest.fn(),
+    validateSsoToken: jest.fn(),
     logout: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   } as unknown as AuthService;

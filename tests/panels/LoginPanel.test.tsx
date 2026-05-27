@@ -35,14 +35,14 @@ describe("LoginPanel", () => {
     expect(screen.getByText("Invalid credentials")).toBeTruthy();
   });
 
-  it("shows SSO tab when onSsoLogin is provided", () => {
-    const onSsoLogin = jest.fn().mockResolvedValue(undefined);
-    render(<LoginPanel {...defaultProps} onSsoLogin={onSsoLogin} />);
+  it("shows SSO tab when onSsoInitiate is provided", () => {
+    const onSsoInitiate = jest.fn();
+    render(<LoginPanel {...defaultProps} onSsoInitiate={onSsoInitiate} />);
     expect(screen.getByText("SSO")).toBeTruthy();
     expect(screen.getByText("Email")).toBeTruthy();
   });
 
-  it("does not show SSO tab when onSsoLogin is not provided", () => {
+  it("does not show SSO tab when onSsoInitiate is not provided", () => {
     render(<LoginPanel {...defaultProps} />);
     expect(screen.queryByText("SSO")).toBeNull();
   });

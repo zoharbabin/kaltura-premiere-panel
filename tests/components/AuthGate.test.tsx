@@ -21,7 +21,8 @@ jest.mock("../../src/services/singleton", () => {
       partnerId: 12345,
       user: { id: "user1", email: "test@test.com", fullName: "Test User" },
     }),
-    loginWithSso: jest.fn(),
+    initiateSso: jest.fn(),
+    validateSsoToken: jest.fn(),
     logout: jest.fn().mockResolvedValue(undefined),
   }));
 

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaltura SSO — Premiere Pro</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #1a1a2e;
+      color: #e0e0e0;
+    }
+    .card {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 480px;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { font-size: 20px; margin: 0 0 12px; color: #fff; }
+    p { font-size: 14px; line-height: 1.6; color: #a0a0b0; margin: 8px 0; }
+    .token-box {
+      background: #0f3460;
+      border: 1px solid #1a5276;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 20px 0;
+      word-break: break-all;
+      font-family: monospace;
+      font-size: 11px;
+      max-height: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #7ec8e3;
+      cursor: pointer;
+    }
+    .btn {
+      background: #e84545;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 14px;
+      cursor: pointer;
+      margin: 8px 4px;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #c93636; }
+    .status { color: #4caf50; font-weight: 600; margin-top: 12px; font-size: 13px; }
+    .error { color: #e84545; }
+    .spinner {
+      border: 3px solid #2a4a7f;
+      border-top: 3px solid #7ec8e3;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="spinner" id="spinner"></div>
+    <div class="icon hidden" id="icon"></div>
+    <h1 id="title">Connecting to Identity Provider...</h1>
+    <p id="message">Please wait while we redirect you to your organization's login page.</p>
+    <div class="token-box hidden" id="tokenBox" onclick="copyToken()" title="Click to copy"></div>
+    <button class="btn hidden" id="copyBtn" onclick="copyToken()">Copy Token</button>
+    <p class="status" id="status"></p>
+    <div class="hidden" id="instructions">
+      <p>Return to Adobe Premiere Pro and paste the token in the SSO login field.</p>
+    </div>
+  </div>
+
+  <script>
+    var params = new URLSearchParams(window.location.search);
+    var ks = params.get('ks');
+    var jwt = params.get('jwt');
+    var error = params.get('error');
+    var action = params.get('action');
+    var email = params.get('email');
+    var appType = params.get('appType') || 'test';
+    var region = params.get('region') || 'nvp1';
+
+    function show(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function showSuccess(token) {
+      hide('spinner');
+      show('icon');
+      show('tokenBox');
+      show('copyBtn');
+      show('instructions');
+      document.getElementById('icon').textContent = '✓';
+      document.getElementById('title').textContent = 'Authentication Successful';
+      document.getElementById('message').textContent = 'Your session token is ready. Copy it and paste it into the Premiere Pro plugin.';
+      document.getElementById('tokenBox').textContent = token;
+      try {
+        navigator.clipboard.writeText(token).then(function() {
+          document.getElementById('status').textContent = 'Token copied to clipboard!';
+        });
+      } catch (e) { /* clipboard may require user gesture */ }
+    }
+
+    function showError(msg) {
+      hide('spinner');
+      show('icon');
+      document.getElementById('icon').textContent = '✗';
+      document.getElementById('icon').style.color = '#e84545';
+      document.getElementById('title').textContent = 'Authentication Failed';
+      document.getElementById('message').textContent = msg;
+      document.getElementById('message').classList.add('error');
+    }
+
+    function copyToken() {
+      if (!ks) return;
+      navigator.clipboard.writeText(ks).then(function() {
+        var s = document.getElementById('status');
+        s.textContent = 'Copied!';
+        setTimeout(function() { s.textContent = 'Token copied to clipboard!'; }, 1000);
+      }).catch(function() {
+        document.getElementById('status').textContent = 'Please select and copy manually (Ctrl+C / Cmd+C)';
+      });
+    }
+
+    // MODE 1: Callback — we received a KS from Auth Broker redirect
+    if (ks) {
+      showSuccess(ks);
+
+    // MODE 2: Error callback
+    } else if (error) {
+      showError(error);
+
+    // MODE 3: Initiate login — call SPA Proxy and redirect to IdP
+    } else if (action === 'login' && email) {
+      var brokerUrl = 'https://auth.' + region + '.ovp.kaltura.com/api/v1';
+
+      fetch(brokerUrl + '/spa-proxy/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, appType: appType })
+      })
+      .then(function(res) { return res.text(); })
+      .then(function(html) {
+        // SPA Proxy returns HTML with auto-submit form
+        // Extract the form and submit it by rendering in a hidden iframe or redirect
+        // The HTML is: <form action="URL" method="post"><input name="token" value="ENCRYPTED">
+        var match = html.match(/action='([^']+)'/);
+        var tokenMatch = html.match(/value='([^']+)'/);
+
+        if (match && tokenMatch) {
+          // Create and submit the form
+          var form = document.createElement('form');
+          form.method = 'POST';
+          form.action = match[1];
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'token';
+          input.value = tokenMatch[1];
+          form.appendChild(input);
+          document.body.appendChild(form);
+          form.submit();
+        } else {
+          // SPA Proxy may have returned a profile list (JSON array)
+          try {
+            var profiles = JSON.parse(html);
+            if (Array.isArray(profiles)) {
+              showError('Multiple identity providers configured. Please contact your administrator to specify which profile to use.');
+            } else {
+              showError('Unexpected response from authentication server.');
+            }
+          } catch (e) {
+            showError('Unexpected response from authentication server.');
+          }
+        }
+      })
+      .catch(function(err) {
+        showError('Cannot reach authentication server: ' + err.message);
+      });
+
+    // MODE 4: No parameters — show usage info
+    } else {
+      hide('spinner');
+      show('icon');
+      document.getElementById('icon').textContent = '?';
+      document.getElementById('title').textContent = 'Kaltura SSO for Premiere Pro';
+      document.getElementById('message').textContent = 'This page handles SSO authentication for the Kaltura Premiere Pro plugin. It should be opened automatically by the plugin.';
+    }
+  </script>
+</body>
+</html>
