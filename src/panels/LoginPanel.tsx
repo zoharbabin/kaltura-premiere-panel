@@ -55,10 +55,10 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
   }, [email, password, partnerId, onLogin, onClearError]);
 
   const handleSsoInitiate = useCallback(() => {
-    if (!email || !onSsoInitiate) return;
+    if (!email || !partnerId || !onSsoInitiate) return;
     onClearError();
     onSsoInitiate(email);
-  }, [email, onSsoInitiate, onClearError]);
+  }, [email, partnerId, onSsoInitiate, onClearError]);
 
   const handleSsoComplete = useCallback(async () => {
     if (!ssoToken || !partnerId || !onSsoComplete) return;
@@ -191,29 +191,21 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
               aria-label={t("login.ssoTokenAriaLabel")}
               value={ssoToken}
               onInput={(e: Event) => setSsoToken((e.target as HTMLInputElement).value)}
+              onKeyDown={(e: React.KeyboardEvent) => {
+                if (e.key === "Enter") handleSsoComplete();
+              }}
               style={{ width: "100%" }}
               type="password"
             />
-            <sp-textfield
-              placeholder={t("login.partnerIdPlaceholder")}
-              aria-label={t("login.partnerIdAriaLabel")}
-              value={partnerId}
-              onInput={(e: Event) => {
-                const val = (e.target as HTMLInputElement).value.replace(/\D/g, "");
-                setPartnerId(val);
-              }}
-              style={{ width: "100%" }}
-            />
             <div
               role="button"
-              tabIndex={ssoToken && partnerId ? 0 : -1}
-              className={`btn-kaltura${!ssoToken || !partnerId ? " btn-kaltura--disabled" : ""}`}
-              onClick={ssoToken && partnerId ? handleSsoComplete : undefined}
+              tabIndex={ssoToken ? 0 : -1}
+              className={`btn-kaltura${!ssoToken ? " btn-kaltura--disabled" : ""}`}
+              onClick={ssoToken ? handleSsoComplete : undefined}
               onKeyDown={(e) => {
-                if (ssoToken && partnerId && (e.key === "Enter" || e.key === " "))
-                  handleSsoComplete();
+                if (ssoToken && (e.key === "Enter" || e.key === " ")) handleSsoComplete();
               }}
-              aria-disabled={!ssoToken || !partnerId || undefined}
+              aria-disabled={!ssoToken || undefined}
             >
               {t("login.completeLogin")}
             </div>
@@ -233,21 +225,31 @@ export const LoginPanel: React.FC<LoginPanelProps> = ({
               aria-label={t("login.emailAriaLabel")}
               value={email}
               onInput={(e: Event) => setEmail((e.target as HTMLInputElement).value)}
+              style={{ width: "100%" }}
+              type="email"
+            />
+            <sp-textfield
+              placeholder={t("login.partnerIdPlaceholder")}
+              aria-label={t("login.partnerIdAriaLabel")}
+              value={partnerId}
+              onInput={(e: Event) => {
+                const val = (e.target as HTMLInputElement).value.replace(/\D/g, "");
+                setPartnerId(val);
+              }}
               onKeyDown={(e: React.KeyboardEvent) => {
                 if (e.key === "Enter") handleSsoInitiate();
               }}
               style={{ width: "100%" }}
-              type="email"
             />
             <div
               role="button"
-              tabIndex={email ? 0 : -1}
-              className={`btn-kaltura${!email ? " btn-kaltura--disabled" : ""}`}
-              onClick={email ? handleSsoInitiate : undefined}
+              tabIndex={email && partnerId ? 0 : -1}
+              className={`btn-kaltura${!email || !partnerId ? " btn-kaltura--disabled" : ""}`}
+              onClick={email && partnerId ? handleSsoInitiate : undefined}
               onKeyDown={(e) => {
-                if (email && (e.key === "Enter" || e.key === " ")) handleSsoInitiate();
+                if (email && partnerId && (e.key === "Enter" || e.key === " ")) handleSsoInitiate();
               }}
-              aria-disabled={!email || undefined}
+              aria-disabled={!email || !partnerId || undefined}
             >
               {t("login.signInSSO")}
             </div>
