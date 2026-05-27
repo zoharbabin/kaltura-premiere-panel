@@ -36,7 +36,7 @@ export const WEBSOCKET_RECONNECT_MAX_MS = 30_000;
 
 /** SSO / Auth Broker */
 export const SSO_CALLBACK_URL =
-  "https://zoharbabin.github.io/kaltura-premiere-panel/sso-callback.html";
+  "https://kaltura.github.io/kaltura-premiere-panel/sso-callback.html";
 export const AUTH_BROKER_DEFAULT_REGION = "nvp1";
 export const SSO_APP_TYPE = "test";
 
@@ -63,7 +63,7 @@ export const AUTH_SIGNIN_EVENT = "kaltura:signin";
 export const AUTH_SIGNOUT_EVENT = "kaltura:signout";
 
 /** Support */
-export const ISSUES_URL = "https://github.com/zoharbabin/kaltura-premiere-panel/issues";
+export const ISSUES_URL = "https://github.com/kaltura/kaltura-premiere-panel/issues";
 
 /** Storage keys */
 export const STORAGE_KEY_CONFIG = "kaltura_config";

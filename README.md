@@ -42,7 +42,7 @@ Browse, search, import, and publish video content — all without leaving your A
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/zoharbabin/kaltura-premiere-panel.git
+git clone https://github.com/kaltura/kaltura-premiere-panel.git
 cd kaltura-premiere-panel
 npm install
 

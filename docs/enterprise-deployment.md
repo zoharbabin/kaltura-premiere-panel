@@ -18,7 +18,7 @@ This guide covers deploying the Kaltura for Adobe Creative Cloud plugin in enter
 
 ### Double-Click Install
 
-Download the `.ccx` file for your host app from the [latest release](https://github.com/zoharbabin/kaltura-premiere-panel/releases/latest) and double-click to install. The Creative Cloud Desktop application handles installation automatically.
+Download the `.ccx` file for your host app from the [latest release](https://github.com/kaltura/kaltura-premiere-panel/releases/latest) and double-click to install. The Creative Cloud Desktop application handles installation automatically.
 
 | File                                  | Host App     |
 | ------------------------------------- | ------------ |

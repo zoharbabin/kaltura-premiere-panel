@@ -6,7 +6,7 @@
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zoharbabin/kaltura-premiere-panel.git"
+    "url": "https://github.com/kaltura/kaltura-premiere-panel.git"
   },
   "engines": {
     "node": ">=18"

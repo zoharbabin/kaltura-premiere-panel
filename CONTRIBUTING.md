@@ -13,7 +13,7 @@ Thank you for your interest in contributing! This guide will help you get up and
 ### Setup
 
 ```bash
-git clone https://github.com/zoharbabin/kaltura-premiere-panel.git
+git clone https://github.com/kaltura/kaltura-premiere-panel.git
 cd kaltura-premiere-panel
 npm install
 ```
@@ -131,4 +131,4 @@ Write a clear commit message describing what changed and why.
 
 ## Questions?
 
-Open an issue at [github.com/zoharbabin/kaltura-premiere-panel/issues](https://github.com/zoharbabin/kaltura-premiere-panel/issues).
+Open an issue at [github.com/kaltura/kaltura-premiere-panel/issues](https://github.com/kaltura/kaltura-premiere-panel/issues).
