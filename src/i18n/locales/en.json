@@ -20,6 +20,8 @@
   "login.ssoTokenAriaLabel": "SSO session token",
   "login.completeLogin": "Complete Login",
   "login.reopenBrowser": "Reopen browser",
+  "login.organizationIdPlaceholder": "Organization ID (optional)",
+  "login.organizationIdAriaLabel": "Organization ID for multi-account SSO",
   "login.forgotPassword": "Forgot password?",
   "login.hideServer": "Hide server settings",
   "login.configureServer": "Configure server",

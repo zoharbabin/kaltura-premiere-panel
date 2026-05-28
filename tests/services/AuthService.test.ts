@@ -162,18 +162,69 @@ describe("AuthService", () => {
 
   describe("initiateSso()", () => {
     it("opens browser with correct SSO callback URL", () => {
-      const openExternalMock = jest.fn();
-      jest.doMock("uxp", () => ({ shell: { openExternal: openExternalMock } }), { virtual: true });
-
       service.initiateSso("user@company.com", "nvp1");
-      // initiateSso is synchronous — it just opens a URL
-      // The URL construction is verified implicitly; no fetch calls made
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when called with organizationId", () => {
+      expect(() => {
+        service.initiateSso("user@company.com", "nvp1", "org-123");
+      }).not.toThrow();
     });
   });
 
   describe("validateSsoToken()", () => {
-    it("validates a KS token and returns session", async () => {
+    it("extracts partnerId from a real KS structure", async () => {
+      // partnerId 5837132 encoded in KS structure
+      const payload = "abc123hash|5837132;5837132;9999999999;0;1716825600;admin;";
+      const fakeKs = btoa(payload);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          objectType: "KalturaUser",
+          id: "admin",
+          email: "admin@company.com",
+          firstName: "Admin",
+          lastName: "User",
+          fullName: "Admin User",
+          partnerId: 5837132,
+          isAdmin: true,
+        }),
+      });
+
+      const session = await service.validateSsoToken(fakeKs, "https://www.kaltura.com");
+      expect(session.partnerId).toBe(5837132);
+    });
+
+    it("uses partnerId from user.get response when KS parsing returns 0", async () => {
+      // Malformed KS that can't be parsed
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          objectType: "KalturaUser",
+          id: "user1",
+          email: "user@company.com",
+          firstName: "User",
+          lastName: "One",
+          fullName: "User One",
+          partnerId: 12345,
+          isAdmin: false,
+        }),
+      });
+
+      const session = await service.validateSsoToken(
+        "not-valid-base64!!!",
+        "https://www.kaltura.com",
+      );
+      expect(session.partnerId).toBe(12345);
+    });
+
+    it("validates a KS token and returns session with partnerId extracted from KS", async () => {
+      // Create a fake KS: base64("hash|99;99;9999999999;...")
+      const fakeKsPayload = "somehash|99;99;9999999999;0;1234567890;sso_user;";
+      const fakeKs = btoa(fakeKsPayload);
+
       // Mock user.get
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -189,8 +240,8 @@ describe("AuthService", () => {
         }),
       });
 
-      const session = await service.validateSsoToken("sso_ks_abc", 99, "https://test.kaltura.com");
-      expect(session.ks).toBe("sso_ks_abc");
+      const session = await service.validateSsoToken(fakeKs, "https://test.kaltura.com");
+      expect(session.ks).toBe(fakeKs);
       expect(session.user.fullName).toBe("SSO User");
       expect(session.partnerId).toBe(99);
     });
@@ -205,9 +256,9 @@ describe("AuthService", () => {
         }),
       });
 
-      await expect(
-        service.validateSsoToken("bad_ks", 99, "https://test.kaltura.com"),
-      ).rejects.toThrow("Invalid or expired token");
+      await expect(service.validateSsoToken("bad_ks", "https://test.kaltura.com")).rejects.toThrow(
+        "Invalid or expired token",
+      );
     });
   });
 });

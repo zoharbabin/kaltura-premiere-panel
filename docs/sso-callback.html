@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kaltura SSO — Premiere Pro</title>
+  <title>Kaltura SSO — Adobe Creative Cloud</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -78,7 +78,7 @@
     <button class="btn hidden" id="copyBtn" onclick="copyToken()">Copy Token</button>
     <p class="status" id="status"></p>
     <div class="hidden" id="instructions">
-      <p>Return to Adobe Premiere Pro and paste the token in the SSO login field.</p>
+      <p>Return to your Adobe application and paste the token in the SSO login field.</p>
     </div>
   </div>
 
@@ -91,6 +91,7 @@
     var email = params.get('email');
     var appType = params.get('appType') || 'test';
     var region = params.get('region') || 'nvp1';
+    var organizationId = params.get('organizationId');
 
     function show(id) { document.getElementById(id).classList.remove('hidden'); }
     function hide(id) { document.getElementById(id).classList.add('hidden'); }
@@ -135,6 +136,10 @@
 
     // MODE 1: Callback — we received a KS from Auth Broker redirect
     if (ks) {
+      // Remove token from URL to prevent it from lingering in browser history
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       showSuccess(ks);
 
     // MODE 2: Error callback
@@ -145,18 +150,24 @@
     } else if (action === 'login' && email) {
       var brokerUrl = 'https://auth.' + region + '.ovp.kaltura.com/api/v1';
 
+      var spaBody = { email: email, appType: appType };
+      if (organizationId) spaBody.organizationId = organizationId;
+
       fetch(brokerUrl + '/spa-proxy/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, appType: appType })
+        body: JSON.stringify(spaBody)
       })
-      .then(function(res) { return res.text(); })
+      .then(function(res) {
+        if (!res.ok) {
+          throw new Error('Authentication service returned ' + res.status);
+        }
+        return res.text();
+      })
       .then(function(html) {
-        // SPA Proxy returns HTML with auto-submit form
-        // Extract the form and submit it by rendering in a hidden iframe or redirect
-        // The HTML is: <form action="URL" method="post"><input name="token" value="ENCRYPTED">
-        var match = html.match(/action='([^']+)'/);
-        var tokenMatch = html.match(/value='([^']+)'/);
+        // SPA Proxy returns HTML with auto-submit form (attributes may use single or double quotes)
+        var match = html.match(/action=['"]([^'"]+)['"]/);
+        var tokenMatch = html.match(/value=['"]([^'"]+)['"]/);
 
         if (match && tokenMatch) {
           // Create and submit the form
@@ -193,8 +204,8 @@
       hide('spinner');
       show('icon');
       document.getElementById('icon').textContent = '?';
-      document.getElementById('title').textContent = 'Kaltura SSO for Premiere Pro';
-      document.getElementById('message').textContent = 'This page handles SSO authentication for the Kaltura Premiere Pro plugin. It should be opened automatically by the plugin.';
+      document.getElementById('title').textContent = 'Kaltura SSO for Adobe Creative Cloud';
+      document.getElementById('message').textContent = 'This page handles SSO authentication for the Kaltura plugin. It should be opened automatically by the plugin.';
     }
   </script>
 </body>

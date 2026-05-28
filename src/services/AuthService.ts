@@ -213,14 +213,21 @@ export class AuthService {
    * 3. Receiving the KS back from Auth Broker
    * 4. Displaying it for the user to copy/paste back into the plugin
    */
-  initiateSso(email: string, region: string = AUTH_BROKER_DEFAULT_REGION): void {
-    log.info("Initiating SSO via Auth Broker", { email, region });
+  initiateSso(
+    email: string,
+    region: string = AUTH_BROKER_DEFAULT_REGION,
+    organizationId?: string,
+  ): void {
+    log.info("Initiating SSO via Auth Broker", { email, region, organizationId });
 
     const callbackUrl = new URL(SSO_CALLBACK_URL);
     callbackUrl.searchParams.set("action", "login");
     callbackUrl.searchParams.set("email", email);
     callbackUrl.searchParams.set("appType", SSO_APP_TYPE);
     callbackUrl.searchParams.set("region", region);
+    if (organizationId) {
+      callbackUrl.searchParams.set("organizationId", organizationId);
+    }
 
     const url = callbackUrl.toString();
     try {
@@ -233,11 +240,12 @@ export class AuthService {
 
   /**
    * Complete SSO login by validating a pasted KS token.
-   * Called after the user authenticates in the browser and pastes the token back.
+   * Extracts partnerId from the KS structure (base64: hash|pid;pid;expiry;...).
    */
-  async validateSsoToken(ks: string, partnerId: number, serverUrl: string): Promise<AuthSession> {
+  async validateSsoToken(ks: string, serverUrl: string): Promise<AuthSession> {
     log.info("Validating SSO token");
 
+    const partnerId = this.extractPartnerIdFromKs(ks);
     this.client.configure({ serviceUrl: serverUrl, partnerId });
     this.client.setKs(ks);
 
@@ -247,7 +255,7 @@ export class AuthService {
         ks,
         user,
         expiry: Date.now() / 1000 + 86400,
-        partnerId,
+        partnerId: user.partnerId ?? partnerId,
       };
       await this.setSession(session);
       log.info("SSO token validated, login complete");
@@ -260,10 +268,28 @@ export class AuthService {
           "SSO_INVALID_TOKEN",
         );
       }
+      if (error instanceof AuthenticationError) throw error;
       throw new AuthenticationError(
         "Token validation failed. Please try again.",
         "SSO_VALIDATION_FAILED",
       );
+    }
+  }
+
+  private extractPartnerIdFromKs(ks: string): number {
+    try {
+      // KS may use URL-safe base64 (- instead of +, _ instead of /)
+      const normalized = ks.replace(/-/g, "+").replace(/_/g, "/");
+      const decoded = atob(normalized);
+      // KS structure: "hash|partnerId;partnerId;expiry;..."
+      const pipeIdx = decoded.indexOf("|");
+      if (pipeIdx === -1) return 0;
+      const afterPipe = decoded.substring(pipeIdx + 1);
+      const firstSemi = afterPipe.indexOf(";");
+      if (firstSemi === -1) return 0;
+      return parseInt(afterPipe.substring(0, firstSemi), 10) || 0;
+    } catch {
+      return 0;
     }
   }
 

@@ -60,24 +60,28 @@ export const AuthGate: React.FC<AuthGateProps> = ({ panelTitle, children }) => {
   const handleLogin = useCallback(
     async (credentials: KalturaLoginCredentials) => {
       await login(credentials);
-      auditService.logAction("login", undefined, `User: ${credentials.email}`);
-      document.dispatchEvent(new Event(AUTH_SIGNIN_EVENT));
+      if (authService.isAuthenticated()) {
+        auditService.logAction("login", undefined, `User: ${credentials.email}`);
+        document.dispatchEvent(new Event(AUTH_SIGNIN_EVENT));
+      }
     },
     [login],
   );
 
   const handleSsoInitiate = useCallback(
-    (email: string, region?: string) => {
-      initiateSso(email, region);
+    (email: string, region?: string, organizationId?: string) => {
+      initiateSso(email, region, organizationId);
     },
     [initiateSso],
   );
 
   const handleSsoComplete = useCallback(
-    async (ks: string, partnerId: number, serverUrl: string) => {
-      await completeSso(ks, partnerId, serverUrl);
-      auditService.logAction("login", undefined, "SSO login");
-      document.dispatchEvent(new Event(AUTH_SIGNIN_EVENT));
+    async (ks: string, serverUrl: string) => {
+      await completeSso(ks, serverUrl);
+      if (authService.isAuthenticated()) {
+        auditService.logAction("login", undefined, "SSO login");
+        document.dispatchEvent(new Event(AUTH_SIGNIN_EVENT));
+      }
     },
     [completeSso],
   );
