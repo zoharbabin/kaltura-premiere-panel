@@ -193,7 +193,7 @@ The following configuration was verified end-to-end (Stripe case #REDACTED_CASE)
 
 ### Token paste fails with "Invalid or expired token"
 
-- The KS token has a limited lifetime (typically 24 hours from issuance)
+- The KS token has a limited lifetime (default ~28 hours, configurable per deployment via `LOGIN_KS_EXPIRY`)
 - If the user waited too long between authenticating and pasting, they need to authenticate again
 - Verify the Kaltura server URL in the plugin matches the environment the KS was issued for
 
@@ -242,4 +242,5 @@ curl -X POST "<BASE_URL>/app-registry/delete" \
 - The token paste field uses `type="password"` to prevent shoulder-surfing
 - KS tokens are stored in UXP SecureStorage (OS-level encrypted keychain), never in localStorage
 - The SPA Proxy endpoint is unauthenticated by design (same as KMC SSO) — it only initiates the IdP redirect, it doesn't return session tokens
-- Session tokens have a 24-hour expiry with automatic refresh at 80% of TTL
+- SSO session tokens **cannot be auto-refreshed** — when the token expires, the user must re-authenticate via SSO (the plugin has no admin secret to mint new tokens)
+- Token expiry is determined by the Auth Broker deployment's `LOGIN_KS_EXPIRY` environment variable (default: 100,000 seconds / ~27.8 hours). This is a per-deployment setting, not per-customer. The plugin reads the actual expiry from the KS token structure.

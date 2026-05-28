@@ -83,6 +83,8 @@ export interface AuthSession {
   user: KalturaUser;
   expiry: number;
   partnerId: number;
+  /** How this session was created — affects whether auto-refresh is possible */
+  authMethod?: "credentials" | "appToken" | "sso";
 }
 
 /**
@@ -135,8 +137,9 @@ export class AuthService {
       const session: AuthSession = {
         ks,
         user,
-        expiry: Date.now() / 1000 + 86400, // Default 24h
+        expiry: Date.now() / 1000 + 86400,
         partnerId: credentials.partnerId,
+        authMethod: "credentials",
       };
 
       await this.setSession(session);
@@ -198,6 +201,7 @@ export class AuthService {
       user,
       expiry: Date.now() / 1000 + 86400,
       partnerId: this.client.getPartnerId(),
+      authMethod: "appToken",
     };
 
     await this.setSession(session);
@@ -245,17 +249,20 @@ export class AuthService {
   async validateSsoToken(ks: string, serverUrl: string): Promise<AuthSession> {
     log.info("Validating SSO token");
 
-    const partnerId = this.extractPartnerIdFromKs(ks);
-    this.client.configure({ serviceUrl: serverUrl, partnerId });
+    const ksFields = this.parseKsFields(ks);
+    this.client.configure({ serviceUrl: serverUrl, partnerId: ksFields.partnerId });
     this.client.setKs(ks);
 
     try {
       const user = await this.fetchUserInfo();
+      // Use expiry from KS if available; fall back to 24h from now
+      const expiry = ksFields.expiry > 0 ? ksFields.expiry : Date.now() / 1000 + 86400;
       const session: AuthSession = {
         ks,
         user,
-        expiry: Date.now() / 1000 + 86400,
-        partnerId: user.partnerId ?? partnerId,
+        expiry,
+        partnerId: user.partnerId ?? ksFields.partnerId,
+        authMethod: "sso",
       };
       await this.setSession(session);
       log.info("SSO token validated, login complete");
@@ -276,21 +283,25 @@ export class AuthService {
     }
   }
 
-  private extractPartnerIdFromKs(ks: string): number {
+  /** Parse KS fields: hash|partnerId;partnerId;expiry;type;timestamp;... */
+  private parseKsFields(ks: string): { partnerId: number; expiry: number } {
     try {
-      // KS may use URL-safe base64 (- instead of +, _ instead of /)
       const normalized = ks.replace(/-/g, "+").replace(/_/g, "/");
       const decoded = atob(normalized);
-      // KS structure: "hash|partnerId;partnerId;expiry;..."
       const pipeIdx = decoded.indexOf("|");
-      if (pipeIdx === -1) return 0;
-      const afterPipe = decoded.substring(pipeIdx + 1);
-      const firstSemi = afterPipe.indexOf(";");
-      if (firstSemi === -1) return 0;
-      return parseInt(afterPipe.substring(0, firstSemi), 10) || 0;
+      if (pipeIdx === -1) return { partnerId: 0, expiry: 0 };
+      const fields = decoded.substring(pipeIdx + 1).split(";");
+      // fields: [partnerId, partnerId, expiry, type, timestamp, ...]
+      const partnerId = parseInt(fields[0], 10) || 0;
+      const expiry = parseInt(fields[2], 10) || 0;
+      return { partnerId, expiry };
     } catch {
-      return 0;
+      return { partnerId: 0, expiry: 0 };
     }
+  }
+
+  private extractPartnerIdFromKs(ks: string): number {
+    return this.parseKsFields(ks).partnerId;
   }
 
   /**
@@ -393,6 +404,9 @@ export class AuthService {
   private scheduleRefresh(): void {
     this.cancelRefresh();
     if (!this.session) return;
+
+    // SSO sessions cannot be refreshed — they require re-authentication via the IdP
+    if (this.session.authMethod === "sso") return;
 
     const ttlSeconds = this.session.expiry - Date.now() / 1000;
     const refreshInMs = ttlSeconds * SESSION_REFRESH_THRESHOLD * 1000;
