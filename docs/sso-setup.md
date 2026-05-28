@@ -154,22 +154,13 @@ Share the relevant `_id` with the customer's admin so they can distribute it to 
 8. Return to the Adobe application and paste the token in the token field
 9. Click **Complete Login** → done
 
-## Tested Reference Configuration
+## Verification
 
-The following configuration was verified end-to-end (Stripe case #REDACTED_CASE):
+After completing the setup steps, verify end-to-end by:
 
-| Field                | Value                                                                |
-| -------------------- | -------------------------------------------------------------------- |
-| Region               | nvp1                                                                 |
-| Partner ID           | REDACTED_PID                                                               |
-| Email domain         | kaltura.com                                                          |
-| appType              | test                                                                 |
-| Auth profile         | `REDACTED_AUTH_PROFILE_ID` (Okta — `REDACTED_OKTA_APP_NAME`)      |
-| App-registry appGuid | `REDACTED_APP_GUID`                                           |
-| App subscription ID  | `REDACTED_SUBSCRIPTION_ID`                                           |
-| Landing page         | `https://kaltura.github.io/kaltura-premiere-panel/sso-callback.html` |
-| Redirect method      | HTTP-GET                                                             |
-| IdP                  | Okta (`REDACTED_OKTA_APP_ID`)                                        |
+1. Running the SPA Proxy test from Step 4
+2. Opening the full flow in a browser: `https://kaltura.github.io/kaltura-premiere-panel/sso-callback.html?action=login&email=user@<DOMAIN>&appType=test&region=nvp1`
+3. Testing from the plugin in Premiere Pro / Photoshop
 
 ## Troubleshooting
 
